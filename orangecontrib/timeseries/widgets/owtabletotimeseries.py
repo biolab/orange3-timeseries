@@ -1,17 +1,14 @@
 
-import numpy as np
-
 from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
-
-from PyQt4.QtCore import Qt
-#~ from PyQt4.QtGui import
+from orangecontrib.timeseries import Timeseries
 
 class Output:
     TIMESERIES = 'Time series'
 
+
 class Units:
-    SEQUENCE = 'sequence (ticks)'
+    SEQUENCE = 'sequence (ticks, steps)'
     YEARS = 'years'
     MONTHS = 'months'
     DAYS = 'days'
@@ -20,10 +17,6 @@ class Units:
     SECONDS = 'seconds'
     MILLISECONDS = 'milliseconds'
     all = (SEQUENCE, YEARS, MONTHS, DAYS, HOURS, MINUTES, SECONDS, MILLISECONDS)
-
-class Timeseries:
-    def __init__(self):
-        self.parts = []
 
 
 class OWTableToTimeseries(widget.OWWidget):
@@ -38,33 +31,46 @@ class OWTableToTimeseries(widget.OWWidget):
     want_main_area = False
     resizing_enabled = False
 
-    option = settings.Setting(0)
+    radio_sequential = settings.Setting(0)
     selected_attr = settings.Setting(0)
     attr_units = settings.Setting(0)
     transpose = settings.Setting(False)
+    radio_discontinuity = settings.Setting(0)
     autocommit = settings.Setting(True)
 
     def __init__(self):
 
-        group = gui.radioButtons(self.controlArea, self, 'option',
-                                 label='Table to timeseries',
-                                 callback=self.select_option)
+        # box = gui.widgetBox(self.controlArea, box='Sequential attribute',
+        #                     orientation='vertical')
+        box = self.controlArea
+        group = gui.radioButtons(box, self, 'radio_sequential',
+                                 box='Sequential attribute',
+                                 callback=self.on_changed)
         vbox = gui.widgetBox(self.controlArea, orientation='vertical')
         hbox = gui.widgetBox(vbox, orientation='horizontal')
         gui.appendRadioButton(group, 'Sequential attribute:',
                               insertInto=hbox)
         self.combo_attrs = gui.comboBox(hbox, self, 'selected_attr',
-                                        callback=self.select_option,
+                                        callback=self.on_changed,
                                         contentsLength=12)
         self.combo_units = gui.comboBox(gui.indentedBox(vbox), self, 'attr_units',
                                         label='Units:', items=Units.all,
                                         orientation='horizontal',
-                                        callback=self.select_option)
+                                        callback=self.on_changed)
         box = gui.widgetBox(self.controlArea, orientation='vertical')
         gui.appendRadioButton(group, 'Sequence is implied by instance order',
                               insertInto=box)
         self.cb_transpose = gui.checkBox(gui.indentedBox(box), self, 'transpose',
                                          label='Transposed (sequence runs in columns)')
+
+        group = gui.radioButtons(self.controlArea, self, 'radio_discontinuity',
+                                 box='Handle discontinuity',
+                                 callback=self.on_changed,
+                                 label='When data is non-equispaced, but equispaced data is required:')
+        gui.appendRadioButton(group, 'Treat as equispaced (do nothing)')
+        gui.appendRadioButton(group, 'Polynomially interpolate')
+        gui.appendRadioButton(group, 'Drop instances until equispaced')
+        gui.appendRadioButton(group, 'Aggregate')
 
         gui.rubber(self.controlArea)
         gui.auto_commit(self.controlArea, self, 'autocommit', 'Commit')
@@ -80,27 +86,31 @@ class OWTableToTimeseries(widget.OWWidget):
             selected = next((i for i, var in enumerate(data.domain)
                              if isinstance(var, TimeVariable)), 0)
             self.combo_attrs.setCurrentIndex(selected)
-        self.select_option()
+        self.on_changed()
 
-    def select_option(self):
-        self.cb_transpose.setDisabled(self.option != 1)
+    def on_changed(self):
+        self.cb_transpose.setDisabled(self.radio_sequential != 1)
         self.combo_units.setDisabled(
-            self.option != 0 or
+            self.radio_sequential != 0 or
             isinstance(self.combo_attrs.itemData(self.selected_attr), TimeVariable))
         # TODO
         self.commit()
 
     def commit(self):
-        # TODO
-        self.data
+        data = self.data
+        if data is None:
+            return
+        ts = Timeseries.from_table(data.domain, data)
+        self.send(Output.TIMESERIES, ts)
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from PyQt4.QtGui import QApplication, QLabel
+
     a = QApplication([])
     ow = OWTableToTimeseries()
 
-    data = Table("/home/jk/Downloads/orange3/timeseries/yahoo1.csv")
+    data = Timeseries.dataset['yahoo1']
     ow.set_data(data)
 
     ow.show()
