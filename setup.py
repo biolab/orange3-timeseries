@@ -33,6 +33,7 @@ if __name__ == '__main__':
         url='https://github.com/biolab/orange3-timeseries',
         keywords=(
             'time series',
+            'sequence analysis',
             'orange3 add-on',
         ),
         packages=find_packages(),
@@ -42,6 +43,9 @@ if __name__ == '__main__':
         install_requires=[
             'Orange',
             'statsmodels>=0.6.1',
+            'numpy',
+            'scipy',
+            'pyqtgraph'
         ],
         entry_points=ENTRY_POINTS,
         namespace_packages=['orangecontrib'],
