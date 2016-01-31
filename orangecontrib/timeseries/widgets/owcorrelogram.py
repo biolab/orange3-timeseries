@@ -6,6 +6,7 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
 from orangecontrib.timeseries.util import cache_clears
+from orangecontrib.timeseries.widgets.owperiodogram import PlotWidget
 
 import pyqtgraph as pg
 
@@ -38,7 +39,7 @@ class OWCorrelogram(widget.OWWidget):
                     box='Auto-correlated attribute(s)',
                     selectionMode=QListWidget.ExtendedSelection,
                     callback=self.on_changed)
-        plot = self.plot = pg.PlotWidget(background='#fff')
+        plot = self.plot = PlotWidget(background='#fff')
         plot.addLegend(offset=(-30, 30))
         self.plot.showGrid(x=True, y=True)
         self.mainArea.layout().addWidget(plot)

@@ -20,7 +20,6 @@ class Timeseries(Table):
             self.update(
                 dict((splitext(basename(path))[0], path)
                      for path in glob(join(dirname(__file__), 'datasets', '*'))))
-            print(self)
 
         def __getitem__(self, key):
             # Lazy-load and return dataset maching key
