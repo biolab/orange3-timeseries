@@ -6,7 +6,7 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
 from orangecontrib.timeseries.util import cache_clears
-from orangecontrib.timeseries.widgets.owperiodogram import PlotWidget
+from orangecontrib.timeseries.widgets.util import PlotWidget
 
 import pyqtgraph as pg
 
@@ -39,7 +39,8 @@ class OWCorrelogram(widget.OWWidget):
                     box='Auto-correlated attribute(s)',
                     selectionMode=QListWidget.ExtendedSelection,
                     callback=self.on_changed)
-        plot = self.plot = PlotWidget(background='#fff')
+        plot = self.plot = PlotWidget(crosslabel=("  period={:0.1f}", None),
+                                      rectSelMode=True)
         plot.addLegend(offset=(-30, 30))
         self.plot.showGrid(x=True, y=True)
         self.mainArea.layout().addWidget(plot)
@@ -73,9 +74,7 @@ class OWCorrelogram(widget.OWWidget):
         self.on_changed()
 
     def clear_legend(self):
-        """He was fucking insane, whoever designed this!"""
-        for sample, label in list(self.plot.plotItem.legend.items):
-            self.plot.plotItem.legend.removeItem(label.text)
+        self.plot.plotItem.legend.items = []
 
     def on_changed(self):
         self.plot.clear()
@@ -105,8 +104,8 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWCorrelogram()
 
-    # data = Timeseries.dataset['yahoo_MSFT']
-    data = Timeseries.dataset['UCI-SML2010-1']
+    # data = Timeseries('yahoo_MSFT')
+    data = Timeseries('UCI-SML2010-1')
     ow.set_data(data)
 
     ow.show()

@@ -12,23 +12,9 @@ class Timeseries(Table):
     # def __init__(self):
     #     self.parts = []
 
-    class _Datasets(dict):
-        def __init__(self):
-            super().__init__()
-            from os.path import basename, splitext, dirname, join
-            from glob import glob
-            self.update(
-                dict((splitext(basename(path))[0], path)
-                     for path in glob(join(dirname(__file__), 'datasets', '*'))))
-
-        def __getitem__(self, key):
-            # Lazy-load and return dataset maching key
-            if key in self:
-                return Timeseries(super().__getitem__(key))
-            raise KeyError('No such dataset; options are: ' + ', '.join(self.keys()))
-
-    dataset = _Datasets()
-
+    from os.path import join, dirname
+    Orange.data.table.dataset_dirs.insert(0, join(dirname(__file__), 'datasets'))
+    del join, dirname
 
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls, *args, **kwargs)

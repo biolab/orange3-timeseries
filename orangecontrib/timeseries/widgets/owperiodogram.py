@@ -13,47 +13,8 @@ from orangecontrib.timeseries.util import cache_clears
 from orangecontrib.timeseries import (
     Timeseries, periodogram as periodogram_equispaced, periodogram_nonequispaced
 )
+from orangecontrib.timeseries.widgets.util import PlotWidget
 
-
-class PlotWidget(pg.PlotWidget):
-
-    class ViewBox(pg.ViewBox):
-        """From pg.examples.PlotCustomization"""
-        def __init__(self, *args, **kwds):
-            super().__init__(*args, **kwds)
-            self.setMouseMode(self.RectMode)
-
-        def mouseClickEvent(self, ev):
-            if ev.button() == Qt.RightButton:
-                self.autoRange()
-
-    def __init__(self, **kwargs):
-        """From pg.examples.Crosshair+MouseInteraction"""
-        vb = self.ViewBox()
-        super().__init__(background='#fff',
-                         viewBox=vb,
-                         enableMenu=False)
-
-        label = pg.TextItem(color='#000')
-        font = QFont("", 10.5, QFont.Bold)
-        label.setFont(font)
-        vLine = pg.InfiniteLine(angle=90, movable=False)
-        vb.addItem(label)
-        vb.addItem(vLine, ignoreBounds=True)
-
-        def mouseMoved(evt):
-            # pos = evt[0]  # SignalProxy turns original args into a tuple
-            pos = evt
-            if vb.sceneBoundingRect().contains(pos):
-                pos = vb.mapSceneToView(pos)
-                label.setText("  period=%0.1f" % pos.x())
-                vLine.setPos(pos.x())
-                label.setPos(pos)
-
-        self.plotItem.scene().sigMouseMoved.connect(mouseMoved)
-        # FIXME: For some reason, th line below, copied from example, doesn't work
-        # pg.SignalProxy(self.plotItem.scene().sigMouseMoved,
-        #                rateLimit=60, slot=mouseMoved)
 
 
 class OWPeriodogram(widget.OWWidget):
@@ -74,7 +35,8 @@ class OWPeriodogram(widget.OWWidget):
                     box='Periodogram attribute(s)',
                     selectionMode=QListWidget.ExtendedSelection,
                     callback=self.on_changed)
-        plot = self.plot = PlotWidget()
+        plot = self.plot = PlotWidget(crosslabel=("  period={:0.1f}", None),
+                                      rectSelMode=True)
         plot.addLegend(offset=(-30, 30))
         plot.showGrid(x=True, y=True)
         plot.hideAxis('left')
@@ -114,9 +76,7 @@ class OWPeriodogram(widget.OWWidget):
         self.on_changed()
 
     def clear_legend(self):
-        """Why the fuck must I do this???"""
-        for sample, label in list(self.plot.plotItem.legend.items):
-            self.plot.plotItem.legend.removeItem(label.text)
+        self.plot.plotItem.legend.items = []
 
     def on_changed(self):
         self.plot.clear()
@@ -146,8 +106,8 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWPeriodogram()
 
-    # data = Timeseries.dataset['yahoo_MSFT']
-    data = Timeseries.dataset['UCI-SML2010-1']
+    # data = Timeseries('yahoo_MSFT')
+    data = Timeseries('UCI-SML2010-1')
     ow.set_data(data)
 
     ow.show()

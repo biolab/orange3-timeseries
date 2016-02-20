@@ -128,7 +128,9 @@ class OWYahooFinance(widget.OWWidget):
             try:
                 progress.advance()
                 self.button.setDisabled(True)
-                self.send(Output.TIMESERIES, Timeseries.from_url(url))
+                data = Timeseries.from_url(url)
+                data.name = symbol
+                self.send(Output.TIMESERIES, data)
             except Exception as e:
                 self.error('Failed to download data (HTTP Error {}). Wrong stock symbol?'.format(e.status))
             finally:
