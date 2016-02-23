@@ -1,0 +1,3 @@
+The mouse wheel zoom is made to increase/decrease in smaller steps
+(110% and 90% vs. 200% and 50%). See:
+https://github.com/highcharts/highcharts/pull/5068
