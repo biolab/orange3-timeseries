@@ -3,13 +3,12 @@
  */
 
 function _fixupOptionsObject(obj) {
-    /*
-    Replace any strings that start and end with '==' with their
-    eval'd value.
-     */
-    if (!(window && window.pydata && window.pydata.options) ||
-        typeof obj === 'undefined' ||
-        obj === null)
+    /**
+     * Replace any strings with their eval'd value if they
+     * start and end with an empty JavaScript block comment,
+     * i.e. these four characters:
+     */                            /**/
+    if (typeof obj === 'undefined' || obj === null)
         return;
 
     var keys = Object.keys(obj);

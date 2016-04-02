@@ -13,8 +13,7 @@ from PyQt4.QtWebKit import QWebView
 
 class WebView(QWebView):
     def __init__(self, parent=None, bridge=None, debug=False, **kwargs):
-        """
-        Construct a new QWebView widget that has no history and
+        """Construct a new QWebView widget that has no history and
         supports loading from local URLs.
 
         Parameters
@@ -32,7 +31,9 @@ class WebView(QWebView):
                          contextMenuPolicy=Qt.DefaultContextMenu,
                          **kwargs)
         self.bridge = bridge
-        self.frame = frame =self.page().mainFrame()
+        self.frame = frame = self.page().mainFrame()
+        frame.javaScriptWindowObjectCleared.connect(
+            lambda: setattr(self, 'frame', self.page().mainFrame()))
         frame.javaScriptWindowObjectCleared.connect(
             lambda: frame.addToJavaScriptWindowObject('pybridge', bridge))
 
@@ -48,19 +49,32 @@ class WebView(QWebView):
             settings.setObjectCacheCapacities(4e6, 4e6, 4e6)
             settings.enablePersistentStorage()
 
-    def evalJS(self, code):
-        self.frame.evaluateJavaScript(code)
+    def setContent(self, data, mimetype, base_url=''):
+        """Set the content `data` of type `mimetype` in the current webframe."""
+        super().setContent(data, mimetype, QUrl(base_url))
 
-    def setHtml(self, html, url=''):
-        self.setContent(html.encode('utf-8'), 'text/html', QUrl(url))
+    def dropEvent(self, event):
+        pass  # Prevent loading of drag-and-drop dropped file
+
+    def evalJS(self, code):
+        """Evaluate JavaScript code `code` in the current webframe and
+        return the result of the last executed statement."""
+        return self.frame.evaluateJavaScript(code)
+
+    def setHtml(self, html, base_url=''):
+        """Set the HTML content of the current webframe to html."""
+        self.setContent(html.encode('utf-8'), 'text/html', base_url)
 
     def svg(self):
-        """
-        Return SVG string of the first SVG element on the page, or
+        """Return SVG string of the first SVG element on the page, or
         raise ValueError if not any.
         """
         html = self.frame.toHtml()
         return html[html.index('<svg '):html.index('</svg>') + 5]
+
+    def clear(self):
+        """Clear current page by setting HTML to ''."""
+        self.setHtml('')
 
 
 def _Autotree():
@@ -86,6 +100,7 @@ def _to_primitive_types(d):
 
 
 def _merge_dicts(d1, d2):
+    """Merge dicts recursively in place (``d1`` is modified)"""
     for k, v in d1.items():
         if k in d2:
             if isinstance(v, MutableMapping) and isinstance(d2[k], MutableMapping):
@@ -95,6 +110,8 @@ def _merge_dicts(d1, d2):
 
 
 class Highchart(WebView):
+
+    TYPE = 'Chart'  # Can also be StockChart or Map
 
     _HIGHCHARTS_HTML = join(join(dirname(__file__), '_highcharts'), 'chart.html')
 
@@ -127,6 +144,8 @@ class Highchart(WebView):
                  parent=None,
                  bridge=None,
                  options=None,
+                 *,
+                 highchart='Chart',
                  enable_zoom=False,
                  enable_select=False,
                  javascript='',
@@ -136,10 +155,14 @@ class Highchart(WebView):
         Parameters
         ----------
         parent: QObject
+            Qt parent object, if any.
+        bridge: QObject
             Exposed as ``window.pybridge`` in JavaScript.
         options: dict
             Default options for this chart. See Highcharts docs. Some
             options are already set in the default theme.
+        highchart: str
+            One of `Chart`, `StockChart`, or `Map` Highcharts JS types.
         enable_zoom: bool
             Enables scroll wheel zooming and right-click zoom reset.
         enable_select: str
@@ -184,6 +207,7 @@ class Highchart(WebView):
                          debug=debug,
                          url=QUrl(self._HIGHCHARTS_HTML))
         self.debug = debug
+        self.highchart = highchart
         self.enable_zoom = enable_zoom
         enable_point_select = '+' in enable_select
         enable_rect_select = enable_select.replace('+', '')
@@ -202,14 +226,12 @@ class Highchart(WebView):
         if enable_rect_select:
             self.frame.loadFinished.connect(lambda:
                 self.evalJS(
-                    self._ASYNC(
-                        'Highcharts.setOptions({});'.format(
-                            self._RECT_SELECT_OPTIONS(enable_rect_select)))))
+                    'Highcharts.setOptions({});'.format(
+                        self._RECT_SELECT_OPTIONS(enable_rect_select))))
         self.frame.loadFinished.connect(lambda:
             self.evalJS(
-                self._ASYNC(
-                    '{}; Highcharts.setOptions({});'.format(javascript,
-                                                            json(options)))))
+                '{}; Highcharts.setOptions({});'.format(javascript,
+                                                        json(options))))
 
     def _kwargs_options(self, kwargs):
         kwoptions = _Autotree()
@@ -240,13 +262,48 @@ class Highchart(WebView):
         def options(self):
             return self._options
 
-    def chart(self, options=None, javascript='', javascript_after='', **kwargs):
-        """
-        Populate the webview with a new Highcharts JS chart.
+    def exposeObject(self, name, obj):
+        """Expose the object `obj` as ``window.<name>`` in JavaScript.
+
+        If the object contains any string values that start and end with
+        literal ``/**/``, those are evaluated as JS expressions the result
+        value replaces the string in the object.
+
+        The exposure, as defined here, represents a snapshot of object at
+        the time of execution. Any future changes on the original Python
+        object are not (necessarily) visible in its JavaScript counterpart.
 
         Parameters
         ----------
-        options, javascript, **kwargs:
+        name: str
+            The global name the object is exposed as.
+        obj: object
+            The object to expose. Must contain only primitive types, such as:
+            int, float, str, bool, list, dict, set, numpy.ndarray.
+        """
+        if not isinstance(obj, Mapping):
+            raise TypeError('top level object must be a dict')
+        try:
+            obj = _to_primitive_types(obj)
+        except TypeError:
+            raise TypeError('object must consist of primitive types (allowed: '
+                            'int, float, str, bool, list, dict, set, numpy.ndarray)')
+
+        pydata = self._pydata = self._Options()
+        pydata._options = obj
+        self.frame.addToJavaScriptWindowObject('_' + name, pydata)
+        self.evalJS('''
+            window.{0} = window._{0}.options;
+            _fixupOptionsObject({0});
+        '''.format(name))
+
+    def chart(self, options=None, *,
+              highchart=None, javascript='', javascript_after='', **kwargs):
+        """ Populate the webview with a new Highcharts JS chart.
+
+        Parameters
+        ----------
+        options, highchart, javascript, **kwargs:
             The parameters are the same as for the object constructor.
         javascript_after: str
             Same as `javascript`, except that the code is evaluated
@@ -255,7 +312,7 @@ class Highchart(WebView):
         Notes
         -----
         Passing ``{ series: [{ data: some_data }] }``, if ``some_data`` is
-        a numpy array, it is more efficient to leave it as numpy array
+        a numpy array, it is **more efficient** to leave it as numpy array
         instead of converting it ``some_data.tolist()``, which is done
         implicitly.
         """
@@ -265,22 +322,26 @@ class Highchart(WebView):
 
         if kwargs:
             _merge_dicts(options, self._kwargs_options(kwargs))
-        try:
-            options = _to_primitive_types(options)
-        except TypeError:
-            raise TypeError('options must be primitive types (allowed: '
-                            'int, float, str, bool, list, dict, set, numpy.ndarray)')
+        self.exposeObject('pydata', options)
+        highchart = highchart or self.highchart or 'Chart'
+        self.evalJS('''
+            {javascript};
+            window.chart = new Highcharts.{highchart}(pydata);
+            {javascript_after};
+        '''.format(**locals()))
 
-        pydata = self._pydata = self._Options()
-        pydata._options = options
-        self.frame.addToJavaScriptWindowObject('pydata', pydata)
-        self.evalJS(
-            self._ASYNC(
-                '{};'
-                'var __OPTIONS = window.pydata.options;'
-                '_fixupOptionsObject(__OPTIONS);'
-                'window.chart = new Highcharts.Chart(__OPTIONS);'
-                '{};'.format(javascript, javascript_after)))
+    def evalJS(self, javascript):
+        """ Asynchronously evaluate JavaScript code. """
+        super().evalJS(self._ASYNC(javascript))
+
+    def clear(self):
+        """Remove all series from the chart"""
+        self.evalJS('''
+        while(chart.series.length > 0) {
+            chart.series[0].remove(false);
+        }
+        chart.redraw();
+        ''')
 
 
 
@@ -307,6 +368,7 @@ if __name__ == '__main__':
                              # credits_text='BTYB Yours Truly',
                              title_text='Foo plot',
                              chart_type='scatter',
+
                              ))
     w.show()
     app.exec()
