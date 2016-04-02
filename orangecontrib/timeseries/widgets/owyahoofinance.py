@@ -6,18 +6,11 @@ from PyQt4.QtGui import QDateEdit, QComboBox
 from Orange.widgets import widget, gui, settings
 
 from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries.yahoo import finance_data, DataGranularity
 
 
 class Output:
     TIMESERIES = "Time series"
-
-
-class DataGranularity:
-    DAILY, \
-    WEEKLY, \
-    MONTHLY, \
-    DIVIDENDS = 'Daily', 'Weekly', 'Monthly', 'Dividends only'
-    all = (DAILY, WEEKLY, MONTHLY, DIVIDENDS)
 
 
 class OWYahooFinance(widget.OWWidget):
@@ -81,22 +74,13 @@ class OWYahooFinance(widget.OWWidget):
         hbox.layout().addWidget(date_to)
 
         gui.radioButtons(box, self, 'data_granularity',
-                         btnLabels=DataGranularity.all,
+                         btnLabels=[i.name.capitalize() for i in DataGranularity],
                          label='Granularity:')
         self.button = gui.button(self.controlArea, self, 'Download',
                                  callback=self.download)
 
     def download(self):
-        URL = 'http://real-chart.finance.yahoo.com/table.csv?' \
-              's={SYMBOL}&d={TO_MONTH}&e={TO_DAY}&f={TO_YEAR}&' \
-              'g={GRANULARITY}&a={FROM_MONTH}&b={FROM_DAY}&c={FROM_YEAR}&ignore=.csv'
-
-        granularity = {
-            DataGranularity.DAILY: 'd',
-            DataGranularity.WEEKLY: 'w',
-            DataGranularity.MONTHLY: 'm',
-            DataGranularity.DIVIDENDS: 'v',
-        }[DataGranularity.all[self.data_granularity]]
+        granularity = list(DataGranularity)[self.data_granularity].value
 
         date_from = datetime.strptime(self.date_from, self.PY_DATE_FORMAT)
         date_to = datetime.strptime(self.date_to, self.PY_DATE_FORMAT)
@@ -115,24 +99,19 @@ class OWYahooFinance(widget.OWWidget):
         if not symbol:
             return
 
-        url = URL.format(SYMBOL=symbol,
-                         GRANULARITY=granularity,
-                         TO_MONTH=date_to.month - 1,
-                         TO_DAY=date_to.day,
-                         TO_YEAR=date_to.year,
-                         FROM_MONTH=date_from.month - 1,
-                         FROM_DAY=date_from.day,
-                         FROM_YEAR=date_from.year)
         self.error(0)
         with self.progressBar(3) as progress:
             try:
                 progress.advance()
                 self.button.setDisabled(True)
-                data = Timeseries.from_url(url)
-                data.name = symbol
+                data = finance_data(symbol, date_from, date_to, granularity)
+                # Treat finance data as equispaced
+                data.is_equispaced = True
+
                 self.send(Output.TIMESERIES, data)
             except Exception as e:
-                self.error('Failed to download data (HTTP Error {}). Wrong stock symbol?'.format(e.status))
+                self.error('Failed to download data (HTTP Error {}). Wrong stock symbol?'
+                           .format(getattr(e, 'status', -1)))
             finally:
                 self.button.setDisabled(False)
 
