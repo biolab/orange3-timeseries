@@ -6,9 +6,8 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
 from orangecontrib.timeseries.util import cache_clears
-from orangecontrib.timeseries.widgets.util import PlotWidget
+from orangecontrib.timeseries.widgets.highcharts import Highchart
 
-import pyqtgraph as pg
 
 from PyQt4.QtGui import QListWidget
 
@@ -23,7 +22,7 @@ class OWCorrelogram(widget.OWWidget):
 
     attrs = settings.Setting([])
     use_pacf = settings.Setting(False)
-    use_confint = settings.Setting(False)
+    use_confint = settings.Setting(True)
 
     def __init__(self):
         self.all_attrs = []
@@ -39,10 +38,23 @@ class OWCorrelogram(widget.OWWidget):
                     box='Auto-correlated attribute(s)',
                     selectionMode=QListWidget.ExtendedSelection,
                     callback=self.on_changed)
-        plot = self.plot = PlotWidget(crosslabel=("  period={:0.1f}", None),
-                                      rectSelMode=True)
-        plot.addLegend(offset=(-30, 30))
-        self.plot.showGrid(x=True, y=True)
+        plot = self.plot = Highchart(
+            self,
+            enable_zoom=True,
+            plotOptions_line_marker_enabled=False,
+            plotOptions_column_borderWidth=0,
+            plotOptions_column_groupPadding=0,
+            plotOptions_series_pointWidth=3,
+            yAxis_min=-1.0,
+            yAxis_max=1.0,
+            xAxis_min=0,
+            xAxis_gridLineWidth=1,
+            yAxis_plotLines=[dict(value=0, color='#000', width=1, zIndex=2)],
+            yAxis_title_text='',
+            xAxis_title_text='period',
+            tooltip_headerFormat='Correlation at period: {point.key:.2f}<br/>',
+            tooltip_pointFormat='<span style="color:{point.color}">\u25CF</span> {point.y:.2f}<br/>',
+        )
         self.mainArea.layout().addWidget(plot)
 
     @lru_cache(20)
@@ -62,8 +74,6 @@ class OWCorrelogram(widget.OWWidget):
     def set_data(self, data):
         self.data = data
         self.all_attrs = []
-        self.plot.clear()
-        self.clear_legend()
         if data is None:
             return
         self.all_attrs = [(var.name, gui.attributeIconDict[var])
@@ -71,42 +81,53 @@ class OWCorrelogram(widget.OWWidget):
                           if (var is not data.time_variable and
                               isinstance(var, ContinuousVariable))]
         self.attrs = [0]
-        self.on_changed()
-
-    def clear_legend(self):
-        self.plot.plotItem.legend.items = []
 
     def on_changed(self):
-        self.plot.clear()
-        self.clear_legend()
         if not self.attrs:
             return
 
+        series = []
+        options = dict(series=series)
         for attr, color in zip(self.attrs,
                                ColorPaletteGenerator(len(self.all_attrs))[self.attrs]):
-            attr_idx = self.data.domain.index(self.all_attrs[attr][0])
+            attr_name = self.all_attrs[attr][0]
+            attr_idx = self.data.domain.index(attr_name)
             pac = self.acf(attr_idx, self.use_pacf, self.use_confint)
             pac, confint = pac if self.use_confint else (pac, None)
-            self.plot.plot(pac,
-                           pen=pg.mkPen(color.darker(180), width=2),
-                           name=self.all_attrs[attr][0])
-            if confint is not None:
-                self.plot.plot(confint[:, 0], pen=pg.mkPen(color, width=1))
-                self.plot.plot(confint[:, 1], pen=pg.mkPen(color, width=1))
 
-        self.plot.setRange(xRange=(0, len(pac)), yRange=(-1, 1))
-        self.plot.setLimits(xMin=-1.1, xMax=len(pac) + 50, yMin=-1.05, yMax=1.05)
+            series.append(dict(
+                data=pac,
+                name=attr_name,
+                lineWidth=2,
+                zIndex=2,
+            ))
+            if confint is not None:
+                series.append(dict(
+                    type='arearange',
+                    name='95% confidence',
+                    data=confint,
+                    enableMouseTracking=False,
+                    linkedTo=':previous',
+                    color='/**/ Highcharts.getOptions().colors[{}] /**/'.format(len(series) // 2),
+                    lineWidth=0,
+                    fillOpacity=.2,
+                    zIndex=1,
+                ))
+
+        self.plot.chart(options, xAxis_type='linear')
 
 
 
 if __name__ == "__main__":
     from PyQt4.QtGui import QApplication
+    from PyQt4.QtCore import QTimer
+
     a = QApplication([])
     ow = OWCorrelogram()
 
     # data = Timeseries('yahoo_MSFT')
     data = Timeseries('UCI-SML2010-1')
-    ow.set_data(data)
+    QTimer.singleShot(100, lambda: ow.set_data(data))
 
     ow.show()
     a.exec()

@@ -1,20 +1,17 @@
-from PyQt4.QtCore import Qt
 from functools import lru_cache
 
 from Orange.data import ContinuousVariable
 from Orange.util import scale
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 
-import pyqtgraph as pg
-from PyQt4.QtGui import QListWidget, QFont
+import numpy as np
+from PyQt4.QtGui import QListWidget
 
 from orangecontrib.timeseries.util import cache_clears
 from orangecontrib.timeseries import (
     Timeseries, periodogram as periodogram_equispaced, periodogram_nonequispaced
 )
-from orangecontrib.timeseries.widgets.util import PlotWidget
-
+from orangecontrib.timeseries.widgets.highcharts import Highchart
 
 
 class OWPeriodogram(widget.OWWidget):
@@ -35,12 +32,22 @@ class OWPeriodogram(widget.OWWidget):
                     box='Periodogram attribute(s)',
                     selectionMode=QListWidget.ExtendedSelection,
                     callback=self.on_changed)
-        plot = self.plot = PlotWidget(crosslabel=("  period={:0.1f}", None),
-                                      rectSelMode=True)
-        plot.addLegend(offset=(-30, 30))
-        plot.showGrid(x=True, y=True)
-        plot.hideAxis('left')
-        plot.setLabel('bottom', 'period', units='#steps')
+        plot = self.plot = Highchart(
+            self,
+            enable_zoom=True,
+            chart_type='column',
+            plotOptions_line_marker_enabled=False,
+            yAxis_min=0,
+            yAxis_max=1.05,
+            yAxis_showLastLabel=True,
+            yAxis_endOnTick=False,
+            xAxis_min=0,
+            xAxis_gridLineWidth=1,
+            yAxis_title_text='',
+            xAxis_title_text='period',
+            tooltip_headerFormat='period: {point.key:.2f}<br/>',
+            tooltip_pointFormat='<span style="color:{point.color}">\u25CF</span> {point.y:.2f}<br/>',
+        )
         self.mainArea.layout().addWidget(plot)
 
     @lru_cache(20)
@@ -64,8 +71,6 @@ class OWPeriodogram(widget.OWWidget):
     def set_data(self, data):
         self.data = data
         self.all_attrs = []
-        self.plot.clear()
-        self.clear_legend()
         if data is None:
             return
         self.all_attrs = [(var.name, gui.attributeIconDict[var])
@@ -75,40 +80,37 @@ class OWPeriodogram(widget.OWWidget):
         self.attrs = [0]
         self.on_changed()
 
-    def clear_legend(self):
-        self.plot.plotItem.legend.items = []
-
     def on_changed(self):
-        self.plot.clear()
-        self.clear_legend()
         if not self.attrs:
             return
 
+        options = dict(series=[])
         max_x = 1  # The maximum period to which pgrams should be plotted
-        for attr, color in zip(self.attrs,
-                               ColorPaletteGenerator(len(self.all_attrs))[self.attrs]):
-            attr_idx = self.data.domain.index(self.all_attrs[attr][0])
+        for attr in self.attrs:
+            attr_name = self.all_attrs[attr][0]
+            attr_idx = self.data.domain.index(attr_name)
             periods, pgram = self.periodogram(attr_idx)
-            self.plot.plot(periods, pgram,
-                           pen=pg.mkPen(color, width=2),
-                           name=self.all_attrs[attr][0])
             # Truncate plot values where the line is straight 0
             i = max(0, (pgram > .05).nonzero()[0][0] - 20)
             max_x = max(max_x, periods[i])
 
-        self.plot.setRange(xRange=(0, max_x), yRange=(0, 1))
-        self.plot.setLimits(xMin=-1.1, xMax=max_x, yMin=-.01, yMax=1.05)
+            options['series'].append(dict(
+                data=np.column_stack((periods, pgram))[::-1],
+                name=attr_name))
+
+        self.plot.chart(options, xAxis_max=max_x)
 
 
 if __name__ == "__main__":
     from PyQt4.QtGui import QApplication
+    from PyQt4.QtCore import QTimer
 
     a = QApplication([])
     ow = OWPeriodogram()
 
     # data = Timeseries('yahoo_MSFT')
     data = Timeseries('UCI-SML2010-1')
-    ow.set_data(data)
+    QTimer.singleShot(100, lambda: ow.set_data(data))
 
     ow.show()
-    a.exec()
+    a.exec_()
