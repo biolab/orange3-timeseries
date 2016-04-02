@@ -23,14 +23,33 @@ class Timeseries(Table):
         if hasattr(self, 'domain') and hasattr(self.domain, 'attributes'):
             self.time_variable = next((var for var in self.domain
                                        if isinstance(var, TimeVariable)), None)
+        self._is_equispaced = True  # By default, assume it's equispaced
 
     @property
     @lru_cache(1)
+    # TODO: http://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
     def is_equispaced(self):
-        deriv = np.diff(self.time_values, 1)
-        # Approximately 1% of otherwise equispaced points missing is still
-        # tolerated as equispaced and doesn't need interpolation
-        return (deriv - deriv.mean()).std() < .11
+        """A series is considered equispaced if >95% of time differences are
+        within 20% of te mean (or, alternatively, median) time difference."""
+        if self._is_equispaced:
+            return True
+        dt = np.diff(self.time_values)
+        return (self._is_equispaced or
+                np.isclose(dt, dt.mean(), rtol=.2) / dt.size > .95 or
+                np.isclose(dt, np.median(dt, overwrite_input=True), rtol=.2) / dt.size > .95)
+
+    @is_equispaced.setter
+    def is_equispaced(self, val):
+        assert isinstance(val, bool)
+        self._is_equispaced = val
+
+    @property
+    def has_holes(self):  # FIXME: reword
+        """Data is equispaced (frequency is static) but has holes where data
+        is missing."""
+        dt = np.diff(self.time_values)
+        return (np.max(dt) / np.median(dt, overwrite_input=True)) < 1.05
+
 
     @cache_clears(is_equispaced)
     def append(self, measurements):
