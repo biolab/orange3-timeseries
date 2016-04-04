@@ -109,59 +109,28 @@ def _merge_dicts(d1, d2):
     return d1
 
 
+def _kwargs_options(kwargs):
+    """Transforma a dict into a hierarchical dict.
+
+    Example
+    -------
+    >>> (_kwargs_options(dict(a_b_c=1, a_d_e=2, x=3)) ==
+    ...  dict(a=dict(b=dict(c=1), d=dict(e=2)), x=3))
+    True
+    """
+    kwoptions = _Autotree()
+    for kws, val in kwargs.items():
+        cur = kwoptions
+        kws = kws.split('_')
+        for kw in kws[:-1]:
+            cur = cur[kw]
+        cur[kws[-1]] = val
+    return kwoptions
+
+
 class Highchart(WebView):
 
-    TYPE = 'Chart'  # Can also be StockChart or Map
-
     _HIGHCHARTS_HTML = join(join(dirname(__file__), '_highcharts'), 'chart.html')
-
-    _ASYNC = '''
-    (function() {{
-        var __check = setInterval(function() {{
-            if (window && window.jQuery && window.Highcharts) {{
-                clearInterval(__check);
-                {};
-            }}
-        }}, 10);
-    }})();
-    '''.format
-
-    _SELECT_OPTIONS = '''
-    {
-        chart: {
-            events: {
-                click: unselectAllPoints,
-            }
-        }
-    }
-    '''
-
-    _RECT_SELECT_OPTIONS = '''
-    {{
-        chart: {{
-            zoomType: '{}',
-            events: {{
-                selection: rectSelectPoints,
-            }}
-        }}
-    }}
-    '''.format
-
-    _POINT_SELECT_OPTIONS = '''
-    {
-        plotOptions: {
-            series: {
-                allowPointSelect: true,
-                point: {
-                    events: {
-                        click: clickedPointSelect
-                    }
-                }
-            }
-        }
-    }
-    '''
-
 
     def __init__(self,
                  parent=None,
@@ -237,46 +206,33 @@ class Highchart(WebView):
         enable_point_select = '+' in enable_select
         enable_rect_select = enable_select.replace('+', '')
         if enable_zoom:
-            _merge_dicts(options, dict(
-                mapNavigation=dict(
-                    enableMouseWheelZoom=True,
-                    enableButtons=False)))
-        if kwargs:
-            _merge_dicts(options, self._kwargs_options(kwargs))
-
+            _merge_dicts(options, _kwargs_options(dict(
+                mapNavigation_enableMouseWheelZoom=True,
+                mapNavigation_enableButtons=False)))
         if enable_select:
             self._selection_callback = selection_callback
             self.frame.addToJavaScriptWindowObject('__highchart', self)
-            self.frame.loadFinished.connect(
-                lambda: self.evalJS(
-                    'Highcharts.setOptions({});'.format(self._SELECT_OPTIONS)))
-
+            _merge_dicts(options, _kwargs_options(dict(
+                chart_events_click='/**/unselectAllPoints/**/')))
         if enable_point_select:
-            self.frame.loadFinished.connect(lambda:
-                self.evalJS(
-                    'Highcharts.setOptions({});'.format(
-                        self._POINT_SELECT_OPTIONS)))
+            _merge_dicts(options, _kwargs_options(dict(
+                plotOptions_series_allowPointSelect=True,
+                plotOptions_series_point_events_click='/**/clickedPointSelect/**/')))
         if enable_rect_select:
-            self.frame.loadFinished.connect(lambda:
-                self.evalJS(
-                    'Highcharts.setOptions({});'.format(
-                        self._RECT_SELECT_OPTIONS(enable_rect_select))))
+            _merge_dicts(options, _kwargs_options(dict(
+                chart_zoomType=enable_rect_select,
+                chart_events_selection='/**/rectSelectPoints/**/')))
+        if kwargs:
+            _merge_dicts(options, _kwargs_options(kwargs))
 
-        self.frame.loadFinished.connect(lambda:
-            self.evalJS(
-                '{}; Highcharts.setOptions({});'.format(javascript,
-                                                        json(options))))
-
-    def _kwargs_options(self, kwargs):
-        kwoptions = _Autotree()
-        for kws, val in kwargs.items():
-            cur = kwoptions
-            kws = kws.split('_')
-            for kw in kws[:-1]:
-                cur = cur[kw]
-            cur[kws[-1]] = val
-        return kwoptions
-
+        self.frame.loadFinished.connect(
+            lambda: self._evalJS('''
+                {javascript};
+                var options = {options};
+                _fixupOptionsObject(options);
+                Highcharts.setOptions(options);
+                '''.format(javascript=javascript,
+                           options=json(options))))
 
     def contextMenuEvent(self, event):
         if self.enable_zoom:
@@ -326,7 +282,7 @@ class Highchart(WebView):
         pydata = self._pydata = self._Options()
         pydata._options = obj
         self.frame.addToJavaScriptWindowObject('_' + name, pydata)
-        self.evalJS('''
+        self._evalJS('''
             window.{0} = window._{0}.options;
             _fixupOptionsObject({0});
         '''.format(name))
@@ -355,18 +311,31 @@ class Highchart(WebView):
             raise ValueError('options must be dict')
 
         if kwargs:
-            _merge_dicts(options, self._kwargs_options(kwargs))
+            _merge_dicts(options, _kwargs_options(kwargs))
         self.exposeObject('pydata', options)
         highchart = highchart or self.highchart or 'Chart'
-        self.evalJS('''
+        self._evalJS('''
             {javascript};
             window.chart = new Highcharts.{highchart}(pydata);
             {javascript_after};
         '''.format(**locals()))
 
+    _ENSURE_HAVE = '''
+    (function(){
+        var __check = setInterval(function() {
+            if (%s) { clearInterval(__check); %%s; }
+        }, 10);
+    })();
+    '''
+    _ENSURE_HAVE_HIGHCHARTS = _ENSURE_HAVE % 'window.jQuery && window.Highcharts'
+    _ENSURE_HAVE_CHART = _ENSURE_HAVE % 'window.Highcharts && window.chart'
+
+    def _evalJS(self, javascript):
+        super().evalJS(self._ENSURE_HAVE_HIGHCHARTS % javascript)
+
     def evalJS(self, javascript):
         """ Asynchronously evaluate JavaScript code. """
-        super().evalJS(self._ASYNC(javascript))
+        super().evalJS(self._ENSURE_HAVE_CHART % javascript)
 
     def clear(self):
         """Remove all series from the chart"""
