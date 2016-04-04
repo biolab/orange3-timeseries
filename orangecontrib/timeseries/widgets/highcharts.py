@@ -6,8 +6,8 @@ import numpy as np
 
 from os.path import join, dirname
 
-from PyQt4.QtCore import Qt, QUrl, QSize, QObject, pyqtProperty, pyqtSlot
-from PyQt4.QtGui import QWidget, QSizePolicy
+from PyQt4.QtCore import Qt, QUrl, QSize, QObject, pyqtProperty, pyqtSlot, QEventLoop
+from PyQt4.QtGui import QWidget, QSizePolicy, qApp
 from PyQt4.QtWebKit import QWebView
 
 
@@ -228,13 +228,16 @@ class Highchart(WebView):
             _merge_dicts(options, _kwargs_options(kwargs))
 
         self.frame.loadFinished.connect(
-            lambda: self._evalJS('''
+            lambda: self.evalJS('''
                 {javascript};
                 var options = {options};
                 _fixupOptionsObject(options);
                 Highcharts.setOptions(options);
                 '''.format(javascript=javascript,
                            options=json(options))))
+        # Give above scripts time to load
+        qApp.processEvents(QEventLoop.ExcludeUserInputEvents)
+        qApp.processEvents(QEventLoop.ExcludeUserInputEvents)
 
     def contextMenuEvent(self, event):
         if self.enable_zoom:
@@ -284,7 +287,7 @@ class Highchart(WebView):
         pydata = self._pydata = self._Options()
         pydata._options = obj
         self.frame.addToJavaScriptWindowObject('_' + name, pydata)
-        self._evalJS('''
+        self.evalJS('''
             window.{0} = window._{0}.options;
             _fixupOptionsObject({0});
         '''.format(name))
@@ -308,6 +311,9 @@ class Highchart(WebView):
         instead of converting it ``some_data.tolist()``, which is done
         implicitly.
         """
+        # Give default options some time to apply
+        qApp.processEvents(QEventLoop.ExcludeUserInputEvents)
+
         options = (options or {}).copy()
         if not isinstance(options, MutableMapping):
             raise ValueError('options must be dict')
@@ -316,28 +322,18 @@ class Highchart(WebView):
             _merge_dicts(options, _kwargs_options(kwargs))
         self.exposeObject('pydata', options)
         highchart = highchart or self.highchart or 'Chart'
-        self._evalJS('''
+        self.evalJS('''
             {javascript};
             window.chart = new Highcharts.{highchart}(pydata);
             {javascript_after};
         '''.format(**locals()))
 
-    _ENSURE_HAVE = '''
-    (function(){
-        var __check = setInterval(function() {
-            if (%s) { clearInterval(__check); %%s; }
-        }, 10);
-    })();
-    '''
-    _ENSURE_HAVE_HIGHCHARTS = _ENSURE_HAVE % 'window.jQuery && window.Highcharts'
-    _ENSURE_HAVE_CHART = _ENSURE_HAVE % 'window.Highcharts && window.chart'
-
-    def _evalJS(self, javascript):
-        super().evalJS(self._ENSURE_HAVE_HIGHCHARTS % javascript)
-
     def evalJS(self, javascript):
         """ Asynchronously evaluate JavaScript code. """
-        super().evalJS(self._ENSURE_HAVE_CHART % javascript)
+        # Why do we need this? I don't know. But performance of loading/evaluating
+        # any JS code is greatly improved.
+        _ASYNC = 'setTimeout(function() { %s; }, 10);'
+        super().evalJS(_ASYNC % javascript)
 
     def clear(self):
         """Remove all series from the chart"""
@@ -356,29 +352,20 @@ class Highchart(WebView):
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
-    from PyQt4.QtCore import QTimer, pyqtProperty, QObject
     import numpy as np
     app = QApplication([])
 
+    def on_selected_points(points):
+        print(len(points), points)
 
-    class Bridge(QObject):
-        def on_selected_points(self, points):
-            print(len(points), points)
-
-    bridge = Bridge()
-
-    w = Highchart(None, bridge, enable_zoom=True, enable_select='xy+',
-                  selection_callback=bridge.on_selected_points,
+    w = Highchart(enable_zoom=True, enable_select='xy+',
+                  selection_callback=on_selected_points,
                   debug=True)
-    QTimer.singleShot(
-        1000, lambda: w.chart(dict(series=[dict(data=np.random.random((100, 2)),
-                                               marker=dict(),
-                                               )]),
-                             # credits_text='BTYB Yours Truly',
-                             title_text='Foo plot',
-                             chart_type='scatter',
-
-                             ))
+    w.chart(dict(series=[dict(data=np.random.random((100, 2)))]),
+            credits_text='BTYB Yours Truly',
+            title_text='Foo plot',
+            chart_type='scatter',
+    )
     w.show()
     app.exec()
 
