@@ -6,7 +6,7 @@ import numpy as np
 
 from os.path import join, dirname
 
-from PyQt4.QtCore import Qt, QUrl, QSize, QObject, pyqtProperty
+from PyQt4.QtCore import Qt, QUrl, QSize, QObject, pyqtProperty, pyqtSlot
 from PyQt4.QtGui import QWidget, QSizePolicy
 from PyQt4.QtWebKit import QWebView
 
@@ -124,8 +124,17 @@ class Highchart(WebView):
             }}
         }}, 10);
     }})();
-
     '''.format
+
+    _SELECT_OPTIONS = '''
+    {
+        chart: {
+            events: {
+                click: unselectAllPoints,
+            }
+        }
+    }
+    '''
 
     _RECT_SELECT_OPTIONS = '''
     {{
@@ -133,12 +142,26 @@ class Highchart(WebView):
             zoomType: '{}',
             events: {{
                 selection: rectSelectPoints,
-                click: unselectAllPoints,
-                selectedPoints: pybridge.on_selected_points
             }}
         }}
     }}
     '''.format
+
+    _POINT_SELECT_OPTIONS = '''
+    {
+        plotOptions: {
+            series: {
+                allowPointSelect: true,
+                point: {
+                    events: {
+                        click: clickedPointSelect
+                    }
+                }
+            }
+        }
+    }
+    '''
+
 
     def __init__(self,
                  parent=None,
@@ -148,6 +171,7 @@ class Highchart(WebView):
                  highchart='Chart',
                  enable_zoom=False,
                  enable_select=False,
+                 selection_callback=None,
                  javascript='',
                  debug=False,
                  **kwargs):
@@ -171,10 +195,9 @@ class Highchart(WebView):
             'x', 'y', or 'xy' (all of which can also end with '+' for the
             above), in which case it indicates the axes on which
             to enable rectangle selection. The list of selected points
-            for each input series (i.e. a list of lists) is
-            passed to the ``window.pybridge.on_selected_points`` slot.
-            Each selected point is represented with a list
-            ``[point_index, point_x or '', point_y or '']``.
+            for each input series (i.e. a list of arrays) is
+            passed to the ``selection_callback``.
+            Each selected point is represented as its index in the series.
         javascript: str
             Additional JavaScript code to evaluate beforehand. If you
             need something exposed in the global namespace,
@@ -202,6 +225,8 @@ class Highchart(WebView):
             raise ValueError('options must be dict')
         if enable_select not in ('', '+', 'x', 'y', 'xy', 'x+', 'y+', 'xy+'):
             raise ValueError("enable_select must be '+', 'x', 'y', or 'xy'")
+        if enable_select and not selection_callback:
+            raise ValueError('enable_select requires selection_callback')
 
         super().__init__(parent, bridge,
                          debug=debug,
@@ -216,18 +241,27 @@ class Highchart(WebView):
                 mapNavigation=dict(
                     enableMouseWheelZoom=True,
                     enableButtons=False)))
-        if enable_point_select:
-            _merge_dicts(options, dict(
-                plotOptions=dict(
-                    series=dict(
-                        allowPointSelect=True))))
         if kwargs:
             _merge_dicts(options, self._kwargs_options(kwargs))
+
+        if enable_select:
+            self._selection_callback = selection_callback
+            self.frame.addToJavaScriptWindowObject('__highchart', self)
+            self.frame.loadFinished.connect(
+                lambda: self.evalJS(
+                    'Highcharts.setOptions({});'.format(self._SELECT_OPTIONS)))
+
+        if enable_point_select:
+            self.frame.loadFinished.connect(lambda:
+                self.evalJS(
+                    'Highcharts.setOptions({});'.format(
+                        self._POINT_SELECT_OPTIONS)))
         if enable_rect_select:
             self.frame.loadFinished.connect(lambda:
                 self.evalJS(
                     'Highcharts.setOptions({});'.format(
                         self._RECT_SELECT_OPTIONS(enable_rect_select))))
+
         self.frame.loadFinished.connect(lambda:
             self.evalJS(
                 '{}; Highcharts.setOptions({});'.format(javascript,
@@ -343,26 +377,30 @@ class Highchart(WebView):
         chart.redraw();
         ''')
 
-
+    @pyqtSlot('QVariantList')
+    def _on_selected_points(self, points):
+        self._selection_callback([np.sort(selected).astype(int)
+                                  for selected in points])
 
 
 if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
-    from PyQt4.QtCore import QTimer, pyqtSlot, pyqtProperty, QObject
+    from PyQt4.QtCore import QTimer, pyqtProperty, QObject
     import numpy as np
     app = QApplication([])
 
 
     class Bridge(QObject):
-        @pyqtSlot('QVariantList')
         def on_selected_points(self, points):
             print(len(points), points)
 
     bridge = Bridge()
 
-    w = Highchart(None, bridge, enable_zoom=True, enable_select='xy+', debug=True)
+    w = Highchart(None, bridge, enable_zoom=True, enable_select='xy+',
+                  selection_callback=bridge.on_selected_points,
+                  debug=True)
     QTimer.singleShot(
-        100, lambda: w.chart(dict(series=[dict(data=np.random.random((1000, 2)).tolist(),
+        1000, lambda: w.chart(dict(series=[dict(data=np.random.random((100, 2)),
                                                marker=dict(),
                                                )]),
                              # credits_text='BTYB Yours Truly',

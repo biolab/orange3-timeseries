@@ -1,17 +1,56 @@
 /**
  * Our selection-handling functionality.
  */
+
+Highcharts.Chart.prototype.deselectPointsIfNot = function(accumulate) {
+    // If no Shift or Ctrl modifier, clear the existing selection
+    if (!accumulate) {
+        var points = this.getSelectedPoints();
+        for (var i = 0; i < points.length; ++i) {
+            points[i].select(false, true);
+        }
+    }
+};
+
+Highcharts.Chart.prototype.getSelectedPointsForExport = function() {
+    /**
+     * The original getSelectedPoints object is too complex for QWebView
+     * bridge. Let's just take what we need.
+     */
+    var points = [],
+        selected = this.getSelectedPoints();
+    for (var i = 0; i < this.series.length; ++i)
+        points.push([]);
+    for (var i = 0; i < selected.length; ++i) {
+        var p = selected[i];
+        points[p.series.index].push(p.index);
+    }
+    return points;
+};
+
 function unselectAllPoints(e) {
-    // Only allow left click on the canvas area
-    if (!(e.which == 1 &&
+    // Only handle left click on the canvas area, if no modifier pressed
+    if (e.ctrlKey  ||
+        e.shiftKey ||
+        !(e.which == 1 &&
           e.target.parentElement &&
           e.target.parentElement.tagName.toLowerCase() == 'svg'))
         return true;
-    var points = this.getSelectedPoints();
-    for (var i = 0; i < points.length; ++i) {
-        points[i].select(false, true);
-    }
-    window.pybridge.on_selected_points([]);
+    this.deselectPointsIfNot(false);
+    __highchart._on_selected_points([]);
+}
+
+function clickedPointSelect(e) {
+    var chart = this.series.chart;
+    chart.deselectPointsIfNot(e.shiftKey || e.ctrlKey);
+    var points = chart.getSelectedPointsForExport();
+    if (this.selected) { // Already selected, this click should deselect
+        var selected = points[this.series.index];
+        selected.splice(selected.indexOf(this.index), 1);
+    } else
+        points[this.series.index].push(this.index);
+    __highchart._on_selected_points(points);
+    return true;
 }
 
 function rectSelectPoints(e) {
@@ -29,13 +68,7 @@ function rectSelectPoints(e) {
         accumulate = e.originalEvent.shiftKey || e.originalEvent.ctrlKey,
         newstate = e.originalEvent.ctrlKey ? undefined /* =toggle */ : true;
 
-    // If no Shift or Ctrl modifier, first clear the existing selection
-    if (!accumulate) {
-        var points = this.getSelectedPoints();
-        for (var i = 0; i < points.length; ++i) {
-            points[i].select(false, true);
-        }
-    }
+    this.deselectPointsIfNot(accumulate);
 
     // Select the points
     for (var i=0; i < series.length; ++i) {
@@ -49,18 +82,6 @@ function rectSelectPoints(e) {
         }
     }
 
-    // The original getSelectedPoints object is too complex for QWebView
-    // bridge. Let's just take what we need.
-    var points = [],
-        selected = this.getSelectedPoints();
-    for (var i = 0; i < this.series.length; ++i)
-        points[i] = [];
-    for (var i = 0; i < selected.length; ++i) {
-        var p = selected[i];
-        points[p.series.index].push(~~p.index);
-    }
-    for (var i = 0; i < points.length; ++i)
-        points[i] = points[i] || [];
-    Highcharts.fireEvent(this, 'selectedPoints', points);
+    __highchart._on_selected_points(this.getSelectedPointsForExport());
     return false;  // Don't zoom
 }
