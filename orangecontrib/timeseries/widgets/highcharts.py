@@ -129,6 +129,51 @@ def _kwargs_options(kwargs):
 
 
 class Highchart(WebView):
+    """
+    Parameters
+    ----------
+    parent: QObject
+        Qt parent object, if any.
+    bridge: QObject
+        Exposed as ``window.pybridge`` in JavaScript.
+    options: dict
+        Default options for this chart. See Highcharts docs. Some
+        options are already set in the default theme.
+    highchart: str
+        One of `Chart`, `StockChart`, or `Map` Highcharts JS types.
+    enable_zoom: bool
+        Enables scroll wheel zooming and right-click zoom reset.
+    enable_select: str
+        If '+', allow series' points to be selected by clicking
+        on the markers, bars or pie slices. Can also be one of
+        'x', 'y', or 'xy' (all of which can also end with '+' for the
+        above), in which case it indicates the axes on which
+        to enable rectangle selection. The list of selected points
+        for each input series (i.e. a list of arrays) is
+        passed to the ``selection_callback``.
+        Each selected point is represented as its index in the series.
+        If the selection is empty, the callback parameter is a single
+        empty list.
+    javascript: str
+        Additional JavaScript code to evaluate beforehand. If you
+        need something exposed in the global namespace,
+        assign it as an attribute to the ``window`` object.
+    debug: bool
+        Enables right-click context menu and inspector tools.
+    **kwargs:
+        The additional options. The underscores in argument names imply
+        hierarchy, e.g., keyword argument such as ``chart_type='area'``
+        results in the following object, in JavaScript::
+
+            {
+                chart: {
+                    type: 'area'
+                }
+            }
+
+        The original `options` argument is updated with options from
+        these kwargs-derived objects.
+    """
 
     _HIGHCHARTS_HTML = join(join(dirname(__file__), '_highcharts'), 'chart.html')
 
@@ -144,49 +189,6 @@ class Highchart(WebView):
                  javascript='',
                  debug=False,
                  **kwargs):
-        """
-        Parameters
-        ----------
-        parent: QObject
-            Qt parent object, if any.
-        bridge: QObject
-            Exposed as ``window.pybridge`` in JavaScript.
-        options: dict
-            Default options for this chart. See Highcharts docs. Some
-            options are already set in the default theme.
-        highchart: str
-            One of `Chart`, `StockChart`, or `Map` Highcharts JS types.
-        enable_zoom: bool
-            Enables scroll wheel zooming and right-click zoom reset.
-        enable_select: str
-            If '+', allow series' points to be selected by clicking
-            on the markers, bars or pie slices. Can also be one of
-            'x', 'y', or 'xy' (all of which can also end with '+' for the
-            above), in which case it indicates the axes on which
-            to enable rectangle selection. The list of selected points
-            for each input series (i.e. a list of arrays) is
-            passed to the ``selection_callback``.
-            Each selected point is represented as its index in the series.
-        javascript: str
-            Additional JavaScript code to evaluate beforehand. If you
-            need something exposed in the global namespace,
-            assign it as an attribute to the ``window`` object.
-        debug: bool
-            Enables right-click context menu and inspector tools.
-        **kwargs:
-            The additional options. The underscores in argument names imply
-            hierarchy, e.g., keyword argument such as ``chart_type='area'``
-            results in the following object, in JavaScript::
-
-                {
-                    chart: {
-                        type: 'area'
-                    }
-                }
-
-            The original `options` argument is updated with options from
-            these kwargs-derived objects.
-        """
         options = (options or {}).copy()
         enable_select = enable_select or ''
 
