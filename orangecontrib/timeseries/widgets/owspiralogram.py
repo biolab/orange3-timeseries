@@ -8,8 +8,11 @@ import scipy.stats
 
 import numpy as np
 
+from PyQt4.QtGui import QListView
+
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
+from Orange.widgets.utils.itemmodels import VariableListModel
 
 from orangecontrib.timeseries import Timeseries
 from Orange.widgets.highcharts import Highchart
@@ -63,7 +66,7 @@ class Spiralogram(Highchart):
         xvals, xfunc = xdim.value
         yvals, yfunc = ydim.value
 
-        values = timeseries[:, attr].X.ravel()
+        values = timeseries[:, attr].X
         time_values = timeseries[:, timeseries.time_variable].X.ravel()
 
         if True:
@@ -232,7 +235,7 @@ class OWSpiralogram(widget.OWWidget):
 
     ax1 = settings.Setting('months of year')
     ax2 = settings.Setting('years')
-    agg_attr = settings.Setting('')
+    agg_attr = settings.Setting([])
     agg_func_i = settings.Setting(0)
 
     MODE_INDEX = list(AggregateFunctions).index(AggregateFunctions.MODE)
@@ -247,13 +250,16 @@ class OWSpiralogram(widget.OWWidget):
             box, self, 'ax1', label='Radial:', callback=self.replot,
             sendSelectedValue=True, orientation='horizontal')
         box = gui.vBox(self.controlArea, 'Aggregation')
-        self.combo_attr = gui.comboBox(
-            box, self, 'agg_attr', label='Attribute:', callback=self.replot,
-            sendSelectedValue=True)
         self.combo_func = gui.comboBox(
-            box, self, 'agg_func_i', label='Function:',
+            box, self, 'agg_func_i', label='Function:', orientation='horizontal',
             items=tuple(_enum_str(i) for i in AggregateFunctions),
             callback=self.replot)
+        self.attrlist_model = VariableListModel(parent=self)
+        self.attrlist = QListView(selectionMode=QListView.ExtendedSelection)
+        self.attrlist.setModel(self.attrlist_model)
+        self.attrlist.selectionModel().selectionChanged.connect(
+            self.attrlist_selectionChanged)
+        box.layout().addWidget(self.attrlist)
         gui.rubber(self.controlArea)
         self.chart = chart = Spiralogram(self, self,
                                          selection_callback=self.on_selection,
@@ -262,37 +268,40 @@ class OWSpiralogram(widget.OWWidget):
         self.mainArea.layout().addWidget(chart)
         chart.chart()
 
+    def attrlist_selectionChanged(self):
+        self.agg_attr = [self.attrlist_model[i.row()]
+                         for i in self.attrlist.selectionModel().selectedIndexes()]
+        self.replot()
+
     def set_data(self, data):
         self.data = data
 
         def init_combos():
-            for combo in (self.combo_ax1, self.combo_ax2, self.combo_attr):
+            for combo in (self.combo_ax1, self.combo_ax2):
                 combo.clear()
+            self.attrlist_model[:] = []
             for i in Spiralogram.AxesCategories:
                 for combo in (self.combo_ax1, self.combo_ax2):
                     combo.addItem(_enum_str(i))
             for var in data.domain if data is not None else []:
                 if var.is_primitive() and var is not data.time_variable:
-                    self.combo_attr.addItem(gui.attributeIconDict[var], var.name)
+                    self.attrlist_model.append(var)
                 if var.is_discrete:
                     for combo in (self.combo_ax1, self.combo_ax2):
                         combo.addItem(gui.attributeIconDict[var], var.name)
 
         init_combos()
+        self.chart.clear()
 
         if data is None:
-            self.chart.clear()
             self.commit()
             return
 
-        self.replot()
-
     def replot(self):
-        try:
-            var = self.data.domain[self.agg_attr]
-        except KeyError:
-            return
-        if (var.is_discrete and self.agg_func_i != self.MODE_INDEX):
+        vars = self.agg_attr
+        # TODO test discrete
+        if (any(var.is_discrete for var in vars) and
+            self.agg_func_i != self.MODE_INDEX):
             self.combo_func.setCurrentIndex(self.MODE_INDEX)
             return
         try:
@@ -304,7 +313,7 @@ class OWSpiralogram(widget.OWWidget):
         except KeyError:
             ax2 = self.data.domain[self.ax2]
         func = list(AggregateFunctions)[self.agg_func_i].value[0]
-        self.chart.setSeries(self.data, var, ax1, ax2, func)
+        self.chart.setSeries(self.data, vars, ax1, ax2, func)
 
     def on_selection(self, indices):
         self.indices = self.chart.selection_indices(indices)
