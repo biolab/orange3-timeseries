@@ -11,7 +11,7 @@ from orangecontrib.timeseries.util import cache_clears
 from orangecontrib.timeseries import (
     Timeseries, periodogram as periodogram_equispaced, periodogram_nonequispaced
 )
-from orangecontrib.timeseries.widgets.highcharts import Highchart
+from Orange.widgets.highcharts import Highchart
 
 
 class OWPeriodogram(widget.OWWidget):
