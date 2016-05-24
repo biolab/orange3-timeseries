@@ -1,27 +1,23 @@
+from itertools import chain
 
-from Orange.data import Table, TimeVariable
+import numpy as np
+
+from PyQt4.QtCore import Qt
+
+from Orange.data import Table, TimeVariable, ContinuousVariable, Domain
 from Orange.widgets import widget, gui, settings
-from orangecontrib.timeseries import Timeseries
+from Orange.widgets.utils.itemmodels import VariableListModel
+from orangecontrib.timeseries import Timeseries, interpolate_timeseries
+
 
 class Output:
     TIMESERIES = 'Time series'
 
 
-class Units:
-    SEQUENCE = 'sequence (ticks, steps)'
-    YEARS = 'years'
-    MONTHS = 'months'
-    DAYS = 'days'
-    HOURS = 'hours'
-    MINUTES = 'minutes'
-    SECONDS = 'seconds'
-    MILLISECONDS = 'milliseconds'
-    all = (SEQUENCE, YEARS, MONTHS, DAYS, HOURS, MINUTES, SECONDS, MILLISECONDS)
-
-
 class OWTableToTimeseries(widget.OWWidget):
-    name = 'Table to Timeseries'
-    description = 'Convert data table into time series object.'
+    name = 'As Timeseries'
+    description = ('Reinterpret data table as a time series object and '
+                   'interpolate missing values.')
     icon = 'icons/TableToTimeseries.svg'
     priority = 10
 
@@ -32,75 +28,106 @@ class OWTableToTimeseries(widget.OWWidget):
     resizing_enabled = False
 
     radio_sequential = settings.Setting(0)
-    selected_attr = settings.Setting(0)
-    attr_units = settings.Setting(0)
-    transpose = settings.Setting(False)
-    radio_discontinuity = settings.Setting(0)
+    selected_attr = settings.Setting('')
+    interpolation = settings.Setting('cubic')
+    multivariate = settings.Setting(False)
     autocommit = settings.Setting(True)
 
     def __init__(self):
-
-        # box = gui.widgetBox(self.controlArea, box='Sequential attribute',
-        #                     orientation='vertical')
-        box = self.controlArea
+        self.data = None
+        box = gui.vBox(self.controlArea, 'Sequence')
         group = gui.radioButtons(box, self, 'radio_sequential',
-                                 box='Sequential attribute',
                                  callback=self.on_changed)
-        vbox = gui.widgetBox(self.controlArea, orientation='vertical')
-        hbox = gui.widgetBox(vbox, orientation='horizontal')
+        hbox = gui.hBox(box)
         gui.appendRadioButton(group, 'Sequential attribute:',
                               insertInto=hbox)
-        self.combo_attrs = gui.comboBox(hbox, self, 'selected_attr',
-                                        callback=self.on_changed,
-                                        contentsLength=12)
-        self.combo_units = gui.comboBox(gui.indentedBox(vbox), self, 'attr_units',
-                                        label='Units:', items=Units.all,
-                                        orientation='horizontal',
-                                        callback=self.on_changed)
-        box = gui.widgetBox(self.controlArea, orientation='vertical')
+
+        attrs_model = self.attrs_model = VariableListModel()
+        combo_attrs = self.combo_attrs = gui.comboBox(
+            hbox, self, 'selected_attr',
+            callback=self.on_changed,
+            sendSelectedValue=True)
+        combo_attrs.setModel(attrs_model)
+
         gui.appendRadioButton(group, 'Sequence is implied by instance order',
                               insertInto=box)
-        self.cb_transpose = gui.checkBox(gui.indentedBox(box), self, 'transpose',
-                                         label='Transposed (sequence runs in columns)')
 
-        group = gui.radioButtons(self.controlArea, self, 'radio_discontinuity',
-                                 box='Handle discontinuity',
-                                 callback=self.on_changed,
-                                 label='When data is non-equispaced, but equispaced data is required:')
-        gui.appendRadioButton(group, 'Treat as equispaced (do nothing)')
-        gui.appendRadioButton(group, 'Polynomially interpolate')
-        gui.appendRadioButton(group, 'Drop instances until equispaced')
-        gui.appendRadioButton(group, 'Aggregate')
+        box = gui.vBox(self.controlArea, 'Interpolation')
+        gui.comboBox(box, self, 'interpolation',
+                     callback=self.on_changed,
+                     label='Interpolation of missing values:',
+                     sendSelectedValue=True,
+                     orientation=Qt.Horizontal,
+                     items=('linear', 'cubic', 'nearest', 'mean'))
+        gui.checkBox(box, self, 'multivariate',
+                     label='Multi-variate interpolation',
+                     callback=self.on_changed)
 
         gui.rubber(self.controlArea)
         gui.auto_commit(self.controlArea, self, 'autocommit', 'Commit')
 
+        # TODO: seasonally adjust data (select attributes & season cycle length (e.g. 12 if you have monthly data))
+
     def set_data(self, data):
         self.data = data
-        self.combo_attrs.clear()
-        if self.data is None: return
+        self.attrs_model.clear()
+        if self.data is None:
+            self.commit()
+            return
         if data.domain.has_continuous_attributes():
-            for var in data.domain:
-                if not var.is_continuous: continue
-                self.combo_attrs.addItem(gui.attributeIconDict[var], var.name, var)
-            selected = next((i for i, var in enumerate(data.domain)
-                             if isinstance(var, TimeVariable)), 0)
-            self.combo_attrs.setCurrentIndex(selected)
+            vars = [var for var in data.domain if var.is_continuous]
+            self.attrs_model.wrap(vars)
+            # self.selected_attr = vars.index(getattr(data, 'time_variable', vars[0]))
+            self.selected_attr = data.time_variable.name if getattr(data, 'time_variable', False) else vars[0].name
         self.on_changed()
 
     def on_changed(self):
-        self.cb_transpose.setDisabled(self.radio_sequential != 1)
-        self.combo_units.setDisabled(
-            self.radio_sequential != 0 or
-            isinstance(self.combo_attrs.itemData(self.selected_attr), TimeVariable))
-        # TODO
         self.commit()
 
     def commit(self):
         data = self.data
-        if data is None:
+        self.error(666)
+        if data is None or self.selected_attr not in data.domain:
+            self.send(Output.TIMESERIES, None)
             return
-        ts = Timeseries.from_table(data.domain, data)
+
+        attrs = data.domain.attributes
+        cvars = data.domain.class_vars
+        metas = data.domain.metas
+        X = data.X
+        Y = np.column_stack((data.Y,))  # make 2d
+        M = data.metas
+
+        # Set sequence attribute
+        if self.radio_sequential:
+            for i in chain(('',), range(10)):
+                name = '__seq__' + str(i)
+                if name not in data.domain:
+                    break
+            time_var = ContinuousVariable(name)
+            attrs = attrs.__class__((time_var,)) + attrs
+            X = np.column_stack((np.arange(1, len(data) + 1), X))
+            data = Table(Domain(attrs, cvars, metas), X, Y, M)
+        else:
+            # Or make a sequence attribute one of the existing attributes
+            # and sort all values according to it
+            time_var = data.domain[self.selected_attr]
+            values = Table.from_table(Domain([], [], [time_var]),
+                                      source=data).metas.ravel()
+            if np.isnan(values).any():
+                self.error(666, 'Some values of chosen sequential attribute '
+                                '"{}" are NaN, which makes the values '
+                                'impossible to sort'.format(time_var.name))
+                return
+            ordered = np.argsort(values)
+            if (ordered != np.arange(len(ordered))).any():
+                data = data[ordered]
+
+        # Interpolate the timeseries
+        ts = interpolate_timeseries(data, self.interpolation, self.multivariate)
+
+        # TODO: ensure equidistant
+        ts.time_variable = time_var
         self.send(Output.TIMESERIES, ts)
 
 
@@ -110,7 +137,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWTableToTimeseries()
 
-    data = Timeseries.dataset['yahoo1']
+    data = Timeseries('yahoo1')
     ow.set_data(data)
 
     ow.show()
