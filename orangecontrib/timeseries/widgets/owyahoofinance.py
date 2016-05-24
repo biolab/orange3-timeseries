@@ -28,7 +28,7 @@ class OWYahooFinance(widget.OWWidget):
     date_from = settings.Setting(
         (datetime.now().date() - timedelta(5 * 365)).strftime(PY_DATE_FORMAT))
     date_to = settings.Setting(datetime.now().date().strftime(PY_DATE_FORMAT))
-    symbols = settings.Setting(['AMZN', 'AAPL', 'YHOO', 'GOOG', 'FB', 'MSFT'])
+    symbols = settings.Setting(['AMZN', 'AAPL', 'GOOG', 'FB', 'SPY', '^DJI', '^TNX'])
     data_granularity = settings.Setting(0)
 
     want_main_area = False

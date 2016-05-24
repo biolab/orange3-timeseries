@@ -55,6 +55,7 @@ def finance_data(symbol,
                      FROM_YEAR=since.year)
 
     data = Timeseries.from_url(url)
+    data = Timeseries.from_table(data.domain, data)
     data.name = symbol
 
     if cols:
