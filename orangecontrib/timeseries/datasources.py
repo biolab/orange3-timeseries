@@ -22,7 +22,7 @@ def finance_data(symbol,
                  until=None,
                  granularity='d',
                  cols=None):
-    """Fetch Yahoo Finance data for stcok or index `symbol` within the peried
+    """Fetch Yahoo Finance data for stock or index `symbol` within the period
     after `since` and before `until` (both inclusive). If `cols` is provided,
     only those cols appear in the final table.
 
@@ -32,13 +32,14 @@ def finance_data(symbol,
         A stock or index symbol, as supported by Yahoo Finance.
     since: date
         A start date (default: 1900-01-01).
-    until: data
+    until: date
         An end date (default: today).
     granularity: 'd' or 'w' or 'm' or 'v'
         What data to get: daily, weekly, monthly, or dividends.
-    cols: iterable
-        Sequence subset of ('Date', 'Open', 'High', 'Low', 'Close', 'Volume',
-        'Adj Close').
+
+    Returns
+    -------
+    data : Timeseries
     """
     if since is None:
         since = date(1900, 1, 1)
@@ -54,11 +55,7 @@ def finance_data(symbol,
                      FROM_DAY=since.day,
                      FROM_YEAR=since.year)
 
-    data = Timeseries.from_url(url)
-    data = Timeseries.from_table(data.domain, data)
+    data = Timeseries.from_url(url)[::-1]
     data.name = symbol
-
-    if cols:
-        data = data[:, list(cols)]
-
+    data.time_variable = data.domain['Date']
     return data

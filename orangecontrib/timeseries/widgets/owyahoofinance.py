@@ -6,7 +6,7 @@ from PyQt4.QtGui import QDateEdit, QComboBox
 from Orange.widgets import widget, gui, settings
 
 from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries.yahoo import finance_data, DataGranularity
+from orangecontrib.timeseries import finance_data, DataGranularity
 
 
 class Output:
