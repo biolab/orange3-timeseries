@@ -13,7 +13,30 @@ def _parse_args(args, kwargs, names, *defaults):
     return result
 
 
-PERIODOGRAM_MAX_PERIODS = 1000
+def r2(true, pred):
+    """Coefficient of determination (R²)"""
+    nobs = len(pred)
+    true = true[-nobs:]
+    return 1 - np.sum((true - pred)**2) / np.sum((true - np.mean(true))**2)
+
+
+def rmse(true, pred):
+    """Root mean squared error"""
+    nobs = len(pred)
+    return np.sqrt(np.sum((true[-nobs:] - pred) ** 2) / nobs)
+
+
+def mape(true, pred):
+    """Mean absolute percentage error"""
+    nobs = len(pred)
+    return np.sum(np.abs(true[-nobs:] - pred)) / nobs / np.abs(true).mean()
+
+
+def pocid(true, pred):
+    """Prediction on change of direction"""
+    nobs = len(pred)
+    return 100 * np.mean((np.diff(true[-nobs:]) * np.diff(pred)) > 0)
+
 
 
 def periodogram(x, *args, **kwargs):
