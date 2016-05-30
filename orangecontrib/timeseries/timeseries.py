@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from Orange.data import Table, TimeVariable
+from Orange.data import Table, Domain, TimeVariable
 
 import Orange.data
 from os.path import join, dirname
@@ -16,6 +16,8 @@ class Timeseries(Table):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._interp_method = 'linear'
+        self._interp_multivariate = False
         self._time_delta = None
         # Set default time variable to first TimeVariable
         self._time_variable = None
@@ -68,3 +70,34 @@ class Timeseries(Table):
         unit one of 'day', 'month', 'year'.
         """
         return self._time_delta
+
+    def set_interpolation(self, method='linear', multivariate=False):
+        self._interp_method = method
+        self._interp_multivariate = multivariate
+
+    def interp(self, attrs=None):
+        """Return values of variables in attrs, interpolated by method set
+        with set_interpolated().
+
+        Parameters
+        ----------
+        attrs : str or list or None
+            Variable or List of variables to interpolate. If None, the
+            whole table is returned interpolated.
+
+        Returns
+        -------
+        X : array (n_inst x n_attrs) or Timeseries
+            Interpolated variables attrs in columns.
+        """
+        from orangecontrib.timeseries import interpolate_timeseries
+        # FIXME: This interpolates the whole table, might be an overhead
+        # if only a single attr is required
+        interpolated = interpolate_timeseries(self,
+                                              self._interp_method,
+                                              self._interp_multivariate)
+        if attrs is None:
+            return interpolated
+        if isinstance(attrs, str):
+            attrs = [attrs]
+        return Table(Domain([], [], attrs, interpolated.domain), interpolated).metas

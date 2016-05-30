@@ -1,8 +1,7 @@
+from numbers import Number
 
 import numpy as np
-from orangecontrib.timeseries import Timeseries
-
-PERIODOGRAM_MAX_PERIODS = 1000
+from scipy.signal import argrelextrema
 
 
 def _parse_args(args, kwargs, names, *defaults):
@@ -38,8 +37,28 @@ def pocid(true, pred):
     return 100 * np.mean((np.diff(true[-nobs:]) * np.diff(pred)) > 0)
 
 
+def _detrend(x, type):
+    if type == 'diff':
+        x = np.diff(x)
+    elif isinstance(type, str):
+        type = dict(constant=0, linear=1, quadratic=2, cubic=3)[type]
+    if isinstance(type, Number):
+        import statsmodels.api as sm
+        x = sm.tsa.detrend(x, type)
+    return x
 
-def periodogram(x, *args, **kwargs):
+
+def _significant_periods(periods, pgram):
+    # Order ascending
+    periods = periods[::-1]
+    pgram = pgram[::-1]
+    # Scale and extract significant
+    pgram = (pgram - pgram.min()) / pgram.ptp()
+    significant = argrelextrema(pgram, np.greater, order=5)
+    return periods[significant], pgram[significant]
+
+
+def periodogram(x, *args, detrend='diff', **kwargs):
     """
     Return periodogram of signal `x`.
 
@@ -47,6 +66,9 @@ def periodogram(x, *args, **kwargs):
     ----------
     x: array_like
         A 1D signal.
+    detrend: 'diff' or False or int
+        Remove trend from x. If int, fit and subtract a polynomial of this
+        order. See also: `statsmodels.tsa.detrend`.
     args, kwargs:
         As accepted by `scipy.signal.periodogram`.
 
@@ -58,27 +80,26 @@ def periodogram(x, *args, **kwargs):
         Power spectral density of x.
     """
     from scipy.signal import periodogram
-    if 'diff' == kwargs.get('detrend', None):
-        kwargs.pop('detrend')
-        x = np.diff(x)
-    freqs, pgram = periodogram(x, *args, **kwargs)
+    x = _detrend(x, detrend)
+    freqs, pgram = periodogram(x, *args, detrend=False, **kwargs)
 
-    SKIP = len(x) // PERIODOGRAM_MAX_PERIODS  # HACK: For long series, the first few frequency/period values are "unstable".
+    SKIP = len(x) // 1000  # HACK: For long series, the first few frequency/period values are "unstable".
     freqs, pgram = freqs[SKIP:], pgram[SKIP:]
 
-    periods = 1/freqs
+    periods = 1 / freqs
+    periods, pgram = _significant_periods(periods, pgram)
     return periods, pgram
 
 
-def periodogram_nonequispaced(times, x, freqs=None,
+def periodogram_nonequispaced(times, x, *, freqs=None,
                               period_low=None, period_high=None,
-                              detrend='constant'):
+                              n_periods=1000, detrend='linear'):
     """
     Compute the Lomb-Scargle periodogram for non-equispaced timeseries.
 
     Parameters
     ----------
-    timex: array_like
+    times: array_like
         Sample times.
     x: array_like
         A 1D signal.
@@ -86,13 +107,17 @@ def periodogram_nonequispaced(times, x, freqs=None,
         **Angular** frequencies for output periodogram.
     period_low: float
         If `freqs` not provided, the lowest period for which to look for
-        periodicity. Defaults to minimal time distance between two
+        periodicity. Defaults to 5th percentile of time difference between
         observations.
     period_high: float
         If `freqs` not provided, the highest period for which to look for
-        periodicity. Defaults to .8*length or 1000 steps maximum.
-    detrend: 'diff', 'constant', 'linear' or False
-        Remove trend from x. See also: `scipy.signal.detrend`.
+        periodicity. Defaults to 80th percentile of time difference of
+        observations, or 200*period_low, whichever is larger.
+    n_periods: int
+        Number of periods between period_low and period_high to try.
+    detrend: 'diff' or False or int
+        Remove trend from x. If int, fit and subtract a polynomial of this
+        order. See also: `statsmodels.tsa.detrend`.
 
     Returns
     -------
@@ -106,23 +131,29 @@ def periodogram_nonequispaced(times, x, freqs=None,
     Read also:
     https://jakevdp.github.io/blog/2015/06/13/lomb-scargle-in-python/#lomb-scargle-algorithms-in-python
     """
-    from scipy.signal import lombscargle, detrend as _detrend
+    from scipy.signal import lombscargle
+    x = _detrend(x, detrend)
     if detrend == 'diff':
-        x = np.diff(x)
         times = times[1:]
-    elif detrend:
-        x = _detrend(x, type=detrend)
+
     if freqs is None:
+        percentile = np.percentile(np.diff(times), [5, 80])
         if period_low is None:
-            period_low = np.abs(np.diff(times)).min()
+            period_low = percentile[0]
         if period_high is None:
-            period_high = min(PERIODOGRAM_MAX_PERIODS, len(x) * .8)
-        periods = np.linspace(period_low, period_high, 1000)
+            period_high = max(200 * period_low, percentile[1])
+        # Periods *from high to low* because they are reversed later!
+        periods = np.linspace(period_high, period_low, n_periods)
         freqs = 2 * np.pi / periods
     else:
         periods = 2 * np.pi / freqs
+
     pgram = lombscargle(times, x, freqs)
-    pgram *= 2   # HACK: This is experiental: matches the magnitude of regular equispaced periodogram for sine curve (and other data).
+    # Normalize -- I have no idea what I am doing; took this from
+    # https://jakevdp.github.io/blog/2015/06/13/lomb-scargle-in-python/#lomb-scargle-algorithms-in-python
+    pgram *= 2 / (len(x) * x.std()**2)
+
+    periods, pgram = _significant_periods(periods, pgram)
     return periods, pgram
 
 
@@ -199,6 +230,7 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
     """
     from scipy.interpolate import griddata, interp1d
     from Orange.data import Domain
+    from orangecontrib.timeseries import Timeseries
 
     attrs = data.domain.attributes
     cvars = data.domain.class_vars

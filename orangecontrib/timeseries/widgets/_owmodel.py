@@ -64,7 +64,7 @@ class OWBaseModel(widget.OWWidget):
         self.send(Output.LEARNER, learner)
 
     def fit_model(self, model, data):
-        return model.fit(data)
+        return model.fit(data.interp())
 
     def forecast(self, model):
         return model.predict(self.forecast_steps,

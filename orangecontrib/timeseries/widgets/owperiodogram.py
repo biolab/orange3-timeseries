@@ -1,7 +1,6 @@
 from functools import lru_cache
 
 from Orange.data import ContinuousVariable
-from Orange.util import scale
 from Orange.widgets import widget, gui, settings
 
 import numpy as np
@@ -16,8 +15,8 @@ from Orange.widgets.highcharts import Highchart
 
 class OWPeriodogram(widget.OWWidget):
     name = 'Periodogram'
-    description = "Visualize time series' (non-)periodicity and most " \
-                  "significant frequencies."
+    description = "Visualize time series' cycles, seasonality, periodicity, " \
+                  "and most significant frequencies."
     icon = 'icons/Periodogram.svg'
     priority = 100
 
@@ -34,8 +33,12 @@ class OWPeriodogram(widget.OWWidget):
                     callback=self.on_changed)
         plot = self.plot = Highchart(
             self,
-            enable_zoom=True,
+            # enable_zoom=True,
+            chart_zoomType='x',
             chart_type='column',
+            plotOptions_column_borderWidth=0,
+            plotOptions_column_groupPadding=0,
+            plotOptions_series_pointWidth=3,
             plotOptions_line_marker_enabled=False,
             yAxis_min=0,
             yAxis_max=1.05,
@@ -52,26 +55,31 @@ class OWPeriodogram(widget.OWWidget):
 
     @lru_cache(20)
     def periodogram(self, attr):
-        if attr < self.data.X.shape[1]:
-            x = self.data.X[:, attr]
-        else:
-            if self.data.Y.ndim == 2:
-                x = self.data.Y[:, attr - self.data.X.shape[1]]
-            else:
-                x = self.data.Y
-
-        if self.data.is_equispaced:
-            periods, pgram = periodogram_equispaced(x, detrend='constant')
+        is_equispaced = self.data.time_delta is not None
+        if is_equispaced:
+            x = np.ravel(self.data.interp(attr))
+            periods, pgram = periodogram_equispaced(x)
+            # TODO: convert periods into time_values-relative values, i.e.
+            # periods *= self.data.time_delta; like lombscargle already does
+            # periods *= self.data.time_delta
         else:
             times = self.data.time_values
-            periods, pgram = periodogram_nonequispaced(times, x, detrend='linear')
-        return periods, scale(pgram)
+            x = np.ravel(self.data[:, attr])
+            # Since lombscargle works with explicit times,
+            # we can skip any nan values
+            nonnan = ~np.isnan(x)
+            if not nonnan.all():
+                x, times = x[nonnan], times[nonnan]
+
+            periods, pgram = periodogram_nonequispaced(times, x)
+        return periods, pgram
 
     @cache_clears(periodogram)
     def set_data(self, data):
         self.data = data
         self.all_attrs = []
         if data is None:
+            self.plot.clear()
             return
         self.all_attrs = [(var.name, gui.attributeIconDict[var])
                           for var in data.domain
@@ -81,36 +89,31 @@ class OWPeriodogram(widget.OWWidget):
         self.on_changed()
 
     def on_changed(self):
-        if not self.attrs:
+        if not self.attrs or not self.all_attrs:
             return
 
         options = dict(series=[])
-        max_x = 1  # The maximum period to which pgrams should be plotted
         for attr in self.attrs:
             attr_name = self.all_attrs[attr][0]
-            attr_idx = self.data.domain.index(attr_name)
-            periods, pgram = self.periodogram(attr_idx)
-            # Truncate plot values where the line is straight 0
-            i = max(0, (pgram > .05).nonzero()[0][0] - 20)
-            max_x = max(max_x, periods[i])
+            periods, pgram = self.periodogram(attr_name)
 
             options['series'].append(dict(
-                data=np.column_stack((periods, pgram))[::-1],
+                data=np.column_stack((periods, pgram)),
                 name=attr_name))
 
-        self.plot.chart(options, xAxis_max=max_x)
+        self.plot.chart(options)
 
 
 if __name__ == "__main__":
     from PyQt4.QtGui import QApplication
-    from PyQt4.QtCore import QTimer
 
     a = QApplication([])
     ow = OWPeriodogram()
 
-    # data = Timeseries('yahoo_MSFT')
-    data = Timeseries('UCI-SML2010-1')
-    QTimer.singleShot(100, lambda: ow.set_data(data))
+    data = Timeseries('yahoo_MSFT')
+    data = Timeseries('autoroute')
+    # data = Timeseries('UCI-SML2010-1')
+    ow.set_data(data)
 
     ow.show()
     a.exec_()
