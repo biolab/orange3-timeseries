@@ -2,12 +2,10 @@ from itertools import chain
 
 import numpy as np
 
-from PyQt4.QtCore import Qt
-
-from Orange.data import Table, TimeVariable, ContinuousVariable, Domain
+from Orange.data import Table, ContinuousVariable, Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
-from orangecontrib.timeseries import Timeseries, interpolate_timeseries
+from orangecontrib.timeseries import Timeseries
 
 
 class Output:
@@ -16,8 +14,7 @@ class Output:
 
 class OWTableToTimeseries(widget.OWWidget):
     name = 'As Timeseries'
-    description = ('Reinterpret data table as a time series object and '
-                   'interpolate missing values.')
+    description = ('Reinterpret data table as a time series object.')
     icon = 'icons/TableToTimeseries.svg'
     priority = 10
 
@@ -29,8 +26,6 @@ class OWTableToTimeseries(widget.OWWidget):
 
     radio_sequential = settings.Setting(0)
     selected_attr = settings.Setting('')
-    interpolation = settings.Setting('cubic')
-    multivariate = settings.Setting(False)
     autocommit = settings.Setting(True)
 
     def __init__(self):
@@ -52,20 +47,7 @@ class OWTableToTimeseries(widget.OWWidget):
         gui.appendRadioButton(group, 'Sequence is implied by instance order',
                               insertInto=box)
 
-        box = gui.vBox(self.controlArea, 'Interpolation')
-        gui.comboBox(box, self, 'interpolation',
-                     callback=self.on_changed,
-                     label='Interpolation of missing values:',
-                     sendSelectedValue=True,
-                     orientation=Qt.Horizontal,
-                     items=('linear', 'cubic', 'nearest', 'mean'))
-        gui.checkBox(box, self, 'multivariate',
-                     label='Multi-variate interpolation',
-                     callback=self.on_changed)
-
-        gui.rubber(self.controlArea)
         gui.auto_commit(self.controlArea, self, 'autocommit', 'Commit')
-
         # TODO: seasonally adjust data (select attributes & season cycle length (e.g. 12 if you have monthly data))
 
     def set_data(self, data):
@@ -123,9 +105,7 @@ class OWTableToTimeseries(widget.OWWidget):
             if (ordered != np.arange(len(ordered))).any():
                 data = data[ordered]
 
-        # Interpolate the timeseries
-        ts = interpolate_timeseries(data, self.interpolation, self.multivariate)
-
+        ts = Timeseries(data.domain, data)
         # TODO: ensure equidistant
         ts.time_variable = time_var
         self.send(Output.TIMESERIES, ts)
