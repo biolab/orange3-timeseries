@@ -157,7 +157,22 @@ def periodogram_nonequispaced(times, x, *, freqs=None,
     return periods, pgram
 
 
-def autocorrelation(x, *args, **kwargs):
+def _significant_acf(corr, has_confint):
+    if has_confint:
+        corr, confint = corr
+
+    periods = argrelextrema(np.abs(corr), np.greater, order=3)[0]
+    corr = corr[periods]
+    if has_confint:
+        confint = confint[periods]
+
+    result = np.column_stack((periods, corr))
+    if has_confint:
+        result = (result, np.column_stack((periods, confint)))
+    return result
+
+
+def autocorrelation(x, *args, unbiased=True, nlags=None, fft=True, **kwargs):
     """
     Return autocorrelation function of signal `x`.
 
@@ -165,6 +180,10 @@ def autocorrelation(x, *args, **kwargs):
     ----------
     x: array_like
         A 1D signal.
+    nlags: int
+        The number of lags to calculate the correlation for (default .9*len(x))
+    fft:  bool
+        Compute the ACF via FFT.
     args, kwargs
         As accepted by `statsmodels.tsa.stattools.acf`.
 
@@ -173,17 +192,16 @@ def autocorrelation(x, *args, **kwargs):
     acf: array
         Autocorrelation function.
     confint: array, optional
-        95% confidence intervals if no args/kwargs provided.
+        Confidence intervals if alpha kwarg provided.
     """
     from statsmodels.tsa.stattools import acf
-    unbiased, nlags, qstat, fft, alpha = _parse_args(
-        args, kwargs,
-        'unbiased nlags qstat fft alpha'.split(),
-        True, int(len(x) - len(x)**.1), False, True, None)
-    return acf(x, unbiased=unbiased, nlags=nlags, qstat=qstat, fft=fft, alpha=alpha)
+    if nlags is None:
+        nlags = int(.9 * len(x))
+    corr = acf(x, *args, unbiased=unbiased, nlags=nlags, fft=fft, **kwargs)
+    return _significant_acf(corr, kwargs.get('alpha'))
 
 
-def partial_autocorrelation(x, *args, **kwargs):
+def partial_autocorrelation(x, *args, nlags=None, method='ldb', **kwargs):
     """
     Return partial autocorrelation function (PACF) of signal `x`.
 
@@ -191,22 +209,24 @@ def partial_autocorrelation(x, *args, **kwargs):
     ----------
     x: array_like
         A 1D signal.
+    nlags: int
+        The number of lags to calculate the correlation for
+        (default: min(600, len(x)))
     args, kwargs
         As accepted by `statsmodels.tsa.stattools.pacf`.
 
     Returns
     -------
     acf: array
-        Autocorrelation function.
-    ... : optional
+        Partioal autocorrelation function.
+    confint : optional
         As returned by `statsmodels.tsa.stattools.pacf`.
     """
     from statsmodels.tsa.stattools import pacf
-    nlags, method, alpha = _parse_args(
-        args, kwargs,
-        'nlags method alpha'.split(),
-        min(len(x), 1000), 'ldb', None)
-    return pacf(x, nlags=nlags, method=method, alpha=alpha)
+    if nlags is None:
+        nlags = min(1000, len(x) - 1)
+    corr = pacf(x, *args, nlags=nlags, method=method, **kwargs)
+    return _significant_acf(corr, kwargs.get('alpha'))
 
 
 def interpolate_timeseries(data, method='linear', multivariate=False):
