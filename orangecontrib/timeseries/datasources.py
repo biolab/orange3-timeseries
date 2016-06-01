@@ -2,6 +2,7 @@
 from datetime import date
 from enum import Enum
 
+from Orange.data import Domain
 from orangecontrib.timeseries import Timeseries
 
 
@@ -56,6 +57,12 @@ def finance_data(symbol,
                      FROM_YEAR=since.year)
 
     data = Timeseries.from_url(url)[::-1]
+
+    # Make Adjusted Close a class variable
+    attrs = [var.name for var in data.domain.attributes]
+    attrs.remove('Adj Close')
+    data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+
     data.name = symbol
     data.time_variable = data.domain['Date']
     return data
