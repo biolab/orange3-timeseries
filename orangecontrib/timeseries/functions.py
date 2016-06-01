@@ -28,7 +28,13 @@ def rmse(true, pred):
 def mape(true, pred):
     """Mean absolute percentage error"""
     nobs = len(pred)
-    return np.sum(np.abs(true[-nobs:] - pred)) / nobs / np.abs(true).mean()
+    return np.mean(np.abs(true[-nobs:] - pred)) / np.abs(true).mean()
+
+
+def mae(true, pred):
+    """Median absolute error"""
+    nobs = len(pred)
+    return np.median(np.abs(true[-nobs:] - pred))
 
 
 def pocid(true, pred):

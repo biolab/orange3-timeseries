@@ -17,6 +17,8 @@ class NotFittedError(ValueError, AttributeError):
 
 class _BaseModel:
     REQUIRES_STATIONARY = True
+    SUPPORTS_VECTOR = False
+
     _NOT_FITTED = NotFittedError('Model must be fitted first (see fit() method)')
 
     __wrapped__ = None
@@ -24,6 +26,7 @@ class _BaseModel:
     def __init__(self):
         self.model = None
         self.results = None
+        self.order = ()
         self._model_kwargs = dict(missing='raise')
         self._fit_kwargs = dict()
         self._table_var_names = None
@@ -67,9 +70,10 @@ class _BaseModel:
         self._table_name = table.name
         y = table.Y.ravel()
         X = table.X
-        defined_range = (np.arange(1, len(y) + 1) * ~np.isnan(y)).max()
-        y = y[:defined_range]
-        X = X[:defined_range]
+        if y.size:
+            defined_range = (np.arange(1, len(y) + 1) * ~np.isnan(y)).max()
+            y = y[:defined_range]
+            X = X[:defined_range]
         return y, X
 
     def fit(self, endog, exog=None):
@@ -174,6 +178,10 @@ class _BaseModel:
     def __str__(self):
         return str(self.__wrapped__)
 
+    @property
+    def max_order(self):
+        return max(self.order, default=0)
+
     def clear(self):
         """Reset (unfit) the current model"""
         self.model = None
@@ -193,7 +201,7 @@ class ARIMA(_BaseModel):
     An auto regression (AR) and moving average (MA) model with differencing.
 
     If exogenous variables are provided in fit() method, this becomes an
-    ARMAX model.
+    ARIMAX model.
 
     Parameters
     ----------
@@ -214,6 +222,8 @@ class ARIMA(_BaseModel):
         self.order = order
         self.use_exog = use_exog
         self._model_kwargs.update(order=order)
+        self._fit_kwargs.update(disp=0,  # Don't print shit
+                                verbose=False)
 
     def __str__(self):
         return '{}({})'.format('AR{}MA{}'.format('I' if self.order[1] else '',
@@ -257,6 +267,7 @@ class VAR(_BaseModel):
     -------
     unfitted_model
     """
+    SUPPORTS_VECTOR = True
     __wrapped__ = sm.tsa.VAR
 
     MAX_LAGS = lambda arr: 12 * (len(arr) / 10) ** .5
@@ -266,6 +277,7 @@ class VAR(_BaseModel):
         self.ic = ic
         self.trend = trend
         self._ic_magic = ic == IC_MAGIC
+        self.order = (maxlags,)
         self._maxlags = self.MAX_LAGS if maxlags is None else maxlags
         self._fit_kwargs.update(maxlags=maxlags, trend=trend, ic=ic)
 
@@ -287,10 +299,12 @@ class VAR(_BaseModel):
         if callable(maxlags):
             maxlags = maxlags(endog)
             self._fit_kwargs.update(maxlags=maxlags)
+            self.order = (maxlags,)
 
         if self._ic_magic:
             ic_results = self.model.select_order(maxlags)
             lags = sum(ic_results.values()) // len(ic_results)
+            self.order = (lags,)
             self._fit_kwargs.update(maxlags=lags, ic=None)
 
     def _predict(self, steps, exog, alpha):
