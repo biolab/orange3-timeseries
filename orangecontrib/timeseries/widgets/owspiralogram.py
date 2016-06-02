@@ -4,18 +4,18 @@ from itertools import chain
 from numbers import Number
 from collections import defaultdict
 
-import scipy.stats
-
 import numpy as np
 
 from PyQt4.QtGui import QListView
 
+from Orange.data import Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.highcharts import Highchart
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
-from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.utils.itemmodels import VariableListModel, PyListModel
 
 from orangecontrib.timeseries import Timeseries
-from Orange.widgets.highcharts import Highchart
+from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode
 
 
 class Spiralogram(Highchart):
@@ -35,7 +35,7 @@ class Spiralogram(Highchart):
         DAYS_OF_MONTH =   (tuple(range(1, 32)),  lambda d: d.day)
         DAYS_OF_YEAR =    (tuple(range(1, 367)), lambda d: d.timetuple().tm_yday)
         WEEKS_OF_YEAR =   (tuple(range(1, 54)),  lambda d: d.isocalendar()[1])
-        WEEKS_OF_MONTH =  (tuple(range(1, 6)),   lambda d: int(np.ceil((d + d.replace(day=1).weekday()) / 7)))
+        WEEKS_OF_MONTH =  (tuple(range(1, 6)),   lambda d: int(np.ceil((d.day + d.replace(day=1).weekday()) / 7)))
         HOURS_OF_DAY =    (tuple(range(24)),     lambda d: d.hour)
         MINUTES_OF_HOUR = (tuple(range(60)),     lambda d: d.minute)
 
@@ -57,6 +57,9 @@ class Spiralogram(Highchart):
             return lambda val: val
 
     def setSeries(self, timeseries, attr, xdim, ydim, fagg):
+        if timeseries is None or not attr:
+            self.clear()
+            return
         # TODO: support discrete variables
         if isinstance(xdim, str) and xdim.isdigit():
             xdim = [str(i) for i in range(1, int(xdim) + 1)]
@@ -66,8 +69,8 @@ class Spiralogram(Highchart):
         xvals, xfunc = xdim.value
         yvals, yfunc = ydim.value
 
-        values = timeseries[:, attr].X
-        time_values = timeseries[:, timeseries.time_variable].X.ravel()
+        values = Timeseries(Domain([], [], attr, source=timeseries.domain), timeseries).metas
+        time_values = np.ravel(timeseries[:, timeseries.time_variable])
 
         if True:
             fromtimestamp = datetime.fromtimestamp
@@ -111,15 +114,23 @@ class Spiralogram(Highchart):
                     aggvals.append(aggval)
                 point['n'] = aggval
 
-        maxval, minval = np.max(aggvals), np.min(aggvals)
+        try:
+            maxval, minval = np.max(aggvals), np.min(aggvals)
+        except ValueError:
+            self.clear()
+            return
         ptpval = maxval - minval
         color = GradientPaletteGenerator('#ffcccc', '#cc0000')
+        selected_color = GradientPaletteGenerator('#ccffcc', '#006600')
         for serie in series:
             for point in serie['data']:
                 n = point['n']
                 if isinstance(n, Number):
-                    point['color'] = color[(n - minval) / ptpval]
+                    val = (n - minval) / ptpval
+                    point['color'] = color[val]
+                    point['states'] = dict(select=dict(color=selected_color[val]))
 
+        # TODO: make a white hole in the middle. Center w/o data.
         self.chart(series=series,
                    xAxis_categories=[xname(i) for i in xvals],
                    yAxis_categories=[yname(i) for i in reversed(yvals)])
@@ -198,26 +209,6 @@ class Spiralogram(Highchart):
         self.indices = {}
 
 
-
-class AggregateFunctions(Enum):
-    """Aggregation functions.
-
-    Wrapped in tuples because silly Enum doesn't consider methods as members.
-    """
-    SUM = (lambda arr: np.nansum(arr),)
-    COUNT_NONZERO = (lambda arr: np.count_nonzero(arr[~np.isnan(arr)]),)
-    MAX = (lambda arr: np.nanmax(arr),)
-    MIN = (lambda arr: np.nanmin(arr),)
-    MEAN = (lambda arr: np.nanmean(arr),)
-    MEDIAN = (lambda arr: np.nanmedian(arr),)
-    VARIANCE = (lambda arr: np.nanvar(arr),)
-    STDDEV = (lambda arr: np.nanstd(arr),)
-    MODE = (lambda arr: scipy.stats.mode(arr, nan_policy='omit').mode[0],)
-    PRODUCT = (lambda arr: np.nanprod(arr),)
-    HARMONIC_MEAN = (lambda arr: scipy.stats.hmean(arr[arr > 0], axis=None),)
-    GEOMETRIC_MEAN = (lambda arr: scipy.stats.gmean(arr[~np.isnan(arr) & (arr != 0)], axis=None),)
-
-
 def _enum_str(enum_value, inverse=False):
     if inverse:
         return enum_value.replace(' ', '_').upper()
@@ -236,11 +227,10 @@ class OWSpiralogram(widget.OWWidget):
     ax1 = settings.Setting('months of year')
     ax2 = settings.Setting('years')
     agg_attr = settings.Setting([])
-    agg_func_i = settings.Setting(0)
-
-    MODE_INDEX = list(AggregateFunctions).index(AggregateFunctions.MODE)
+    agg_func = settings.Setting(0)
 
     def __init__(self):
+        self.data = None
         self.indices = []
         box = gui.vBox(self.controlArea, 'Axes')
         self.combo_ax2 = gui.comboBox(
@@ -251,9 +241,11 @@ class OWSpiralogram(widget.OWWidget):
             sendSelectedValue=True, orientation='horizontal')
         box = gui.vBox(self.controlArea, 'Aggregation')
         self.combo_func = gui.comboBox(
-            box, self, 'agg_func_i', label='Function:', orientation='horizontal',
-            items=tuple(_enum_str(i) for i in AggregateFunctions),
+            box, self, 'agg_func', label='Function:', orientation='horizontal',
             callback=self.replot)
+        func_model = PyListModel(AGG_FUNCTIONS, parent=self)
+        self.combo_func.setModel(func_model)
+
         self.attrlist_model = VariableListModel(parent=self)
         self.attrlist = QListView(selectionMode=QListView.ExtendedSelection)
         self.attrlist.setModel(self.attrlist_model)
@@ -262,11 +254,8 @@ class OWSpiralogram(widget.OWWidget):
         box.layout().addWidget(self.attrlist)
         gui.rubber(self.controlArea)
         self.chart = chart = Spiralogram(self, self,
-                                         selection_callback=self.on_selection,
-                                         debug=True
-                                         )
+                                         selection_callback=self.on_selection)
         self.mainArea.layout().addWidget(chart)
-        chart.chart()
 
     def attrlist_selectionChanged(self):
         self.agg_attr = [self.attrlist_model[i.row()]
@@ -284,7 +273,9 @@ class OWSpiralogram(widget.OWWidget):
                 for combo in (self.combo_ax1, self.combo_ax2):
                     combo.addItem(_enum_str(i))
             for var in data.domain if data is not None else []:
-                if var.is_primitive() and var is not data.time_variable:
+                if (var.is_primitive() and
+                        (var is not data.time_variable or
+                         isinstance(var, TimeVariable) and data.time_delta is None)):
                     self.attrlist_model.append(var)
                 if var.is_discrete:
                     for combo in (self.combo_ax1, self.combo_ax2):
@@ -296,13 +287,16 @@ class OWSpiralogram(widget.OWWidget):
         if data is None:
             self.commit()
             return
+        self.ax1 = 'months of year'
+        self.ax2 = 'years'
+        self.replot()
 
     def replot(self):
         vars = self.agg_attr
+        func = AGG_FUNCTIONS[self.agg_func]
         # TODO test discrete
-        if (any(var.is_discrete for var in vars) and
-            self.agg_func_i != self.MODE_INDEX):
-            self.combo_func.setCurrentIndex(self.MODE_INDEX)
+        if any(var.is_discrete for var in vars) and func != Mode:
+            self.combo_func.setCurrentIndex(AGG_FUNCTIONS.index(Mode))
             return
         try:
             ax1 = Spiralogram.AxesCategories[_enum_str(self.ax1, True)]
@@ -312,7 +306,6 @@ class OWSpiralogram(widget.OWWidget):
             ax2 = Spiralogram.AxesCategories[_enum_str(self.ax2, True)]
         except KeyError:
             ax2 = self.data.domain[self.ax2]
-        func = list(AggregateFunctions)[self.agg_func_i].value[0]
         self.chart.setSeries(self.data, vars, ax1, ax2, func)
 
     def on_selection(self, indices):
