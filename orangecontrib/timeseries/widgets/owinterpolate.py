@@ -14,7 +14,7 @@ class OWInterpolate(widget.OWWidget):
     icon = 'icons/Interpolate.svg'
     priority = 15
 
-    inputs = [("Timeseries", Timeseries, 'set_data')]
+    inputs = [("Time series", Timeseries, 'set_data')]
     outputs = [(Output.TIMESERIES, Timeseries)]
 
     want_main_area = False
@@ -34,7 +34,7 @@ class OWInterpolate(widget.OWWidget):
 
     def __init__(self):
         self.data = None
-        box = gui.vBox(self.controlArea, 'Interpolation parameters')
+        box = gui.vBox(self.controlArea, 'Interpolation Parameters')
         gui.comboBox(box, self, 'interpolation',
                      callback=self.on_changed,
                      label='Interpolation of missing values:',

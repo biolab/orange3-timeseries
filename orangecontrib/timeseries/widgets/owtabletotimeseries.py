@@ -47,7 +47,7 @@ class OWTableToTimeseries(widget.OWWidget):
         gui.appendRadioButton(group, 'Sequence is implied by instance order',
                               insertInto=box)
 
-        gui.auto_commit(self.controlArea, self, 'autocommit', 'Commit')
+        gui.auto_commit(self.controlArea, self, 'autocommit', '&Apply')
         # TODO: seasonally adjust data (select attributes & season cycle length (e.g. 12 if you have monthly data))
 
     def set_data(self, data):
