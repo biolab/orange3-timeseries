@@ -98,6 +98,11 @@ class _BaseModel:
             assert exog is None
             endog, exog = self._orange_arrays(endog)
 
+        if not endog.size:
+            if not exog.size:
+                raise ValueError('Input series are empty. Nothing to learn.')
+            endog, exog = exog, None
+
         endog, exog = self._before_init(endog, exog)
         self._endog = endog
         kwargs = self._model_kwargs.copy()
@@ -236,6 +241,8 @@ class ARIMA(_BaseModel):
 
     def _before_init(self, endog, exog):
         exog = exog if self.use_exog else None
+        if len(endog) == 0:
+            raise ValueError('Need an endogenous (target) variable to fit')
         return endog, exog
 
     def _fittedvalues(self):
@@ -290,7 +297,7 @@ class VAR(_BaseModel):
 
     def _before_init(self, endog, exog):
         if exog is not None:
-            endog = np.column_stack((endog, exog))
+            endog = np.column_stack((endog, exog)) if endog.size else exog
         return endog, None
 
     def _before_fit(self, endog, exog=None):
