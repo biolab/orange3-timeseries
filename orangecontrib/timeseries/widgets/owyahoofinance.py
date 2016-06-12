@@ -67,15 +67,17 @@ class OWYahooFinance(widget.OWWidget):
         date_to.dateChanged.connect(
             lambda date: setattr(self, 'date_to',
                                  date.toString(self.QT_DATE_FORMAT)))
-        hbox = gui.widgetBox(lbox, orientation='horizontal')
+        hbox = gui.hBox(lbox)
         gui.label(hbox, self, "From:")
         hbox.layout().addWidget(date_from)
-        gui.label(hbox, self, "to:")
+        hbox = gui.hBox(lbox)
+        gui.label(hbox, self, "To:")
         hbox.layout().addWidget(date_to)
 
         gui.radioButtons(box, self, 'data_granularity',
-                         btnLabels=[i.name.capitalize() for i in DataGranularity],
-                         label='Granularity:')
+                         btnLabels=[i.name.capitalize().replace('_', ' ')
+                                    for i in DataGranularity],
+                         box='Resolution')
         self.button = gui.button(self.controlArea, self, 'Download',
                                  callback=self.download)
 

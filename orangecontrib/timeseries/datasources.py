@@ -13,19 +13,14 @@ class DataGranularity(Enum):
     DIVIDENDS_ONLY = 'dwmv'
 
 
-URL = ('http://real-chart.finance.yahoo.com/table.csv?'
-       's={SYMBOL}&d={TO_MONTH}&e={TO_DAY}&f={TO_YEAR}&'
-       'g={GRANULARITY}&a={FROM_MONTH}&b={FROM_DAY}&c={FROM_YEAR}&ignore=.csv')
 
 
 def finance_data(symbol,
                  since=None,
                  until=None,
-                 granularity='d',
-                 cols=None):
+                 granularity='d'):
     """Fetch Yahoo Finance data for stock or index `symbol` within the period
-    after `since` and before `until` (both inclusive). If `cols` is provided,
-    only those cols appear in the final table.
+    after `since` and before `until` (both inclusive).
 
     Parameters
     ----------
@@ -47,14 +42,17 @@ def finance_data(symbol,
     if until is None:
         until = date.today()
 
-    url = URL.format(SYMBOL=symbol,
-                     GRANULARITY=granularity,
-                     TO_MONTH=until.month - 1,
-                     TO_DAY=until.day,
-                     TO_YEAR=until.year,
-                     FROM_MONTH=since.month - 1,
-                     FROM_DAY=since.day,
-                     FROM_YEAR=since.year)
+    YAHOO_URL = ('http://real-chart.finance.yahoo.com/table.csv?'
+                 's={SYMBOL}&d={TO_MONTH}&e={TO_DAY}&f={TO_YEAR}&'
+                 'g={GRANULARITY}&a={FROM_MONTH}&b={FROM_DAY}&c={FROM_YEAR}&ignore=.csv')
+    url = YAHOO_URL.format(SYMBOL=symbol,
+                           GRANULARITY=granularity,
+                           TO_MONTH=until.month - 1,
+                           TO_DAY=until.day,
+                           TO_YEAR=until.year,
+                           FROM_MONTH=since.month - 1,
+                           FROM_DAY=since.day,
+                           FROM_YEAR=since.year)
 
     data = Timeseries.from_url(url)[::-1]
 
