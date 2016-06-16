@@ -1,3 +1,4 @@
+from operator import sub, truediv
 import numpy as np
 
 from PyQt4.QtGui import QListView
@@ -21,7 +22,7 @@ class OWSeasonalAdjustment(widget.OWWidget):
     description = 'Remove the seasonal component of a time series that ' \
                   'exhibits a seasonal pattern.'
     icon = 'icons/SeasonalAdjustment.svg'
-    priority = 180
+    priority = 5500
 
     inputs = [("Time series", Timeseries, 'set_data')]
     outputs = [("Time series", Timeseries)]
@@ -89,30 +90,65 @@ class OWSeasonalAdjustment(widget.OWWidget):
 
     def commit(self):
         data = self.data
-        if not data:
-            self.send(Output.TIMESERIES, None)
+        if not data or not self.selected:
+            self.send(Output.TIMESERIES, data)
             return
-        out_attrs = []
+
+        def _interp_trend(trend):
+            first = next(i for i, val in enumerate(trend) if val == val)
+            last = trend.size - 1 - next(i for i, val in enumerate(trend[::-1]) if val == val)
+            d = 3
+            first_last = min(first + d, last)
+            last_first = max(first, last - d)
+
+            k, n = np.linalg.lstsq(
+                np.column_stack((np.arange(first, first_last), np.ones(d))),
+                trend[first:first_last])[0]
+            trend[:first] = np.arange(0, first) * k + n
+
+            k, n = np.linalg.lstsq(
+                np.column_stack((np.arange(last_first, last), np.ones(d))),
+                trend[last_first:last])[0]
+            trend[last + 1:] = np.arange(last + 1, trend.size) * k + n
+            return trend
+
+        attrs = []
         X = []
-        in_attrs = list(data.domain)
         decomposition = self.DECOMPOSITION_MODELS[self.decomposition]
+        recomposition = sub if decomposition == 'additive' else truediv
         interp_data = data.interp()
-        with self.progressBar(len(in_attrs)) as progress:
-            for var in in_attrs:
-                out_attrs.append(var)
-                orig = np.ravel(data[:, var])
-                X.append(orig)
-                if var.name in self.selected:
-                    name = available_name(data.domain, var.name + ' (season. adj.)')
-                    out_attrs.append(ContinuousVariable(name))
-                    decomposed = seasonal_decompose(np.ravel(interp_data[:, var]),
-                                                    model=decomposition,
-                                                    freq=self.n_periods)
-                    recomposed = decomposed.resid + decomposed.trend
-                    recomposed[np.isnan(orig)] = np.nan  # Reapply nan values
-                    X.append(recomposed)
+        with self.progressBar(len(self.selected)) as progress:
+            for var in self.selected:
+                decomposed = seasonal_decompose(np.ravel(interp_data[:, var]),
+                                                model=decomposition,
+                                                freq=self.n_periods)
+                adjusted = recomposition(decomposed.observed,
+                                           decomposed.seasonal)
+
+                season = decomposed.seasonal
+                trend = _interp_trend(decomposed.trend)
+                resid = recomposition(adjusted, trend)
+
+                # Re-apply nans
+                isnan = np.isnan(data[:, var]).ravel()
+                adjusted[isnan] = np.nan
+                trend[isnan] = np.nan
+                resid[isnan] = np.nan
+
+                attrs.extend(
+                    ContinuousVariable(
+                        available_name(data.domain,
+                                       var + ' ({})'.format(transform)))
+                    for transform in ('season. adj.', 'seasonal', 'trend', 'residual')
+                )
+                X.extend((adjusted, season, trend, resid))
                 progress.advance()
-        ts = Timeseries(Domain(out_attrs), np.column_stack(X))
+
+        ts = Timeseries(Domain(data.domain.attributes + tuple(attrs),
+                               data.domain.class_vars,
+                               data.domain.metas),
+                        np.column_stack((data.X, np.column_stack(X))),
+                        data.Y, data.metas)
         ts.time_variable = data.time_variable
         self.send(Output.TIMESERIES, ts)
 
