@@ -95,13 +95,31 @@ class OWModelEvaluation(widget.OWWidget):
                        '/ step size. Retry with fewer iterations.')
             return
 
+        def _score_vector(model, true, pred):
+            true = np.asanyarray(true)
+            pred = np.asanyarray(pred)
+            nonnan = ~np.isnan(true)
+            if not nonnan.all():
+                pred = pred[nonnan]
+                true = true[nonnan]
+            if pred.size:
+                row = [score(true, pred) for score in (rmse, mae, mape, pocid, r2)]
+            else:
+                row = ['err'] * 5
+            try:
+                row.extend([model.results.aic, model.results.bic])
+            except Exception:
+                row.extend(['err'] * 2)
+            return row
+
         res = []
         vheaders = []
         interp_data = data.interp()
         true_y = np.ravel(data[:, data.domain.class_var])
-        with self.progressBar(len(self._models) * n_folds + 1) as progress:
+        with self.progressBar(len(self._models) * (n_folds + 1) + 1) as progress:
             for model in self._models.values():
-                vheaders.append(str(getattr(model, 'name', model)))
+                model_name = str(getattr(model, 'name', model))
+                vheaders.append(model_name)
                 full_true = []
                 full_pred = []
                 for fold in range(1, n_folds + 1):
@@ -114,26 +132,22 @@ class OWModelEvaluation(widget.OWWidget):
                     finally:
                         progress.advance()
 
-                    full_true.extend(true_y[train_end:train_end + forecast_steps])
+                    full_true.extend(true_y[train_end:][:forecast_steps])  # Sliced twice because it doesn't work at the end, e.g. [-3:0] == [] :(
                     full_pred.extend(np.c_[pred][:, 0])  # Only interested in the class var
+                    assert len(full_true) == len(full_pred)
 
-                true = np.array(full_true)
-                pred = np.array(full_pred)
-                nonnan = ~np.isnan(true)
-                pred = pred[nonnan]
-                true = true[nonnan]
+                res.append(_score_vector(model, full_true, full_pred))
 
-                if not pred.size:
+                vheaders.append(model_name + ' (in-sample)')
+                try:
+                    model.fit(interp_data)
+                    fittedvalues = model.fittedvalues()
+                    if fittedvalues.ndim > 1:
+                        fittedvalues = fittedvalues[..., 0]
+                except Exception:
                     row = ['err'] * 7
                 else:
-                    row = [score(true, pred)
-                           for score in (rmse, mae, mape, pocid, r2)]
-                    try:
-                        row.extend([model.results.aic,
-                                    model.results.bic])
-                    except Exception:
-                        row.extend(['err'] * 2)
-
+                    row = _score_vector(model, true_y, fittedvalues)
                 res.append(row)
 
         self.model.setVerticalHeaderLabels(vheaders)

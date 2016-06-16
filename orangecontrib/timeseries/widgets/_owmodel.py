@@ -8,6 +8,8 @@ from orangecontrib.timeseries.models import _BaseModel
 class Output:
     LEARNER = 'Time series model'
     FORECAST = 'Forecast'
+    FITTED_VALUES = 'Fitted values'
+    RESIDUALS = 'Residuals'
 
 
 class OWBaseModel(widget.OWWidget):
@@ -20,6 +22,8 @@ class OWBaseModel(widget.OWWidget):
     outputs = [
         (Output.LEARNER, _BaseModel),
         (Output.FORECAST, Timeseries),
+        (Output.FITTED_VALUES, Timeseries),
+        (Output.RESIDUALS, Timeseries),
     ]
 
     want_main_area = False
@@ -73,6 +77,8 @@ class OWBaseModel(widget.OWWidget):
 
     def update_model(self):
         forecast = None
+        fittedvalues = None
+        residuals = None
         self.error(88)
         if self.is_data_valid():
             model = self.learner = self.create_learner()
@@ -82,10 +88,14 @@ class OWBaseModel(widget.OWWidget):
                 self.fit_model(model, self.data)
                 is_fit = True
                 forecast = self.forecast(model)
+                fittedvalues = model.fittedvalues(as_table=True)
+                residuals = model.residuals(as_table=True)
             except Exception as ex:
                 action = 'forecasting' if is_fit else 'fitting model'
                 self.error(88, 'Error {}: {}: {}'.format(action, ex.__class__.__name__, ex.args[0]))
         self.send(Output.FORECAST, forecast)
+        self.send(Output.FITTED_VALUES, fittedvalues)
+        self.send(Output.RESIDUALS, residuals)
 
     def is_data_valid(self):
         data = self.data

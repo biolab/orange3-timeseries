@@ -29,8 +29,12 @@ class _BaseModel:
         self.order = ()
         self._model_kwargs = dict(missing='raise')
         self._fit_kwargs = dict()
-        self._table_var_names = None
         self._endog = None
+
+        self._table_var_names = None
+        self._table_name = None
+        self._table_timevar = None
+        self._table_timevals = None
 
     def _before_init(self, endog, exog):
         """
@@ -49,13 +53,78 @@ class _BaseModel:
 
     def _fittedvalues(self):
         """
-        Return predictions for in-sample observations, i.e. the model's
-        approximations of the original training values.
-
         This was needed to override for ARIMA as its fittedvalues returned
         unintegraded series instead.
         """
         return self.results.fittedvalues
+
+    def fittedvalues(self, as_table=False):
+        """
+        Return predictions for in-sample observations, i.e. the model's
+        approximations of the original training values.
+
+        Parameters
+        ----------
+        as_table : bool
+            If True, return results as an Orange.data.Table.
+
+        Returns
+        -------
+        fitted_values : array_like
+        """
+        if self.results is None:
+            raise self._NOT_FITTED
+        values = self._fittedvalues()
+        if as_table:
+            values = self._as_table(values, 'fitted')
+        return values
+
+    def _as_table(self, values, what):
+        """Used for residuals() and fittedvalues() methods."""
+        from Orange.data import Domain, ContinuousVariable
+        attrs = []
+        n_vars = values.shape[1] if values.ndim == 2 else 1
+        if n_vars == 1:
+            values = np.atleast_2d(values).T
+        tvar = None
+        # If 1d, time var likely not already present, so lets add it if possible
+        if n_vars == 1 and self._table_timevar:
+            values = np.column_stack((self._table_timevals[-values.shape[0]:],
+                                      values))
+            tvar = self._table_timevar
+            attrs.append(tvar)
+        for i, name in zip(range(n_vars),
+                           self._table_var_names or range(n_vars)):
+            attrs.append(ContinuousVariable('{} ({})'.format(name, what)))
+
+            # Make the fitted time variable time variable
+            if self._table_timevar and self._table_timevar.name == name:
+                tvar = attrs[-1]
+
+        table = Timeseries.from_numpy(Domain(attrs), values)
+        table.time_variable = tvar
+        table.name = (self._table_name or '') + '({} {})'.format(self, what)
+        return table
+
+    def residuals(self, as_table=True):
+        """
+        Return residuals (prediction errors) for in-sample observations,
+
+        Parameters
+        ----------
+        as_table : bool
+            If True, return results as an Orange.data.Table.
+
+        Returns
+        -------
+        residuals : array_like
+        """
+        if self.results is None:
+            raise self._NOT_FITTED
+        resid = self.results.resid
+        if as_table:
+            resid = self._as_table(resid, 'residuals')
+        return resid
 
     def _predict(self, steps, exog, alpha):
         """
@@ -68,6 +137,9 @@ class _BaseModel:
         self._table_var_names = [v.name for v in chain(table.domain.class_vars,
                                                        table.domain.attributes)]
         self._table_name = table.name
+        if getattr(table, 'time_variable', None):
+            self._table_timevar = table.time_variable
+            self._table_timevals = table.time_values
         y = table.Y.ravel()
         X = table.X
         if y.size:
@@ -191,8 +263,11 @@ class _BaseModel:
         """Reset (unfit) the current model"""
         self.model = None
         self.results = None
-        self._table_var_names = None
         self._endog = None
+        self._table_var_names = None
+        self._table_name = None
+        self._table_timevar = None
+        self._table_timevals = None
 
     def copy(self):
         """Copy the current model"""
