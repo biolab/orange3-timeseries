@@ -13,6 +13,42 @@ class DataGranularity(Enum):
     DIVIDENDS_ONLY = 'dwmv'
 
 
+def quandl_data(symbol,
+                since=None,
+                until=None,
+                *,
+                collapse='daily',
+                api_key=''):
+    """
+
+    Parameters
+    ----------
+    symbol
+    since
+    until
+    collapse: none|daily|weekly|monthly|quarterly|annual
+    api_key
+
+    Returns
+    -------
+
+    """
+    if since is None:
+        since = date(1900, 1, 1).isoformat()
+    if until is None:
+        until = date.today().isoformat()
+
+    QUANDL_URL = ('https://www.quandl.com/api/v3/datasets/WIKI/{SYMBOL}/data.csv?'
+                  'start_date={START_DATE}&end_date={END_DATE}&order=asc&'
+                  'collapse={COLLAPSE}&transform=rdiff&api_key={API_KEY}')
+    url = QUANDL_URL.format(SYMBOL=symbol,
+                            START_DATE=since,
+                            END_DATE=until,
+                            COLLAPSE=collapse,
+                            API_KEY=api_key)
+    ts = Timeseries.from_url(url)
+    return ts
+
 
 
 def finance_data(symbol,
