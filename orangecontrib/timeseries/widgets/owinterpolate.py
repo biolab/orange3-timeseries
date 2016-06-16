@@ -1,11 +1,14 @@
 from PyQt4.QtCore import Qt
 
+from Orange.util import try_
 from Orange.widgets import widget, gui, settings
 from orangecontrib.timeseries import Timeseries
 
 
 class Output:
     TIMESERIES = 'Time series'
+    INTERPOLATED = 'Interpolated time series'
+    INTERPOLATOR = 'Interpolation model'
 
 
 class OWInterpolate(widget.OWWidget):
@@ -15,12 +18,16 @@ class OWInterpolate(widget.OWWidget):
     priority = 15
 
     inputs = [("Time series", Timeseries, 'set_data')]
-    outputs = [(Output.TIMESERIES, Timeseries)]
+    outputs = [
+        (Output.TIMESERIES, Timeseries),
+        (Output.INTERPOLATED, Timeseries), # TODO
+        # (Output.INTERPOLATOR, Model)     # TODO
+    ]
 
     want_main_area = False
     resizing_enabled = False
 
-    interpolation = settings.Setting('cubic')
+    interpolation = settings.Setting('linear')
     multivariate = settings.Setting(False)
 
     UserAdviceMessages = [
@@ -55,6 +62,7 @@ class OWInterpolate(widget.OWWidget):
             data = data.copy()
             data.set_interpolation(self.interpolation, self.multivariate)
         self.send(Output.TIMESERIES, data)
+        self.send(Output.INTERPOLATED, try_(lambda: data.interp()) or None)
 
 
 if __name__ == "__main__":
