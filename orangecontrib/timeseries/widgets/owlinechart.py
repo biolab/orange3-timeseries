@@ -8,10 +8,11 @@ from Orange.data import TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.highcharts import Highchart
 
-from PyQt4.QtGui import QTreeWidget, QTreeWidgetItem, QFont, QSizePolicy, \
-    QWidget, QPushButton, QIcon, QTreeView, QVBoxLayout
+from PyQt4.QtGui import QTreeWidget, QSizePolicy, \
+    QWidget, QPushButton, QIcon, QListView, QVBoxLayout
 from PyQt4.QtCore import Qt, QSize, pyqtSignal
 
+from Orange.widgets.utils.itemmodels import VariableListModel
 from orangecontrib.timeseries import Timeseries
 
 
@@ -24,22 +25,12 @@ class PlotConfigWidget(QWidget):
     is_logarithmic = False
     plot_type = 'line'
 
-    def __init__(self, owwidget, ax):
+    def __init__(self, owwidget, ax, varmodel):
         super().__init__(owwidget)
         self.ax = ax
-        self.tree = tree = QTreeView(self,
-                                     alternatingRowColors=True,
-                                     selectionMode=QTreeWidget.ExtendedSelection,
-                                     uniformRowHeights=True,
-                                     headerHidden=True,
-                                     indentation=10,
-                                     size=QSize(100, 100),
-                                     sizePolicy=QSizePolicy(QSizePolicy.Fixed,
-                                                            QSizePolicy.Expanding))
-        tree.setModel(owwidget.tree.model())
-        tree.header().setStretchLastSection(True)
-        tree.expandAll()
-        selection = tree.selectionModel()
+        self.view = view = QListView(self, selectionMode=QTreeWidget.ExtendedSelection,)
+        view.setModel(varmodel)
+        selection = view.selectionModel()
         selection.selectionChanged.connect(self.selection_changed)
 
         box = QVBoxLayout(self)
@@ -69,20 +60,16 @@ class PlotConfigWidget(QWidget):
         hbox.layout().addWidget(button)
         gui.checkBox(self, self, 'is_logarithmic', 'Logarithmic axis',
                      callback=lambda: self.sigLogarithmic.emit(ax, self.is_logarithmic))
-        box.addWidget(tree)
+        box.addWidget(view)
 
     def enterEvent(self, event):
         self.button_close.setVisible(True)
     def leaveEvent(self, event):
         self.button_close.setVisible(False)
 
-    def selection_changed(self, _s, _d):
-        selection = []
-        for mi in self.tree.selectionModel().selectedIndexes():
-            if not mi.parent().isValid(): continue
-            data_id = mi.parent().data(Qt.UserRole)
-            attr = mi.data(Qt.UserRole)
-            selection.append((data_id, attr))
+    def selection_changed(self):
+        selection = [mi.model()[mi.row()]
+                     for mi in self.view.selectionModel().selectedIndexes()]
         self.sigSelection.emit(self.ax, selection)
 
 
@@ -152,16 +139,11 @@ class Highstock(Highchart):
         forecasts = []
         forecasts_ci = []
         ci_percents = []
-        delta = None
 
-        for data_id, _ in series:
-            data = self.parent.datas[data_id]
-            if isinstance(data.time_variable, TimeVariable):
-                delta = data.time_delta
-            break
+        data = self.parent.data
+        delta = data.time_delta if isinstance(data.time_variable, TimeVariable) else None
 
-        for data_id, attr in series:
-            data = self.parent.datas[data_id]
+        for attr in series:
             newseries.append(np.ravel(data[:, attr]))
             names.append(attr.name)
             deltas.append(None)
@@ -330,7 +312,7 @@ class OWLineChart(widget.OWWidget):
     icon = 'icons/LineChart.svg'
     priority = 90
 
-    inputs = [("Time series", Timeseries, 'set_data', widget.Multiple),
+    inputs = [("Time series", Timeseries, 'set_data'),
               ('Forecast', Timeseries, 'set_forecast', widget.Multiple)]
 
     attrs = settings.Setting({})  # Maps data.name -> [attrs]
@@ -338,31 +320,26 @@ class OWLineChart(widget.OWWidget):
     def __init__(self):
         self.plots = []
         self.configs = []
-        self.datas = OrderedDict()
         self.forecasts = OrderedDict()
-        self.tree = QTreeWidget(columnCount=1,
-                                alternatingRowColors=True,
-                                selectionMode=QTreeWidget.ExtendedSelection,
-                                uniformRowHeights=True,
-                                headerHidden=True)
+        self.varmodel = VariableListModel(parent=self)
         icon = QIcon(join(dirname(__file__), 'icons', 'LineChart-plus.png'))
         self.add_button = button = QPushButton(icon, ' &Add plot', self)
         button.clicked.connect(self.add_plot)
         self.controlArea.layout().addWidget(button)
         self.configsArea = gui.vBox(self.controlArea)
         self.controlArea.layout().addStretch(1)
-        self.highstock = highstock = Highstock(self, self, highchart='StockChart', debug=True)
+        self.chart = highstock = Highstock(self, self, highchart='StockChart', debug=True)
         self.mainArea.layout().addWidget(highstock)
         highstock.chart()
 
     def add_plot(self):
-        ax = self.highstock.addAxis()
-        config = PlotConfigWidget(self, ax)
+        ax = self.chart.addAxis()
+        config = PlotConfigWidget(self, ax, self.varmodel)
         # Connect the signals
-        config.sigSelection.connect(self.highstock.setSeries)
-        config.sigLogarithmic.connect(self.highstock.setLogarithmic)
-        config.sigType.connect(self.highstock.setType)
-        config.sigClosed.connect(self.highstock.removeAxis)
+        config.sigSelection.connect(self.chart.setSeries)
+        config.sigLogarithmic.connect(self.chart.setLogarithmic)
+        config.sigType.connect(self.chart.setType)
+        config.sigClosed.connect(self.chart.removeAxis)
         config.sigClosed.connect(lambda ax, widget: widget.setParent(None))
         config.sigClosed.connect(lambda ax, widget:
                                  self.add_button.setDisabled(False))
@@ -370,39 +347,18 @@ class OWLineChart(widget.OWWidget):
         self.add_button.setDisabled(len(self.configs) >= 5)
         self.configsArea.layout().addWidget(config)
 
-    def set_data(self, data, id):
-
-        def tree_remove(id):
-            row = list(self.datas.keys()).index(id)
-            self.tree.takeTopLevelItem(row)
-
-        def tree_add(id, data):
-            top = QTreeWidgetItem(
-                [data.name or '<{}>'.format(data.__class__.__name__)])
-            top.setData(0, Qt.UserRole, id)
-            top.setFont(0, QFont('', -1, QFont.Bold))
-            self.tree.addTopLevelItem(top)
-            for attr in data.domain.variables:
-                if not attr.is_continuous or attr == data.time_variable:
-                    continue
-                item = QTreeWidgetItem(top, [attr.name])
-                item.setData(0, Qt.UserRole, attr)
-            self.tree.expandItem(top)
-
-        # TODO: only single data?
+    def set_data(self, data):
+        self.data = data
         if data is None:
-            try:
-                tree_remove(id)
-                self.datas.pop(id)
-            except (ValueError, KeyError):
-                pass
-        else:
-            self.highstock.enable_rangeSelector(
-                isinstance(data.time_variable, TimeVariable))
-            if id in self.datas:
-                tree_remove(id)
-            self.datas[id] = data
-            tree_add(id, data)
+            self.chart.clear()
+            return
+
+        self.varmodel.wrap([var for var in data.domain
+                            if var.is_continuous and var != data.time_variable])
+        self.chart.enable_rangeSelector(
+            isinstance(data.time_variable, TimeVariable))
+
+
 
     def set_forecast(self, forecast, id):
         if forecast is not None:
@@ -420,8 +376,8 @@ if __name__ == "__main__":
     ow = OWLineChart()
 
     msft = Timeseries('yahoo_MSFT')
-    ow.set_data(msft, 0),
-    ow.set_data(Timeseries('UCI-SML2010-1'), 1)
+    ow.set_data(msft),
+    # ow.set_data(Timeseries('UCI-SML2010-1'))
 
     msft = msft.interp()
     model = ARIMA((3, 1, 1)).fit(msft)
