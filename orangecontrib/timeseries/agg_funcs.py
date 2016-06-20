@@ -89,6 +89,11 @@ class Exponential_MA(_AggFunc):
         return (w * arr).sum()
 
 
+class Concatenate(_AggFunc):
+    def __func__(arr):
+        return ' ; '.join(map(str, arr))
+
+
 AGG_FUNCTIONS = [
     Mean,
     Sum,
