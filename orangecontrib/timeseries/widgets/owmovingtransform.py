@@ -4,8 +4,9 @@ from PyQt4.QtGui import QIcon, QStyledItemDelegate, QComboBox, QSpinBox
 
 from Orange.data import Domain, ContinuousVariable
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.utils.itemmodels import VariableListModel, PyListModel, PyTableModel
+from Orange.widgets.utils.itemmodels import VariableListModel, PyTableModel
 
+from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mean
 from orangecontrib.timeseries.widgets.utils import available_name
@@ -76,7 +77,7 @@ class OWMovingTransform(widget.OWWidget):
                                                self.EditKeyPressed),
                                  )
                 self.horizontalHeader().setStretchLastSection(False)
-                agg_functions = PyListModel(agg_functions, parent=self)
+                agg_functions = ListModel(agg_functions, parent=self)
                 self.setItemDelegateForColumn(0, self.VariableDelegate(parent))
                 self.setItemDelegateForColumn(1, self.SpinDelegate(parent))
                 self.setItemDelegateForColumn(2, self.ComboDelegate(self, agg_functions))

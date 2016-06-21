@@ -9,9 +9,10 @@ from PyQt4.QtCore import Qt
 
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.utils.itemmodels import PyListModel, PyTableModel
+from Orange.widgets.utils.itemmodels import PyTableModel
 
 from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode, Concatenate
 
 
@@ -77,9 +78,9 @@ class OWAggregate(widget.OWWidget):
                 def __init__(self, parent):
                     super().__init__(parent)
                     self._parent = parent
-                    self._combo_continuous_model = PyListModel(AGG_FUNCTIONS, parent=self)
-                    self._combo_discrete_model = PyListModel([Mode], parent=self)
-                    self._combo_string_model = PyListModel([Concatenate], parent=self)
+                    self._combo_continuous_model = ListModel(AGG_FUNCTIONS, parent=self)
+                    self._combo_discrete_model = ListModel([Mode], parent=self)
+                    self._combo_string_model = ListModel([Concatenate], parent=self)
 
                 def createEditor(self, parent, _QStyleOptionViewItem, index):
                     combo = QComboBox(parent)

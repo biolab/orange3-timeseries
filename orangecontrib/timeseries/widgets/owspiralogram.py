@@ -12,8 +12,9 @@ from Orange.data import Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.highcharts import Highchart
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
-from Orange.widgets.utils.itemmodels import VariableListModel, PyListModel
+from Orange.widgets.utils.itemmodels import VariableListModel
 
+from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode
 
@@ -243,7 +244,7 @@ class OWSpiralogram(widget.OWWidget):
         self.combo_func = gui.comboBox(
             box, self, 'agg_func', label='Function:', orientation='horizontal',
             callback=self.replot)
-        func_model = PyListModel(AGG_FUNCTIONS, parent=self)
+        func_model = ListModel(AGG_FUNCTIONS, parent=self)
         self.combo_func.setModel(func_model)
 
         self.attrlist_model = VariableListModel(parent=self)
