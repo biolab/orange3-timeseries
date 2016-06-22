@@ -7,7 +7,7 @@ from PyQt4.QtCore import QSize
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import PyTableModel
 
-from orangecontrib.timeseries import Timeseries, rmse, mae, mape, pocid, r2
+from orangecontrib.timeseries import Timeseries, model_evaluation
 from orangecontrib.timeseries.models import _BaseModel
 
 
@@ -51,7 +51,6 @@ class OWModelEvaluation(widget.OWWidget):
         gui.rubber(self.controlArea)
 
         self.model = model = PyTableModel(parent=self)
-        model.setHorizontalHeaderLabels(['RMSE', 'MAE', 'MAPE', 'POCID', 'R²', 'AIC', 'BIC'])
         view = gui.TableView(self)
         view.setModel(model)
         view.horizontalHeader().setStretchLastSection(False)
@@ -81,77 +80,18 @@ class OWModelEvaluation(widget.OWWidget):
         data = self.data
         if not data or not self._models:
             return
-        if not data.domain.class_var:
-            self.error('Data requires a target variable. Use Select Columns '
-                       'widget to set one variable as target.')
+        try:
+            with self.progressBar(len(self._models) * (self.n_folds + 1) + 1) as progress:
+                res = model_evaluation(data, list(self._models.values()),
+                                       self.n_folds, self.forecast_steps,
+                                       callback=progress.advance)
+        except ValueError as e:
+            self.error(e.args[0])
             return
-
-        n_folds = self.n_folds
-        forecast_steps = self.forecast_steps
-
-        max_lag = max(m.max_order for m in self._models.values())
-        if n_folds * forecast_steps + max_lag > len(data):
-            self.error('Supplied time series is too short for this many folds '
-                       '/ step size. Retry with fewer iterations.')
-            return
-
-        def _score_vector(model, true, pred):
-            true = np.asanyarray(true)
-            pred = np.asanyarray(pred)
-            nonnan = ~np.isnan(true)
-            if not nonnan.all():
-                pred = pred[nonnan]
-                true = true[nonnan]
-            if pred.size:
-                row = [score(true, pred) for score in (rmse, mae, mape, pocid, r2)]
-            else:
-                row = ['err'] * 5
-            try:
-                row.extend([model.results.aic, model.results.bic])
-            except Exception:
-                row.extend(['err'] * 2)
-            return row
-
-        res = []
-        vheaders = []
-        interp_data = data.interp()
-        true_y = np.ravel(data[:, data.domain.class_var])
-        with self.progressBar(len(self._models) * (n_folds + 1) + 1) as progress:
-            for model in self._models.values():
-                model_name = str(getattr(model, 'name', model))
-                vheaders.append(model_name)
-                full_true = []
-                full_pred = []
-                for fold in range(1, n_folds + 1):
-                    train_end = -fold * forecast_steps
-                    try:
-                        model.fit(interp_data[:train_end])
-                        pred, _, _ = model.predict(forecast_steps)
-                    except Exception:
-                        continue
-                    finally:
-                        progress.advance()
-
-                    full_true.extend(true_y[train_end:][:forecast_steps])  # Sliced twice because it doesn't work at the end, e.g. [-3:0] == [] :(
-                    full_pred.extend(np.c_[pred][:, 0])  # Only interested in the class var
-                    assert len(full_true) == len(full_pred)
-
-                res.append(_score_vector(model, full_true, full_pred))
-
-                vheaders.append(model_name + ' (in-sample)')
-                try:
-                    model.fit(interp_data)
-                    fittedvalues = model.fittedvalues()
-                    if fittedvalues.ndim > 1:
-                        fittedvalues = fittedvalues[..., 0]
-                except Exception:
-                    row = ['err'] * 7
-                else:
-                    row = _score_vector(model, true_y, fittedvalues)
-                res.append(row)
-
-        self.model.setVerticalHeaderLabels(vheaders)
-        self.model.wrap(res)
+        res = np.array(res, dtype=object)
+        self.model.setHorizontalHeaderLabels(res[0, 1:].tolist())
+        self.model.setVerticalHeaderLabels(res[1:, 0].tolist())
+        self.model.wrap(res[1:, 1:].tolist())
 
 
 if __name__ == "__main__":

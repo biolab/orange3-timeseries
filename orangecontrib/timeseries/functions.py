@@ -530,3 +530,93 @@ def moving_transform(data, spec, fixed_wlen=0):
                     dataY, dataM)
     ts.time_variable = data.time_variable
     return ts
+
+
+def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):
+    """
+    Evaluate models on data.
+
+    Parameters
+    ----------
+    data : Timeseries
+        The timeseries to model. Must have a class variable that is used
+        for prediction and scoring.
+    models : list
+        List of models (objects with fit() and predict() methods) to try.
+    n_folds : int
+        Number of iterations.
+    forecast_steps : int
+        Number of forecast steps at each iteraction.
+    callback : callable, optional
+        Optional argument-less callback to call after each iteration.
+
+    Returns
+    -------
+    results : list of lists
+        A table with horizontal and vertical headers and results. Print it
+        to see it.
+    """
+    if not data.domain.class_var:
+        raise ValueError('Data requires a target variable. Use Select Columns '
+                         'widget to set one variable as target.')
+    max_lag = max(m.max_order for m in models)
+    if n_folds * forecast_steps + max_lag > len(data):
+        raise ValueError(
+            'Supplied time series is too short for this many folds '
+            '/ step size. Retry with fewer iterations.')
+
+    def _score_vector(model, true, pred):
+        true = np.asanyarray(true)
+        pred = np.asanyarray(pred)
+        nonnan = ~np.isnan(true)
+        if not nonnan.all():
+            pred = pred[nonnan]
+            true = true[nonnan]
+        row = [str(getattr(model, 'name', model))]
+        if pred.size:
+            row.extend(score(true, pred) for score in (rmse, mae, mape, pocid, r2))
+        else:
+            row.extend(['err'] * 5)
+        try:
+            row.extend([model.results.aic, model.results.bic])
+        except Exception:
+            row.extend(['err'] * 2)
+        return row
+
+    res = [['Model', 'RMSE', 'MAE', 'MAPE', 'POCID', 'R²', 'AIC', 'BIC']]
+    interp_data = data.interp()
+    true_y = np.ravel(data[:, data.domain.class_var])
+
+    for model in models:
+        full_true = []
+        full_pred = []
+        for fold in range(1, n_folds + 1):
+            train_end = -fold * forecast_steps
+            try:
+                model.fit(interp_data[:train_end])
+                pred, _, _ = model.predict(forecast_steps)
+            except Exception:
+                continue
+            finally:
+                if callback:
+                    callback()
+
+            full_true.extend(true_y[train_end:][:forecast_steps])  # Sliced twice because it doesn't work at the end, e.g. [-3:0] == [] :(
+            full_pred.extend(np.c_[pred][:, 0])  # Only interested in the class var
+            assert len(full_true) == len(full_pred)
+
+        res.append(_score_vector(model, full_true, full_pred))
+
+        # Score in-sample fittedvalues
+        try:
+            model.fit(interp_data)
+            fittedvalues = model.fittedvalues()
+            if fittedvalues.ndim > 1:
+                fittedvalues = fittedvalues[..., 0]
+        except Exception:
+            row = ['err'] * 7
+        else:
+            row = _score_vector(model, true_y, fittedvalues)
+        row[0] = row[0] + ' (in-sample)'
+        res.append(row)
+    return res
