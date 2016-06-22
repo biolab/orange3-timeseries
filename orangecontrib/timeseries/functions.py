@@ -414,3 +414,50 @@ def seasonal_decompose(data, model='multiplicative', period=12, *, callback=None
 
     ts = Timeseries(Domain(attrs), np.column_stack(X))
     return ts
+
+
+def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
+    """
+    Return results of Granger-causality tests.
+
+    Parameters
+    ----------
+    data : Timeseries
+        A table of features to compute Granger causality between.
+    max_lag : int
+        The maximum lag to compute Granger-causality for.
+    alpha : float in (0, 1)
+        Confidence of test is 1 - alpha.
+    callback : callable
+        A callback to call in each iteration with ratio of completion.
+
+    Returns
+    -------
+    res : list of lists
+        Each internal list is [lag, antecedent, consequent] where
+        lag is the minimum lag at which antecedent feature in data is
+        Granger-causal for the consequent feature in data.
+    """
+    from statsmodels.tsa.stattools import grangercausalitytests
+    from Orange.data import Table, Domain
+    # TODO: use VAR Granger causality
+    # http://statsmodels.sourceforge.net/devel/generated/statsmodels.tsa.vector_ar.var_model.VARResults.test_causality.html
+    # http://statsmodels.sourceforge.net/devel/vector_ar.html#granger-causality
+
+    data = data.interp()
+    domain = [var for var in data.domain if var.is_continuous]
+    res = []
+
+    for row_attr in domain:
+        for col_attr in domain:
+            if row_attr == col_attr or data.time_variable in (row_attr, col_attr):
+                continue
+            X = Table(Domain([], [], [col_attr, row_attr], data.domain), data).metas
+            tests = grangercausalitytests(X, max_lag, verbose=False)
+            lag = next((lag for lag in range(1, 1 + max_lag)
+                        if tests[lag][0]['ssr_ftest'][1] < alpha), 0)
+            if lag:
+                res.append([lag, row_attr.name, col_attr.name])
+            if callback:
+                callback(1 / ((len(domain) - 1)**2 - len(domain)))
+    return res

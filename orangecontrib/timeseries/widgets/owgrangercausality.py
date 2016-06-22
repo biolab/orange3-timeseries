@@ -1,14 +1,8 @@
 from PyQt4.QtCore import Qt
 
-from Orange.data import Table, Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import PyTableModel
-from orangecontrib.timeseries import Timeseries
-
-# TODO: use VAR Granger causality
-# http://statsmodels.sourceforge.net/devel/generated/statsmodels.tsa.vector_ar.var_model.VARResults.test_causality.html
-# http://statsmodels.sourceforge.net/devel/vector_ar.html#granger-causality
-from statsmodels.tsa.stattools import grangercausalitytests
+from orangecontrib.timeseries import Timeseries, granger_causality
 
 
 class OWGrangerCausality(widget.OWWidget):
@@ -73,23 +67,14 @@ class OWGrangerCausality(widget.OWWidget):
         if data is None:
             return
 
-        res = []
-        data = data.interp()
-        alpha = 1 - self.confidence / 100
-        domain = [var for var in data.domain if var.is_continuous]
         try:
-            with self.progressBar(len(domain)**2) as progress:
-                for row_attr in domain:
-                    for col_attr in domain:
-                        if row_attr == col_attr or data.time_variable in (row_attr, col_attr):
-                            continue
-                        X = Table(Domain([], [], [col_attr, row_attr], source=data.domain), data).metas
-                        tests = grangercausalitytests(X, self.max_lag, verbose=False)
-                        lag = next((lag for lag in range(1, 1 + self.max_lag)
-                                    if tests[lag][0]['ssr_ftest'][1] < alpha), 0)
-                        if lag:
-                            res.append([lag, row_attr.name, '→', col_attr.name])
-                        progress.advance()
+            with self.progressBar() as progress:
+                res = granger_causality(data,
+                                        self.max_lag,
+                                        1 - self.confidence / 100,
+                                        callback=progress.advance)
+                res = [[lag, row, '→', col]
+                       for lag, row, col in res]
         except ValueError as ex:
             self.error(ex.args[0])
         else:
