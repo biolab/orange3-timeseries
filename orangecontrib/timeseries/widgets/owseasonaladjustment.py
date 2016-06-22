@@ -1,16 +1,13 @@
-from operator import sub, truediv
 import numpy as np
 
 from PyQt4.QtGui import QListView
 from PyQt4.QtCore import Qt
-from statsmodels.tsa.seasonal import seasonal_decompose
 
-from Orange.data import Domain, ContinuousVariable
+from Orange.data import Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
 
-from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries.widgets.utils import available_name
+from orangecontrib.timeseries import Timeseries, seasonal_decompose
 
 
 class Output:
@@ -94,61 +91,16 @@ class OWSeasonalAdjustment(widget.OWWidget):
             self.send(Output.TIMESERIES, data)
             return
 
-        def _interp_trend(trend):
-            first = next(i for i, val in enumerate(trend) if val == val)
-            last = trend.size - 1 - next(i for i, val in enumerate(trend[::-1]) if val == val)
-            d = 3
-            first_last = min(first + d, last)
-            last_first = max(first, last - d)
+        selected_subset = Timeseries(Domain(self.selected, source=data.domain), data)  # FIXME: might not pass selected interpolation method
 
-            k, n = np.linalg.lstsq(
-                np.column_stack((np.arange(first, first_last), np.ones(d))),
-                trend[first:first_last])[0]
-            trend[:first] = np.arange(0, first) * k + n
-
-            k, n = np.linalg.lstsq(
-                np.column_stack((np.arange(last_first, last), np.ones(d))),
-                trend[last_first:last])[0]
-            trend[last + 1:] = np.arange(last + 1, trend.size) * k + n
-            return trend
-
-        attrs = []
-        X = []
-        decomposition = self.DECOMPOSITION_MODELS[self.decomposition]
-        recomposition = sub if decomposition == 'additive' else truediv
-        interp_data = data.interp()
         with self.progressBar(len(self.selected)) as progress:
-            for var in self.selected:
-                decomposed = seasonal_decompose(np.ravel(interp_data[:, var]),
-                                                model=decomposition,
-                                                freq=self.n_periods)
-                adjusted = recomposition(decomposed.observed,
-                                           decomposed.seasonal)
+            adjusted_data = seasonal_decompose(
+                selected_subset,
+                self.DECOMPOSITION_MODELS[self.decomposition],
+                self.n_periods,
+                callback=lambda *_: progress.advance())
 
-                season = decomposed.seasonal
-                trend = _interp_trend(decomposed.trend)
-                resid = recomposition(adjusted, trend)
-
-                # Re-apply nans
-                isnan = np.isnan(data[:, var]).ravel()
-                adjusted[isnan] = np.nan
-                trend[isnan] = np.nan
-                resid[isnan] = np.nan
-
-                attrs.extend(
-                    ContinuousVariable(
-                        available_name(data.domain,
-                                       var + ' ({})'.format(transform)))
-                    for transform in ('season. adj.', 'seasonal', 'trend', 'residual')
-                )
-                X.extend((adjusted, season, trend, resid))
-                progress.advance()
-
-        ts = Timeseries(Domain(data.domain.attributes + tuple(attrs),
-                               data.domain.class_vars,
-                               data.domain.metas),
-                        np.column_stack((data.X, np.column_stack(X))),
-                        data.Y, data.metas)
+        ts = Timeseries(Timeseries.concatenate((data, adjusted_data)))
         ts.time_variable = data.time_variable
         self.send(Output.TIMESERIES, ts)
 

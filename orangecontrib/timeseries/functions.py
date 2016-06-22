@@ -329,3 +329,88 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
 
     ts = Timeseries(Domain(attrs, cvars, metas), X, Y, M)
     return ts
+
+
+def seasonal_decompose(data, model='multiplicative', period=12, *, callback=None):
+    """
+    Return table of decomposition components of original features and
+    original features seasonally adjusted.
+
+    Parameters
+    ----------
+    data : Timeseries
+        A table of featres to decompose/adjust.
+    model : str {'additive', 'multiplicative'}
+        A decompostition model. See:
+        https://en.wikipedia.org/wiki/Decomposition_of_time_series
+    period : int
+        The period length of season.
+    callback : callable
+        Optional callback to call (with no parameters) after each iteration.
+
+    Returns
+    -------
+    table : Timeseries
+        Table with columns: original series seasonally adjusted, original
+        series' seasonal components, trend components, and residual components.
+    """
+    from operator import sub, truediv
+    from Orange.data import Domain, ContinuousVariable
+    from orangecontrib.timeseries import Timeseries
+    from orangecontrib.timeseries.widgets.utils import available_name
+    import statsmodels.api as sm
+
+    def _interp_trend(trend):
+        first = next(i for i, val in enumerate(trend) if val == val)
+        last = trend.size - 1 - next(
+            i for i, val in enumerate(trend[::-1]) if val == val)
+        d = 3
+        first_last = min(first + d, last)
+        last_first = max(first, last - d)
+
+        k, n = np.linalg.lstsq(
+            np.column_stack((np.arange(first, first_last), np.ones(d))),
+            trend[first:first_last])[0]
+        trend[:first] = np.arange(0, first) * k + n
+
+        k, n = np.linalg.lstsq(
+            np.column_stack((np.arange(last_first, last), np.ones(d))),
+            trend[last_first:last])[0]
+        trend[last + 1:] = np.arange(last + 1, trend.size) * k + n
+        return trend
+
+    attrs = []
+    X = []
+    recomposition = sub if model == 'additive' else truediv
+    interp_data = data.interp()
+    for var in data.domain:
+        decomposed = sm.tsa.seasonal_decompose(np.ravel(interp_data[:, var]),
+                                               model=model,
+                                               freq=period)
+        adjusted = recomposition(decomposed.observed,
+                                 decomposed.seasonal)
+
+        season = decomposed.seasonal
+        trend = _interp_trend(decomposed.trend)
+        resid = recomposition(adjusted, trend)
+
+        # Re-apply nans
+        isnan = np.isnan(data[:, var]).ravel()
+        adjusted[isnan] = np.nan
+        trend[isnan] = np.nan
+        resid[isnan] = np.nan
+
+        attrs.extend(
+            ContinuousVariable(
+                available_name(data.domain,
+                               var.name + ' ({})'.format(transform)))
+            for transform in
+            ('season. adj.', 'seasonal', 'trend', 'residual')
+        )
+        X.extend((adjusted, season, trend, resid))
+
+        if callback:
+            callback()
+
+    ts = Timeseries(Domain(attrs), np.column_stack(X))
+    return ts
