@@ -1,15 +1,13 @@
-import numpy as np
 from PyQt4.QtCore import Qt, QSize
 from PyQt4.QtGui import QIcon, QStyledItemDelegate, QComboBox, QSpinBox
 
-from Orange.data import Domain, ContinuousVariable
+from Orange.data import Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel, PyTableModel
 
 from orangecontrib.timeseries.widgets.utils import ListModel
-from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries import Timeseries, moving_transform
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mean
-from orangecontrib.timeseries.widgets.utils import available_name
 
 
 class Output:
@@ -193,47 +191,7 @@ class OWMovingTransform(widget.OWWidget):
             self.send(Output.TIMESERIES, None)
             return
 
-        X = []
-        attrs = []
-        no_overlap = self.non_overlapping
-        for var, wlen, func in self.table_model:
-            col = np.ravel(data[:, var])
-
-            if no_overlap:
-                wlen = self.fixed_wlen
-
-            # In reverse cause lazy brain. Also tend to have informative ends, not beginnings as much
-            col = col[::-1]
-
-            out = [func(col[i:i + wlen])
-                   for i in range(0,
-                                  len(col) - wlen + int(no_overlap),
-                                  wlen if no_overlap else 1)]
-            # The first few convolution results are incomplete / values unknown
-            if not no_overlap:
-                out.extend([np.nan] * wlen)
-
-            out = np.array(out)[::-1]
-
-            X.append(out)
-
-            template = '{} ({}; {})'.format(var.name, wlen, func)
-            name = available_name(data.domain, template)
-            attrs.append(ContinuousVariable(name))
-
-        dataX, dataY, dataM = data.X, data.Y, data.metas
-        if self.non_overlapping:
-            n = len(X[0])
-            dataX = dataX[::-1][::self.fixed_wlen][:n][::-1]
-            dataY = dataY[::-1][::self.fixed_wlen][:n][::-1]
-            dataM = dataM[::-1][::self.fixed_wlen][:n][::-1]
-
-        ts = Timeseries(Domain(data.domain.attributes + tuple(attrs),
-                               data.domain.class_vars,
-                               data.domain.metas),
-                        np.column_stack((dataX, np.column_stack(X))) if X else dataX,
-                        dataY, dataM)
-        ts.time_variable = data.time_variable
+        ts = moving_transform(data, self.table_model, self.non_overlapping and self.fixed_wlen)
         self.send(Output.TIMESERIES, ts)
 
 

@@ -461,3 +461,72 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
             if callback:
                 callback(1 / ((len(domain) - 1)**2 - len(domain)))
     return res
+
+
+def moving_transform(data, spec, fixed_wlen=0):
+    """
+    Return data transformed according to spec.
+
+    Parameters
+    ----------
+    data : Timeseries
+        A table with features to transform.
+    spec : list of lists
+        A list of lists [feature:Variable, window_length:int, function:callable].
+    fixed_wlen : int
+        If not 0, then window_length in spec is disregarded and this length
+        is used. Also the windows don't shift by one but instead align
+        themselves side by side.
+
+    Returns
+    -------
+    transformed : Timeseries
+        A table of original data its transformations.
+    """
+    from Orange.data import ContinuousVariable, Domain
+    from orangecontrib.timeseries import Timeseries
+    from orangecontrib.timeseries.widgets.utils import available_name
+
+    X = []
+    attrs = []
+
+    for var, wlen, func in spec:
+        col = np.ravel(data[:, var])
+
+        if fixed_wlen:
+            wlen = fixed_wlen
+
+        # In reverse cause lazy brain. Also tend to have informative ends, not beginnings as much
+        col = col[::-1]
+
+        out = [func(col[i:i + wlen])
+               for i in range(0,
+                              len(col) - wlen + int(bool(fixed_wlen)),
+                              wlen if bool(fixed_wlen) else 1)]
+        # The first few convolution results are incomplete / values unknown
+        if not fixed_wlen:
+            out.extend([np.nan] * wlen)
+
+        out = np.array(out)[::-1]
+
+        X.append(out)
+
+        template = '{} ({}; {})'.format(var.name, wlen, func.__name__.lower().replace('_', ' '))
+        name = available_name(data.domain, template)
+        attrs.append(ContinuousVariable(name))
+
+    dataX, dataY, dataM = data.X, data.Y, data.metas
+    if fixed_wlen:
+        n = len(X[0])
+        dataX = dataX[::-1][::fixed_wlen][:n][::-1]
+        dataY = dataY[::-1][::fixed_wlen][:n][::-1]
+        dataM = dataM[::-1][::fixed_wlen][:n][::-1]
+
+    ts = Timeseries(Domain(data.domain.attributes + tuple(attrs),
+                           data.domain.class_vars,
+                           data.domain.metas),
+                    np.column_stack(
+                        (dataX, np.column_stack(X))) if X else dataX,
+                    dataY, dataM)
+    ts.time_variable = data.time_variable
+    return ts
