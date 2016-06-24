@@ -352,6 +352,10 @@ class OWLineChart(widget.OWWidget):
         if data is None:
             self.chart.clear()
             return
+        if getattr(data.time_variable, 'utc_offset', False):
+            offset_minutes = data.time_variable.utc_offset.total_seconds() / 60
+            self.chart.evalJS('Highcharts.setOptions({global: {timezoneOffset: %d}});' % -offset_minutes)  # Why is this negative? It works.
+            self.chart.chart()
 
         self.varmodel.wrap([var for var in data.domain
                             if var.is_continuous and var != data.time_variable])
