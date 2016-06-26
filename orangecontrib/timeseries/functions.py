@@ -483,9 +483,11 @@ def moving_transform(data, spec, fixed_wlen=0):
     transformed : Timeseries
         A table of original data its transformations.
     """
+    from itertools import chain
     from Orange.data import ContinuousVariable, Domain
     from orangecontrib.timeseries import Timeseries
     from orangecontrib.timeseries.widgets.utils import available_name
+    from orangecontrib.timeseries.agg_funcs import Cumulative_sum, Cumulative_product
 
     X = []
     attrs = []
@@ -496,18 +498,15 @@ def moving_transform(data, spec, fixed_wlen=0):
         if fixed_wlen:
             wlen = fixed_wlen
 
-        # In reverse cause lazy brain. Also tend to have informative ends, not beginnings as much
-        col = col[::-1]
-
-        out = [func(col[i:i + wlen])
-               for i in range(0,
-                              len(col) - wlen + int(bool(fixed_wlen)),
-                              wlen if bool(fixed_wlen) else 1)]
-        # The first few convolution results are incomplete / values unknown
-        if not fixed_wlen:
-            out.extend([np.nan] * wlen)
-
-        out = np.array(out)[::-1]
+        if func in (Cumulative_sum, Cumulative_product):
+            out = list(chain.from_iterable(func(col[i:i + wlen])
+                                           for i in range(0, len(col), wlen)))
+        else:
+            # In reverse cause lazy brain. Also prefer informative ends, not beginnings as much
+            col = col[::-1]
+            out = [func(col[i:i + wlen])
+                   for i in range(0, len(col), wlen if bool(fixed_wlen) else 1)]
+            out = out[::-1]
 
         X.append(out)
 

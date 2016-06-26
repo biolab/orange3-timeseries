@@ -64,6 +64,17 @@ class Mode(_AggFunc):
     __func__ = lambda arr: mode(arr, nan_policy='omit').mode[0]
 
 
+class Cumulative_sum(_AggFunc):
+    __func__ = lambda arr: np.cumsum(-np.nan_to_num(arr), dtype=float)
+
+
+class Cumulative_product(_AggFunc):
+    def __func__(arr):
+        arr = arr.copy()
+        arr[np.isnan(arr)] = 1
+        return np.cumprod(arr, dtype=float)
+
+
 class Harmonic_mean(_AggFunc):
     __func__ = lambda arr: hmean(arr[arr > 0], axis=None)
 

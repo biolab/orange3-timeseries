@@ -7,7 +7,7 @@ from Orange.widgets.utils.itemmodels import VariableListModel, PyTableModel
 
 from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries, moving_transform
-from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mean
+from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mean, Cumulative_sum, Cumulative_product
 
 
 class Output:
@@ -67,7 +67,7 @@ class OWMovingTransform(widget.OWWidget):
         fixed_wlen.setDisabled(not self.non_overlapping)
 
         class TableView(gui.TableView):
-            def __init__(self, parent, agg_functions):
+            def __init__(self, parent):
                 super().__init__(parent,
                                  editTriggers=(self.SelectedClicked |
                                                self.CurrentChanged |
@@ -75,7 +75,9 @@ class OWMovingTransform(widget.OWWidget):
                                                self.EditKeyPressed),
                                  )
                 self.horizontalHeader().setStretchLastSection(False)
-                agg_functions = ListModel(agg_functions, parent=self)
+                agg_functions = ListModel(AGG_FUNCTIONS +
+                                          [Cumulative_sum, Cumulative_product],
+                                          parent=self)
                 self.setItemDelegateForColumn(0, self.VariableDelegate(parent))
                 self.setItemDelegateForColumn(1, self.SpinDelegate(parent))
                 self.setItemDelegateForColumn(2, self.ComboDelegate(self, agg_functions))
@@ -136,7 +138,7 @@ class OWMovingTransform(widget.OWWidget):
         model.setHorizontalHeaderLabels(['Series', 'Window width', 'Aggregation function'])
         model.dataChanged.connect(self.on_changed)
 
-        self.view = view = TableView(self, AGG_FUNCTIONS)
+        self.view = view = TableView(self)
         view.setModel(model)
         box.layout().addWidget(view)
 
