@@ -83,8 +83,7 @@ if __name__ == '__main__':
             'Orange3',
             'statsmodels>=0.6.1',
             'numpy',
-            'scipy',
-            'pyqtgraph'
+            'scipy>=0.17',
         ],
         entry_points=ENTRY_POINTS,
         namespace_packages=['orangecontrib'],
