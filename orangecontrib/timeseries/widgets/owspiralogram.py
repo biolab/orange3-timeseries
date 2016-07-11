@@ -115,6 +115,7 @@ class Spiralogram(Highchart):
                     aggvals.append(aggval)
                 point['n'] = aggval
 
+        # TODO: allow scaling over just rows or cols instead of all values as currently
         try:
             maxval, minval = np.max(aggvals), np.min(aggvals)
         except ValueError:
@@ -203,6 +204,7 @@ class Spiralogram(Highchart):
     )
 
     def __init__(self, parent, *args, **kwargs):
+        # TODO: Add colorAxes (heatmap legend)
         super().__init__(parent, *args,
                          options=self.OPTIONS,
                          enable_select='+',  # TODO: implement mouse-drag select
@@ -303,6 +305,7 @@ class OWSpiralogram(widget.OWWidget):
             ax1 = Spiralogram.AxesCategories[_enum_str(self.ax1, True)]
         except KeyError:
             ax1 = self.data.domain[self.ax1]
+        # TODO: Allow having only a sinle (i.e. radial) axis
         try:
             ax2 = Spiralogram.AxesCategories[_enum_str(self.ax2, True)]
         except KeyError:

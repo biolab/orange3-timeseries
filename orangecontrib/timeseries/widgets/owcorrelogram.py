@@ -12,6 +12,7 @@ from PyQt4.QtGui import QListWidget
 
 
 class OWCorrelogram(widget.OWWidget):
+    # TODO: allow computing cross-correlation of two distinct series
     name = 'Correlogram'
     description = "Visualize variables' auto-correlation."
     icon = 'icons/Correlogram.svg'
@@ -102,6 +103,7 @@ class OWCorrelogram(widget.OWWidget):
                 plotlines.append(dict(line, value=-std))
 
             series.append(dict(
+                # TODO: set units to something more readable than #periods (e.g. days)
                 data=pac,
                 type='column',
                 name=attr_name,

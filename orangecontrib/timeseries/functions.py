@@ -322,6 +322,7 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
             A[isnan, i] = f(_x[isnan])
 
             # nearest-interpolate any nans at vals start and end
+            # TODO: replace nearest with linear/OLS?
             valid = (~np.isnan(col)).nonzero()[0]
             first, last = valid[0], valid[-1]
             col[:first] = col[first]
@@ -441,6 +442,7 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
     from statsmodels.tsa.stattools import grangercausalitytests
     from Orange.data import Table, Domain
     # TODO: use VAR Granger causality
+    # TODO: consider CCM in stead/addition of GC: https://en.wikipedia.org/wiki/Convergent_cross_mapping
     # http://statsmodels.sourceforge.net/devel/generated/statsmodels.tsa.vector_ar.var_model.VARResults.test_causality.html
     # http://statsmodels.sourceforge.net/devel/vector_ar.html#granger-causality
 

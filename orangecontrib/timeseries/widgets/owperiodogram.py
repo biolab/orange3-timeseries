@@ -52,6 +52,7 @@ class OWPeriodogram(widget.OWWidget):
             tooltip_pointFormat='<span style="color:{point.color}">\u25CF</span> {point.y:.2f}<br/>',
         )
         self.mainArea.layout().addWidget(plot)
+        # TODO: non-equispaced periodogram should let the user set minimal and maximal frequencies to test
 
     @lru_cache(20)
     def periodogram(self, attr):

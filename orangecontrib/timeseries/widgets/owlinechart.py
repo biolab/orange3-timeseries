@@ -328,6 +328,7 @@ class OWLineChart(widget.OWWidget):
         self.controlArea.layout().addWidget(button)
         self.configsArea = gui.vBox(self.controlArea)
         self.controlArea.layout().addStretch(1)
+        # TODO: allow selecting ranges that are sent to output as subset table
         self.chart = highstock = Highstock(self, self, highchart='StockChart', debug=True)
         self.mainArea.layout().addWidget(highstock)
         highstock.chart()
@@ -348,6 +349,8 @@ class OWLineChart(widget.OWWidget):
         self.configsArea.layout().addWidget(config)
 
     def set_data(self, data):
+        # TODO: set xAxis resolution and tooltip time contents depending on
+        # data.time_delta. See: http://imgur.com/yrnlgQz
         self.data = data
         if data is None:
             self.chart.clear()

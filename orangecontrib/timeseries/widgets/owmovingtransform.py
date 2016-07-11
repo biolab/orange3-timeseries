@@ -65,6 +65,7 @@ class OWMovingTransform(widget.OWWidget):
                               label='Fixed window width:',
                               callback=self.on_changed)
         fixed_wlen.setDisabled(not self.non_overlapping)
+        # TODO: allow the user to choose left-aligned, right-aligned, or center-aligned window
 
         class TableView(gui.TableView):
             def __init__(self, parent):

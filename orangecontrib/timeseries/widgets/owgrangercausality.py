@@ -52,6 +52,8 @@ class OWGrangerCausality(widget.OWWidget):
         view.setItemDelegateForColumn(3, bold)
         view.horizontalHeader().setStretchLastSection(False)
         self.mainArea.layout().addWidget(view)
+        # TODO: output the series with subset columns of selected model rows
+        # TODO: allow setting filters or choosing what variables to include in test
 
     def on_changed(self):
         self.commit()
