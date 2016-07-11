@@ -25,6 +25,11 @@ ENTRY_POINTS = {
         #    orangecontrib/datafusion/widgets/__init__.py
         'Time Series = orangecontrib.timeseries.widgets',
     ),
+
+    # Widget help
+    "orange.canvas.help": (
+        'html-index = orangecontrib.timeseries.widgets:WIDGET_HELP_PATH',
+    )
 }
 
 
