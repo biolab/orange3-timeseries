@@ -25,9 +25,9 @@ data-bearing column, which also happens to be a class variable:
 
 >>> periods, pgram_values = periodogram(data.Y, detrend='diff')
 >>> periods
-array([  2.3833,   3.0426,   3.9722,   5.9583,  11.9167])
+array([  2.38333333,   3.04255319,   3.97222222,   5.95833333,  11.91666667])
 >>> pgram_values
-array([ 0.1459,  0.1702,  0.2353,  1.    ,  0.9014])
+array([ 0.14585092,  0.17023564,  0.23531016,  1.        ,  0.90136873])
 
 Obviously, 6 and 12 are important periods for this data set.
 
@@ -38,35 +38,18 @@ Compute autocorrelation or partial autocorrelation coefficients using
 :func:`autocorrelation` or :func:`partial_autocorrelation` functions.
 For example:
 
->>> autocorrelation(data.Y)
-array([[  12.    ,    0.8295],
-       [  24.    ,    0.6386],
-       [  36.    ,    0.4494],
-       [  48.    ,    0.199 ],
-       [  56.    ,   -0.1304],
-       [  68.    ,   -0.4345],
-       [  80.    ,   -0.7143],
-       [ 104.    ,   -1.2694],
-       [ 126.    ,   -2.0461]])
->>> partial_autocorrelation(data.Y)
-array([[   9.    ,    0.2325],
-       [  13.    ,   -0.5397],
-       [  25.    ,   -0.1627],
-       [  40.    ,   -0.0883],
-       [  51.    ,    0.0667],
-       [  59.    ,   -0.0533],
-       [  68.    ,   -0.0344],
-       [  73.    ,    0.0517],
-       [  79.    ,    0.034 ],
-       [  85.    ,    0.0219],
-       [  91.    ,   -0.0489],
-       [ 102.    ,    0.0322],
-       [ 112.    ,   -0.0273],
-       [ 117.    ,   -0.036 ],
-       [ 122.    ,    0.0424],
-       [ 128.    ,    0.0704],
-       [ 136.    ,    0.0859],
-       [ 142.    ,    0.0579]])
+>>> acf = autocorrelation(data.Y)
+>>> acf[:4]
+array([[  12.        ,    0.82952186],
+       [  24.        ,    0.6386278 ],
+       [  36.        ,    0.4493648 ],
+       [  48.        ,    0.19895185]])
+>>> pacf = partial_autocorrelation(data.Y)
+>>> pacf[:4]
+array([[  9.        ,   0.23248854],
+       [ 13.        ,  -0.53969124],
+       [ 25.        ,  -0.16274616],
+       [ 40.        ,  -0.08833969]])
 
 
 Interpolation
@@ -81,8 +64,8 @@ You can interpolate those values with one of supported interpolation methods
 using :func:`interpolate_timeseries` function:
 
 >>> interpolated = interpolate_timeseries(data, method='cubic')
->>> interpolated[7:11]
-array([ 151.2266,  146.8066,  137.7733,  127.16  ])
+>>> interpolated[7:11].Y
+array([ 151.22663433,  146.80661022,  137.77326894,  127.15995178])
 >>> data = interpolated
 
 
@@ -150,6 +133,7 @@ each model accepts):
 Now we fit the data:
 
 >>> model.fit(data)
+<...ARIMA object at 0x...>
 
 After fitting, we can get the forecast along with desired confidence intervals:
 
@@ -173,24 +157,25 @@ We can examine model's fitted values and residuals with appropriately-named
 methods:
 
 >>> model.fittedvalues(as_table=False)
-array([ 114.6695,  121.693 ,  ...,  440.4351,  386.7519])
+array([ 114.66946902,  121.69304444,  ..., 440.43509823,  386.75188552])
 >>> model.residuals(as_table=False)
-array([  3.3305,  10.307 ,  -9.1962,  ...,  19.9054, -50.4351,  45.2481])
+array([  3.33053098,  10.30695556, ..., -50.43509823,  45.24811448])
 
 We can evaluate the model on in-sample, fitted values:
 
->>> model.errors()
-{'mae':   19.657,
- 'mape':   0.078,
- 'pocid': 58.450,
- 'r2':     0.948,
- 'rmse':  27.060}
+>>> for measure, error in sorted(model.errors().items()):
+...     print('{:7s} {:>6.3f}'.format(measure.upper(), error))
+MAE     19.657
+MAPE     0.079
+POCID   58.451
+R2       0.948
+RMSE    27.060
 
 Finally, one should more robustly evaluate their models using cross validation.
 An example, edited for some clarity:
 
 >>> models = [ARIMA((1, 1, 0)), ARIMA((2, 1, 2)), VAR(1), VAR(3)]
->>> model_evaluation(data, models, n_folds=10, forecast_steps=3)
+>>> model_evaluation(data, models, n_folds=10, forecast_steps=3)  # doctest: +SKIP
 [['Model',                    'RMSE', 'MAE', 'MAPE', 'POCID', 'R²', 'AIC', 'BIC'],
  ['ARIMA(1,1,0)',             47.318, 36.803, 0.093, 68.965, 0.625, 1059.3, 1067.4],
  ['ARIMA(1,1,0) (in-sample)', 32.040, 20.340, 0.089, 58.450, 0.927, 1403.4, 1412.3],
@@ -209,9 +194,11 @@ example:
 
 >>> series = np.arange(100)
 >>> X = np.column_stack((series, np.roll(series, 1), np.roll(series, 3)))
->>> data = Timeseries(Domain.from_numpy(X), X)
->>> for lag, ante, cons in granger_causality(data, 10):
-...     print('Series {cons} lags by {ante} by {lag} lags.'.format(**locals()))
+>>> threecol = Timeseries(Domain.from_numpy(X), X)
+>>> for lag, ante, cons in granger_causality(threecol, 10):
+...     if lag > 1:
+...         print('Series {cons} lags by {ante} by {lag} lags.'.format(**locals()))
+...
 Series Feature 1 lags by Feature 3 by 2 lags.
 Series Feature 2 lags by Feature 3 by 4 lags.
 

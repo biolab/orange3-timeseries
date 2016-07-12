@@ -86,6 +86,7 @@ if __name__ == '__main__':
             'scipy>=0.17',
         ],
         entry_points=ENTRY_POINTS,
+        test_suite='orangecontrib.timeseries.tests',
         namespace_packages=['orangecontrib'],
         zip_safe=False,
     )
