@@ -59,7 +59,7 @@ class LinkDatasets(install):
 if __name__ == '__main__':
     setup(
         name="Orange3-Timeseries",
-        description="Orange add-on for exploring time series and sequential data.",
+        description="Orange3 add-on for exploring time series and sequential data.",
         version=VERSION,
         author='Bioinformatics Laboratory, FRI UL',
         author_email='info@biolab.si',
@@ -89,4 +89,18 @@ if __name__ == '__main__':
         test_suite='orangecontrib.timeseries.tests',
         namespace_packages=['orangecontrib'],
         zip_safe=False,
+        classifiers=[
+            'Development Status :: 4 - Beta',
+            'Environment :: X11 Applications :: Qt',
+            'Environment :: Plugins',
+            'Programming Language :: Python',
+            'License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)',
+            'Operating System :: OS Independent',
+            'Topic :: Scientific/Engineering :: Artificial Intelligence',
+            'Topic :: Scientific/Engineering :: Visualization',
+            'Topic :: Software Development :: Libraries :: Python Modules',
+            'Intended Audience :: Education',
+            'Intended Audience :: Science/Research',
+            'Intended Audience :: Developers',
+        ]
     )

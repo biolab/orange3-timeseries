@@ -1,0 +1,11 @@
+recursive-include orangecontrib/timeseries *.py *.pyx *.c *.cpp
+recursive-include orangecontrib/timeseries/datasets *.tab *.csv
+
+recursive-include orangecontrib/timeseries/widgets *.png *.svg
+recursive-include orangecontrib/timeseries/widgets *.html *.csvv *.js
+
+recursive-include doc Makefile *.py *.rst *.svg *.png
+prune doc/_build
+
+include README.rst
+include setup.py
