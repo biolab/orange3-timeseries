@@ -29,6 +29,7 @@ class OWInterpolate(widget.OWWidget):
 
     interpolation = settings.Setting('linear')
     multivariate = settings.Setting(False)
+    autoapply = settings.Setting(True)
 
     UserAdviceMessages = [
         widget.Message('While you can freely choose the interpolation method '
@@ -51,12 +52,16 @@ class OWInterpolate(widget.OWWidget):
         gui.checkBox(box, self, 'multivariate',
                      label='Multi-variate interpolation',
                      callback=self.on_changed)
+        gui.auto_commit(box, self, 'autoapply', 'Apply')
 
     def set_data(self, data):
         self.data = data
         self.on_changed()
 
     def on_changed(self):
+        self.commit()
+
+    def commit(self):
         data = self.data
         if data is not None:
             data = data.copy()
@@ -71,7 +76,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWInterpolate()
 
-    data = Timeseries('yahoo1')
+    data = Timeseries('airpassengers')
     ow.set_data(data)
 
     ow.show()
