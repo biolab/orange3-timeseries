@@ -1,0 +1,31 @@
+language: python
+
+sudo: false   # use container-based infrastructure
+
+python:
+  - "3.4"
+
+addons:
+    apt:
+        packages:
+            - gfortran
+            - libblas-dev
+            - liblapack-dev
+
+cache:
+    apt: true
+    pip: true
+    ccache: true
+
+before_install:
+    - pip install -U setuptools pip wheel
+    - pip install codecov
+
+install:
+    - travis_wait pip install -e .
+
+script:
+    - coverage run setup.py test
+
+after_success:
+    - codecov
