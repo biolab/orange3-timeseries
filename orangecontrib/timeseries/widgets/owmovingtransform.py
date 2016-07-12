@@ -24,7 +24,6 @@ class OWMovingTransform(widget.OWWidget):
     outputs = [("Time series", Timeseries)]
 
     want_main_area = False
-    resizing_enabled = False
 
     non_overlapping = settings.Setting(False)
     fixed_wlen = settings.Setting(5)
