@@ -100,9 +100,9 @@ class Highstock(Highchart):
                 HEIGHT = %(HEIGHT)f,
                 MARGIN = %(MARGIN)f;
             for (var i = 0; i < chart.yAxis.length - SKIP_AXES; ++i) {
-                var top = i * (HEIGHT + MARGIN);
+                var top_offset = i * (HEIGHT + MARGIN);
                 chart.yAxis[i + SKIP_AXES].update({
-                    top: top + '%%',
+                    top: top_offset + '%%',
                     height: HEIGHT + '%%',
                     offset: 0  // Fixes https://github.com/highcharts/highcharts/issues/5199
                 }, false);
@@ -300,7 +300,7 @@ class Highstock(Highchart):
         display = 'initial' if enable else 'none'
         self.evalJS(
             '$(".highcharts-range-selector-buttons, '
-            '   .highcharts-input-group").css({display: "%s"})' % display)
+            '   .highcharts-input-group").css({display: "%s"});' % display)
         # Reset the range selector to full view
         if not enable:
             self.evalJS('$(chart.rangeSelector.buttons[5]).click();')

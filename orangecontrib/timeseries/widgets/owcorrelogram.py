@@ -9,6 +9,7 @@ from orangecontrib.timeseries.util import cache_clears
 from Orange.widgets.highcharts import Highchart
 
 from PyQt4.QtGui import QListWidget
+from PyQt4.QtCore import QTimer
 
 
 class OWCorrelogram(widget.OWWidget):
@@ -57,13 +58,11 @@ class OWCorrelogram(widget.OWWidget):
         )
         self.mainArea.layout().addWidget(plot)
 
-    @lru_cache(20)
     def acf(self, attr, pacf, confint):
         x = self.data.interp(attr).ravel()
         func = partial_autocorrelation if pacf else autocorrelation
         return func(x, alpha=.05 if confint else None)
 
-    @cache_clears(acf)
     def set_data(self, data):
         self.data = data
         self.all_attrs = []
@@ -88,9 +87,6 @@ class OWCorrelogram(widget.OWWidget):
                                               ColorPaletteGenerator(len(self.all_attrs))[self.attrs])):
             attr_name = self.all_attrs[attr][0]
             pac = self.acf(attr_name, self.use_pacf, False)
-            # NOTE: confint from sm.tsa.acf has been disabled in favor of
-            # plotLines below
-            #~pac, confint = pac if self.use_confint else (pac, None)
 
             if self.use_confint:
                 # Confidence intervals, from:
@@ -109,19 +105,6 @@ class OWCorrelogram(widget.OWWidget):
                 name=attr_name,
                 zIndex=2,
             ))
-            # Disabled as per the note above
-            if False and confint is not None:
-                series.append(dict(
-                    type='arearange',
-                    name='95% confidence',
-                    data=confint,
-                    enableMouseTracking=False,
-                    linkedTo=':previous',
-                    color='/**/ Highcharts.getOptions().colors[{}] /**/'.format(i),
-                    lineWidth=0,
-                    fillOpacity=.2,
-                    zIndex=1,
-                ))
 
         # TODO: give periods meaning (datetime names)
         plotlines.append(dict(value=0, color='black', width=2, zIndex=3))
