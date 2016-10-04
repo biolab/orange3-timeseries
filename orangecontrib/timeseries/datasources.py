@@ -78,7 +78,7 @@ def finance_data(symbol,
     if until is None:
         until = date.today()
 
-    YAHOO_URL = ('http://real-chart.finance.yahoo.com/table.csv?'
+    YAHOO_URL = ('http://chart.finance.yahoo.com/table.csv?'
                  's={SYMBOL}&d={TO_MONTH}&e={TO_DAY}&f={TO_YEAR}&'
                  'g={GRANULARITY}&a={FROM_MONTH}&b={FROM_DAY}&c={FROM_YEAR}&ignore=.csv')
     url = YAHOO_URL.format(SYMBOL=symbol,
