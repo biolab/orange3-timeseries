@@ -318,6 +318,7 @@ class OWLineChart(widget.OWWidget):
     attrs = settings.Setting({})  # Maps data.name -> [attrs]
 
     def __init__(self):
+        self.data = None
         self.plots = []
         self.configs = []
         self.forecasts = OrderedDict()
@@ -351,6 +352,15 @@ class OWLineChart(widget.OWWidget):
     def set_data(self, data):
         # TODO: set xAxis resolution and tooltip time contents depending on
         # data.time_delta. See: http://imgur.com/yrnlgQz
+
+        # If the same data is updated, short circuit to just updating the chart,
+        # retaining all panels and list view selections ...
+        if data is not None and self.data is not None and data.domain == self.data.domain:
+            self.data = Timeseries.from_data_table(data)
+            for config in self.configs:
+                config.selection_changed()
+            return
+
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         if data is None:
             self.chart.clear()
