@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from Orange.data import ContinuousVariable
+from Orange.data import Table, ContinuousVariable
 from Orange.widgets import widget, gui, settings
 
 import numpy as np
@@ -20,7 +20,7 @@ class OWPeriodogram(widget.OWWidget):
     icon = 'icons/Periodogram.svg'
     priority = 100
 
-    inputs = [("Time series", Timeseries, 'set_data')]
+    inputs = [("Time series", Table, 'set_data')]
 
     attrs = settings.Setting([])
 
@@ -77,7 +77,7 @@ class OWPeriodogram(widget.OWWidget):
 
     @cache_clears(periodogram)
     def set_data(self, data):
-        self.data = data
+        self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.all_attrs = []
         if data is None:
             self.plot.clear()

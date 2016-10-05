@@ -21,16 +21,22 @@ class Timeseries(Table):
         self._time_delta = None
         # Set default time variable to first TimeVariable
         self._time_variable = None
+        self._time_values = None #np.arange(len(self))
         try:
             self.time_variable = next(var for var in self.domain.attributes
                                       if isinstance(var, TimeVariable))
         except (StopIteration, AttributeError):
             pass
 
+    @classmethod
+    def from_data_table(cls, table):
+        return table if isinstance(table, Timeseries) else Timeseries(table)
+
     @property
     def time_values(self):
         """Time series measurements times"""
-        return self.X[:, self.domain.attributes.index(self._time_variable)]
+        self._time_values = self._time_values if self._time_values is not None else np.arange(len(self))
+        return self._time_values
 
     @property
     def time_variable(self):
@@ -42,6 +48,7 @@ class Timeseries(Table):
     def time_variable(self, var):
         assert var in self.domain
         self._time_variable = var
+        self._time_values = np.ravel(self[:, self._time_variable])
 
         # Set detected time delta
         delta = np.unique(np.diff(self.time_values))

@@ -23,7 +23,7 @@ class OWAggregate(widget.OWWidget):
     icon = 'icons/Aggregate.svg'
     priority = 560
 
-    inputs = [("Time series", Timeseries, 'set_data')]
+    inputs = [("Time series", Table, 'set_data')]
     outputs = [("Time series", Timeseries)]
 
     ax1 = settings.Setting('months of year')
@@ -106,6 +106,7 @@ class OWAggregate(widget.OWWidget):
 
     def set_data(self, data):
         self.error()
+        data = None if data is None else Timeseries.from_data_table(data)
         if data is not None and not isinstance(data.time_variable, TimeVariable):
             self.error('Aggregation currently only works on time series with '
                        'a datetime variable.')

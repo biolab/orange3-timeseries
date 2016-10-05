@@ -1,5 +1,6 @@
 from PyQt4.QtCore import Qt
 
+from Orange.data import Table
 from Orange.util import try_
 from Orange.widgets import widget, gui, settings
 from orangecontrib.timeseries import Timeseries
@@ -17,7 +18,7 @@ class OWInterpolate(widget.OWWidget):
     icon = 'icons/Interpolate.svg'
     priority = 15
 
-    inputs = [("Time series", Timeseries, 'set_data')]
+    inputs = [("Time series", Table, 'set_data')]
     outputs = [
         (Output.TIMESERIES, Timeseries),
         (Output.INTERPOLATED, Timeseries), # TODO
@@ -55,7 +56,7 @@ class OWInterpolate(widget.OWWidget):
         gui.auto_commit(box, self, 'autoapply', 'Apply')
 
     def set_data(self, data):
-        self.data = data
+        self.data = None if data is None else Timeseries.from_data_table(data)
         self.on_changed()
 
     def on_changed(self):

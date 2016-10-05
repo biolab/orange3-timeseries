@@ -1,5 +1,6 @@
 from PyQt4.QtCore import QTimer
 
+from Orange.data import Table
 from Orange.widgets import widget, gui, settings
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.models import _BaseModel
@@ -17,7 +18,7 @@ class OWBaseModel(widget.OWWidget):
     LEARNER = None
 
     inputs = [
-        ('Time series', Timeseries, 'set_data'),
+        ('Time series', Table, 'set_data'),
     ]
     outputs = [
         (Output.LEARNER, _BaseModel),
@@ -50,7 +51,7 @@ class OWBaseModel(widget.OWWidget):
         raise NotImplementedError
 
     def set_data(self, data):
-        self.data = data
+        self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.update_model()
 
     def apply(self):

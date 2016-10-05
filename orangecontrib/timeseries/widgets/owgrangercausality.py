@@ -1,5 +1,6 @@
 from PyQt4.QtCore import Qt
 
+from Orange.data import Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import PyTableModel
 from orangecontrib.timeseries import Timeseries, granger_causality
@@ -12,7 +13,7 @@ class OWGrangerCausality(widget.OWWidget):
     icon = 'icons/GrangerCausality.svg'
     priority = 190
 
-    inputs = [("Timeseries", Timeseries, 'set_data')]
+    inputs = [("Timeseries", Table, 'set_data')]
 
     max_lag = settings.Setting(20)
     confidence = settings.Setting(95)
@@ -59,7 +60,7 @@ class OWGrangerCausality(widget.OWWidget):
         self.commit()
 
     def set_data(self, data):
-        self.data = data
+        self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.on_changed()
 
     def commit(self):

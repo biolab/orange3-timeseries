@@ -4,7 +4,7 @@ from os.path import join, dirname
 
 import numpy as np
 
-from Orange.data import TimeVariable
+from Orange.data import TimeVariable, Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.highcharts import Highchart
 
@@ -312,7 +312,7 @@ class OWLineChart(widget.OWWidget):
     icon = 'icons/LineChart.svg'
     priority = 90
 
-    inputs = [("Time series", Timeseries, 'set_data'),
+    inputs = [("Time series", Table, 'set_data'),
               ('Forecast', Timeseries, 'set_forecast', widget.Multiple)]
 
     attrs = settings.Setting({})  # Maps data.name -> [attrs]
@@ -351,7 +351,7 @@ class OWLineChart(widget.OWWidget):
     def set_data(self, data):
         # TODO: set xAxis resolution and tooltip time contents depending on
         # data.time_delta. See: http://imgur.com/yrnlgQz
-        self.data = data
+        self.data = data = None if data is None else Timeseries.from_data_table(data)
         if data is None:
             self.chart.clear()
             return

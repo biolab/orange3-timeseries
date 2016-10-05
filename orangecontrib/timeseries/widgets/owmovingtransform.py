@@ -1,7 +1,7 @@
 from PyQt4.QtCore import Qt, QSize
 from PyQt4.QtGui import QIcon, QStyledItemDelegate, QComboBox, QSpinBox
 
-from Orange.data import Domain
+from Orange.data import Domain, Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel, PyTableModel
 
@@ -20,7 +20,7 @@ class OWMovingTransform(widget.OWWidget):
     icon = 'icons/MovingTransform.svg'
     priority = 20
 
-    inputs = [("Time series", Timeseries, 'set_data')]
+    inputs = [("Time series", Table, 'set_data')]
     outputs = [("Time series", Timeseries)]
 
     want_main_area = False
@@ -176,7 +176,7 @@ class OWMovingTransform(widget.OWWidget):
         self.commit()
 
     def set_data(self, data):
-        self.data = data
+        self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.add_button.setDisabled(not len(getattr(data, 'domain', ())))
         self.table_model.clear()
         if data is not None:

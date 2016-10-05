@@ -8,7 +8,7 @@ import numpy as np
 
 from PyQt4.QtGui import QListView
 
-from Orange.data import Domain, TimeVariable
+from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.highcharts import Highchart
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
@@ -224,7 +224,7 @@ class OWSpiralogram(widget.OWWidget):
     icon = 'icons/Spiralogram.svg'
     priority = 120
 
-    inputs = [("Time series", Timeseries, 'set_data')]
+    inputs = [("Time series", Table, 'set_data')]
     outputs = [("Time series", Timeseries)]
 
     ax1 = settings.Setting('months of year')
@@ -266,7 +266,7 @@ class OWSpiralogram(widget.OWWidget):
         self.replot()
 
     def set_data(self, data):
-        self.data = data
+        self.data = data = None if data is None else Timeseries.from_data_table(data)
 
         def init_combos():
             for combo in (self.combo_ax1, self.combo_ax2):

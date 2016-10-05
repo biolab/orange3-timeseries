@@ -4,6 +4,7 @@ import numpy as np
 
 from PyQt4.QtCore import QSize
 
+from Orange.data import Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import PyTableModel
 
@@ -30,7 +31,7 @@ class OWModelEvaluation(widget.OWWidget):
     icon = 'icons/ModelEvaluation.svg'
     priority = 300
 
-    inputs = [("Time series", Timeseries, 'set_data'),
+    inputs = [("Time series", Table, 'set_data'),
               ("Time series model", _BaseModel, 'set_model', widget.Multiple)]
 
     n_folds = settings.Setting(20)
@@ -61,7 +62,7 @@ class OWModelEvaluation(widget.OWWidget):
         return QSize(650, 175)
 
     def set_data(self, data):
-        self.data = data
+        self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.on_changed()
 
     def set_model(self, model, id):
