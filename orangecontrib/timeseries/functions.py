@@ -455,9 +455,12 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
             if row_attr == col_attr or data.time_variable in (row_attr, col_attr):
                 continue
             X = Table(Domain([], [], [col_attr, row_attr], data.domain), data).metas
-            tests = grangercausalitytests(X, max_lag, verbose=False)
-            lag = next((lag for lag in range(1, 1 + max_lag)
-                        if tests[lag][0]['ssr_ftest'][1] < alpha), 0)
+            try:
+                tests = grangercausalitytests(X, max_lag, verbose=False)
+                lag = next((lag for lag in range(1, 1 + max_lag)
+                            if tests[lag][0]['ssr_ftest'][1] < alpha), 0)
+            except ValueError:
+                lag = 0
             if lag:
                 res.append([lag, row_attr.name, col_attr.name])
             if callback:

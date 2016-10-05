@@ -86,7 +86,7 @@ class OWDifference(widget.OWWidget):
 
     def commit(self):
         data = self.data
-        if not data:
+        if not data or not len(self.selected):
             self.send(Output.TIMESERIES, None)
             return
 
