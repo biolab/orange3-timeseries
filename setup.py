@@ -6,7 +6,7 @@ import pkg_resources
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
-VERSION = '0.1.0'
+VERSION = '0.2.0'
 
 ENTRY_POINTS = {
     'orange3.addon': (
@@ -82,6 +82,7 @@ if __name__ == '__main__':
         install_requires=[
             'Orange3',
             'statsmodels>=0.6.1',
+            'pandas',  # statsmodels requires this but doesn't have it in dependencies?
             'numpy',
             'scipy>=0.17',
         ],
