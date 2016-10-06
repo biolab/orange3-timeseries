@@ -10,7 +10,7 @@ from Orange.widgets.highcharts import Highchart
 
 from PyQt4.QtGui import QTreeWidget, QSizePolicy, \
     QWidget, QPushButton, QIcon, QListView, QVBoxLayout
-from PyQt4.QtCore import Qt, QSize, pyqtSignal
+from PyQt4.QtCore import Qt, QSize, pyqtSignal, QTimer
 
 from Orange.widgets.utils.itemmodels import VariableListModel
 from orangecontrib.timeseries import Timeseries
@@ -341,6 +341,7 @@ class OWLineChart(widget.OWWidget):
         self.chart = highstock = Highstock(self, self, highchart='StockChart', debug=True)
         self.mainArea.layout().addWidget(highstock)
         highstock.chart()
+        QTimer.singleShot(0, self.add_plot)
 
     def add_plot(self):
         ax = self.chart.addAxis()
