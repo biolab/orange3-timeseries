@@ -132,6 +132,13 @@ class Highstock(Highchart):
         ''' % dict(ax=ax))
         self._resizeAxes()
 
+    def setXAxisType(self, ax_type):
+        self.evalJS('''
+        for (var i=0; i<chart.xAxis.length; ++i) {
+            chart.xAxis[i].update({type: '%s'});
+        }
+        ''' % ax_type)
+
     def setSeries(self, ax, series):
         """TODO: Clean this shit up"""
         newseries = []
@@ -370,6 +377,13 @@ class OWLineChart(widget.OWWidget):
             offset_minutes = data.time_variable.utc_offset.total_seconds() / 60
             self.chart.evalJS('Highcharts.setOptions({global: {timezoneOffset: %d}});' % -offset_minutes)  # Why is this negative? It works.
             self.chart.chart()
+
+        self.chart.setXAxisType(
+            'datetime'
+            if (data.time_variable and
+                (getattr(data.time_variable, 'have_date', False) or
+                 getattr(data.time_variable, 'have_time', False))) else
+            'linear')
 
         self.varmodel.wrap([var for var in data.domain
                             if var.is_continuous and var != data.time_variable])
