@@ -52,7 +52,7 @@ class OWTimeSlice(widget.OWWidget):
     want_main_area = False
 
     class Error(widget.OWWidget.Error):
-        no_time_variable = 'Data contains no time variable'
+        no_time_variable = widget.Msg('Data contains no time variable')
 
     MAX_SLIDER_VALUE = 500
 
@@ -88,7 +88,7 @@ class OWTimeSlice(widget.OWWidget):
             return
         if not self.data:
             return
-        self._delta = (maxValue - minValue) // 2
+        self._delta = max(1, (maxValue - minValue) // 2)
         minValue = self.slider.scale(minValue)
         maxValue = self.slider.scale(maxValue)
         indices = (minValue <= time_values) & (time_values <= maxValue)
