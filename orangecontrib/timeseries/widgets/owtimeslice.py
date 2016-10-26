@@ -2,10 +2,10 @@ import numpy as np
 import operator
 from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui
-from Orange.widgets.utils.rangeslider import ViolinSlider
 from PyQt4.QtCore import Qt, QSize, QTimer
 
 from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
 
 
 class _DoubleSlider:
