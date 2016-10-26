@@ -34,6 +34,10 @@ class OWYahooFinance(widget.OWWidget):
     want_main_area = False
     resizing_enabled = False
 
+    class Error(widget.OWWidget.Error):
+        download_error = widget.Msg('Failed to download data (HTTP Error {}). '
+                                    'Wrong stock symbol?')
+
     def __init__(self):
         box = gui.widgetBox(self.controlArea, 'Yahoo Finance Stock Data',
                             orientation='horizontal')
@@ -101,7 +105,7 @@ class OWYahooFinance(widget.OWWidget):
         if not symbol:
             return
 
-        self.error(0)
+        self.Error.clear()
         with self.progressBar(3) as progress:
             try:
                 progress.advance()
@@ -112,8 +116,7 @@ class OWYahooFinance(widget.OWWidget):
 
                 self.send(Output.TIMESERIES, data)
             except Exception as e:
-                self.error('Failed to download data (HTTP Error {}). Wrong stock symbol?'
-                           .format(getattr(e, 'status', -1)))
+                self.Error.download_error(getattr(e, 'status', -1))
             finally:
                 self.button.setDisabled(False)
 

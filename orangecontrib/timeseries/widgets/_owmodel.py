@@ -35,6 +35,13 @@ class OWBaseModel(widget.OWWidget):
     forecast_steps = settings.Setting(3)
     forecast_confint = settings.Setting(95)
 
+    class Error(widget.OWWidget.Error):
+        not_continuous = widget.Msg("Time series' target variable should be continuous, " \
+                                    "not discrete.")
+        no_target = widget.Msg("Input time series doesn't contain a target variable. "\
+                               "Edit the domain and make one variable target.")
+        model_error = widget.Msg('Error {}: {}: {}')
+
     def __init__(self):
         super().__init__()
         self.name_lineedit = None
@@ -80,7 +87,7 @@ class OWBaseModel(widget.OWWidget):
         forecast = None
         fittedvalues = None
         residuals = None
-        self.error(88)
+        self.Error.model_error.clear()
         if self.is_data_valid():
             model = self.learner = self.create_learner()
             model.name = self.learner_name or str(model)
@@ -93,7 +100,7 @@ class OWBaseModel(widget.OWWidget):
                 residuals = model.residuals(as_table=True)
             except Exception as ex:
                 action = 'forecasting' if is_fit else 'fitting model'
-                self.error(88, 'Error {}: {}: {}'.format(action, ex.__class__.__name__, ex.args[0]))
+                self.Error.model_error(action, ex.__class__.__name__, ex.args[0])
         self.send(Output.FORECAST, forecast)
         self.send(Output.FITTED_VALUES, fittedvalues)
         self.send(Output.RESIDUALS, residuals)
@@ -102,16 +109,12 @@ class OWBaseModel(widget.OWWidget):
         data = self.data
         if data is None:
             return False
-        self.error(2)
+        self.Error.clear()
         if not data.domain.class_var:
-            self.error(
-                2, "Input time series doesn't contain a target variable. "
-                   "Edit the domain and make one variable target.")
+            self.Error.no_target()
             return False
         if not data.domain.class_var.is_continuous:
-            self.error(
-                2, "Time series' target variable should be continuous, "
-                   "not discrete.")
+            self.Error.not_continuous()
             return False
         return True
 

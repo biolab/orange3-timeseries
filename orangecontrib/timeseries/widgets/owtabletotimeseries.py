@@ -28,6 +28,11 @@ class OWTableToTimeseries(widget.OWWidget):
     selected_attr = settings.Setting('')
     autocommit = settings.Setting(True)
 
+    class Error(widget.OWWidget.Error):
+        nan_times = widget.Msg('Some values of chosen sequential attribute '
+                               '"{}" are NaN, which makes the values '
+                               'impossible to sort')
+
     def __init__(self):
         self.data = None
         box = gui.vBox(self.controlArea, 'Sequence')
@@ -68,7 +73,7 @@ class OWTableToTimeseries(widget.OWWidget):
 
     def commit(self):
         data = self.data
-        self.error(666)
+        self.Error.clear()
         if data is None or self.selected_attr not in data.domain:
             self.send(Output.TIMESERIES, None)
             return
@@ -97,9 +102,7 @@ class OWTableToTimeseries(widget.OWWidget):
             values = Table.from_table(Domain([], [], [time_var]),
                                       source=data).metas.ravel()
             if np.isnan(values).any():
-                self.error(666, 'Some values of chosen sequential attribute '
-                                '"{}" are NaN, which makes the values '
-                                'impossible to sort'.format(time_var.name))
+                self.Error.nan_times(time_var.name)
                 return
             ordered = np.argsort(values)
             if (ordered != np.arange(len(ordered))).any():

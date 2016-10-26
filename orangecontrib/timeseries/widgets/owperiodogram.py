@@ -64,7 +64,7 @@ class OWPeriodogram(widget.OWWidget):
             # periods *= self.data.time_delta; like lombscargle already does
             # periods *= self.data.time_delta
         else:
-            times = self.data.time_values
+            times = np.asanyarray(self.data.time_values, dtype=float)
             x = np.ravel(self.data[:, attr])
             # Since lombscargle works with explicit times,
             # we can skip any nan values

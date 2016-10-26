@@ -30,6 +30,9 @@ class OWGrangerCausality(widget.OWWidget):
                        widget.Message.Warning)
     ]
 
+    class Error(widget.OWWidget.Error):
+        unexpected_error = widget.Msg('Unexpected error: {}')
+
     def __init__(self):
         self.data = None
         box = gui.vBox(self.controlArea, 'Granger Test')
@@ -66,7 +69,7 @@ class OWGrangerCausality(widget.OWWidget):
     def commit(self):
         data = self.data
         self.model.clear()
-        self.error()
+        self.Error.unexpected_error.clear()
         if data is None:
             return
 
@@ -79,7 +82,7 @@ class OWGrangerCausality(widget.OWWidget):
                 res = [[lag, row, '→', col]
                        for lag, row, col in res]
         except ValueError as ex:
-            self.error(ex.args[0])
+            self.Error.unexpected_error(ex.args[0])
         else:
             self.model.wrap(res)
             self.model.sort(0, Qt.DescendingOrder)

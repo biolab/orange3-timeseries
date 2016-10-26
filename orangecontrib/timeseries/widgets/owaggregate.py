@@ -46,6 +46,10 @@ class OWAggregate(widget.OWWidget):
         ('year', lambda date: date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)),
     ))
 
+    class Error(widget.OWWidget.Error):
+        no_time_variable = widget.Msg(
+            'Aggregation currently requires a time series with a time variable.')
+
     def __init__(self):
         self.data = None
         self.indices = []
@@ -105,11 +109,10 @@ class OWAggregate(widget.OWWidget):
         gui.auto_commit(self.controlArea, self, 'autocommit', '&Apply')
 
     def set_data(self, data):
-        self.error()
+        self.Error.clear()
         data = None if data is None else Timeseries.from_data_table(data)
         if data is not None and not isinstance(data.time_variable, TimeVariable):
-            self.error('Aggregation currently only works on time series with '
-                       'a datetime variable.')
+            self.Error.no_time_variable()
             data = None
         self.data = data
         if data is None:

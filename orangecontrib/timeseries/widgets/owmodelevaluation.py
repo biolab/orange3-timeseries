@@ -38,6 +38,9 @@ class OWModelEvaluation(widget.OWWidget):
     forecast_steps = settings.Setting(3)
     autocommit = settings.Setting(False)
 
+    class Error(widget.OWWidget.Error):
+        unexpected_error = widget.Msg('Unexpected error: {}')
+
     def __init__(self):
         self.data = None
         self._models = OrderedDict()
@@ -76,7 +79,7 @@ class OWModelEvaluation(widget.OWWidget):
         self.commit()
 
     def commit(self):
-        self.error()
+        self.Error.unexpected_error.clear()
         self.model.clear()
         data = self.data
         if not data or not self._models:
@@ -87,7 +90,7 @@ class OWModelEvaluation(widget.OWWidget):
                                        self.n_folds, self.forecast_steps,
                                        callback=progress.advance)
         except ValueError as e:
-            self.error(e.args[0])
+            self.Error.unexpected_error(e.args[0])
             return
         res = np.array(res, dtype=object)
         self.model.setHorizontalHeaderLabels(res[0, 1:].tolist())
