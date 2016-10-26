@@ -2,7 +2,7 @@ from itertools import chain
 
 import numpy as np
 
-from Orange.data import Table, ContinuousVariable, Domain
+from Orange.data import Table, ContinuousVariable, TimeVariable, Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
 from orangecontrib.timeseries import Timeseries
@@ -62,7 +62,8 @@ class OWTableToTimeseries(widget.OWWidget):
             self.commit()
             return
         if data.domain.has_continuous_attributes():
-            vars = [var for var in data.domain if var.is_continuous]
+            vars = [var for var in data.domain if isinstance(var, TimeVariable)] + \
+                   [var for var in data.domain if var.is_continuous and not isinstance(var, TimeVariable)]
             self.attrs_model.wrap(vars)
             # self.selected_attr = vars.index(getattr(data, 'time_variable', vars[0]))
             self.selected_attr = data.time_variable.name if getattr(data, 'time_variable', False) else vars[0].name
