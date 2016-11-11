@@ -100,7 +100,8 @@ class OWBaseModel(widget.OWWidget):
                 residuals = model.residuals(as_table=True)
             except Exception as ex:
                 action = 'forecasting' if is_fit else 'fitting model'
-                self.Error.model_error(action, ex.__class__.__name__, ex.args[0])
+                self.Error.model_error(action, ex.__class__.__name__,
+                                       ex.args[0] if ex.args else '')
         self.send(Output.FORECAST, forecast)
         self.send(Output.FITTED_VALUES, fittedvalues)
         self.send(Output.RESIDUALS, residuals)
