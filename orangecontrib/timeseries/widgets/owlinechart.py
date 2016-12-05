@@ -338,7 +338,7 @@ class OWLineChart(widget.OWWidget):
         self.configsArea = gui.vBox(self.controlArea)
         self.controlArea.layout().addStretch(1)
         # TODO: allow selecting ranges that are sent to output as subset table
-        self.chart = highstock = Highstock(self, self, highchart='StockChart', debug=True)
+        self.chart = highstock = Highstock(self, highchart='StockChart')
         self.mainArea.layout().addWidget(highstock)
         highstock.chart()
         QTimer.singleShot(0, self.add_plot)
@@ -390,8 +390,6 @@ class OWLineChart(widget.OWWidget):
                             if var.is_continuous and var != data.time_variable])
         self.chart.enable_rangeSelector(
             isinstance(data.time_variable, TimeVariable))
-
-
 
     def set_forecast(self, forecast, id):
         if forecast is not None:

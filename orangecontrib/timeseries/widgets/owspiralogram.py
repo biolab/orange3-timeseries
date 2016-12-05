@@ -256,7 +256,7 @@ class OWSpiralogram(widget.OWWidget):
             self.attrlist_selectionChanged)
         box.layout().addWidget(self.attrlist)
         gui.rubber(self.controlArea)
-        self.chart = chart = Spiralogram(self, self,
+        self.chart = chart = Spiralogram(self,
                                          selection_callback=self.on_selection)
         self.mainArea.layout().addWidget(chart)
 
