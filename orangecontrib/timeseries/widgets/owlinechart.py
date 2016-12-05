@@ -16,7 +16,7 @@ from Orange.widgets.utils.itemmodels import VariableListModel
 from orangecontrib.timeseries import Timeseries
 
 
-class PlotConfigWidget(QWidget):
+class PlotConfigWidget(QWidget, widget.OWComponent):
     sigClosed = pyqtSignal(str, QWidget)
     sigLogarithmic = pyqtSignal(str, bool)
     sigType = pyqtSignal(str, str)
