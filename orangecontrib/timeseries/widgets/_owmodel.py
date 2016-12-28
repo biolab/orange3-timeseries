@@ -127,7 +127,7 @@ class OWBaseModel(widget.OWWidget):
             self.report_items((("Model type", str(self.learner)),))
         self.report_items((("Forecast steps", self.forecast_steps),
                            ("Confidence interval", self.forecast_confint),))
-        if self.data:
+        if self.data is not None:
             self.report_data("Time series", self.data)
 
     # GUI

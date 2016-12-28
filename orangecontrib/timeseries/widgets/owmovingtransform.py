@@ -161,7 +161,7 @@ class OWMovingTransform(widget.OWWidget):
         return QSize(450, 600)
 
     def on_add_transform(self):
-        if self.data:
+        if self.data is not None:
             self.table_model.append([self.var_model[0], self.last_win_width, AGG_FUNCTIONS[0]])
         self.commit()
 
