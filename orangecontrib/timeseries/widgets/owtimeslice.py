@@ -58,12 +58,13 @@ class OWTimeSlice(widget.OWWidget):
 
     loop_playback = settings.Setting(True)
     steps_overlap = settings.Setting(True)
+    playback_interval = settings.Setting(1000)
 
     def __init__(self):
         super().__init__()
         self._delta = 0
         self.play_timer = QTimer(self,
-                                 interval=1000,
+                                 interval=self.playback_interval,
                                  timeout=self.play_single_step)
         slider = self.slider = Slider(Qt.Horizontal, self,
                                       minimum=0, maximum=self.MAX_SLIDER_VALUE,
@@ -80,6 +81,11 @@ class OWTimeSlice(widget.OWWidget):
                      label='Steps overlap',
                      toolTip='If enabled, the active interval moves forward '
                              '(backward) by half of the interval at each step.')
+        gui.spin(vbox, self, 'playback_interval',
+                 label='Playback delay (msec):',
+                 minv=100, maxv=30000, step=200,
+                 callback=lambda: self.play_timer.setInterval(self.playback_interval))
+
         hbox = gui.hBox(vbox)
         self.step_backward = gui.button(hbox, self, '⏮',
                                         callback=lambda: self.play_single_step(backward=True))
