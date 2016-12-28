@@ -57,6 +57,7 @@ class OWTimeSlice(widget.OWWidget):
     MAX_SLIDER_VALUE = 500
 
     loop_playback = settings.Setting(True)
+    steps_overlap = settings.Setting(True)
 
     def __init__(self):
         super().__init__()
@@ -75,6 +76,10 @@ class OWTimeSlice(widget.OWWidget):
         vbox = gui.vBox(self.controlArea, 'Step / Play Through')
         gui.checkBox(vbox, self, 'loop_playback',
                      label='Loop playback')
+        gui.checkBox(vbox, self, 'steps_overlap',
+                     label='Steps overlap',
+                     toolTip='If enabled, the active interval moves forward '
+                             '(backward) by half of the interval at each step.')
         hbox = gui.hBox(vbox)
         self.step_backward = gui.button(hbox, self, '⏮',
                                         callback=lambda: self.play_single_step(backward=True))
@@ -93,7 +98,7 @@ class OWTimeSlice(widget.OWWidget):
             return
         if not self.data:
             return
-        self._delta = max(1, (maxValue - minValue) // 2)
+        self._delta = max(1, (maxValue - minValue))
         minValue = self.slider.scale(minValue)
         maxValue = self.slider.scale(maxValue)
         indices = (minValue <= time_values) & (time_values <= maxValue)
@@ -117,10 +122,12 @@ class OWTimeSlice(widget.OWWidget):
     def play_single_step(self, backward=False):
         op = operator.sub if backward else operator.add
         minValue, maxValue = self.slider.values()
-        delta = self._delta
+        orig_delta = delta = self._delta
+        if self.steps_overlap:
+            delta //= 2
         if maxValue == self.slider.maximum() and not backward:
-            minValue = -delta
-            maxValue = delta
+            minValue = self.slider.minimum()
+            maxValue = minValue + orig_delta
 
             if not self.loop_playback:
                 self.play_button.click()
@@ -128,11 +135,13 @@ class OWTimeSlice(widget.OWWidget):
                 assert not self.play_button.isChecked()
 
         elif minValue == self.slider.minimum() and backward:
-            maxValue = self.slider.maximum() + delta
-            minValue = self.slider.maximum() - delta
-        self.slider.setValues(op(minValue, delta),
-                              op(maxValue, delta))
-        self._delta = delta  # Override valuesChanged handler
+            maxValue = self.slider.maximum()
+            minValue = maxValue - orig_delta
+        else:
+            minValue = op(minValue, delta)
+            maxValue = op(maxValue, delta)
+        self.slider.setValues(minValue, maxValue)
+        self._delta = orig_delta  # Override valuesChanged handler
 
     def set_data(self, data):
         slider = self.slider
