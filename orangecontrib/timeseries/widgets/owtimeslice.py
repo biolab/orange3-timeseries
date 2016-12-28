@@ -1,7 +1,7 @@
 import numpy as np
 import operator
 from Orange.data import Table, TimeVariable
-from Orange.widgets import widget, gui
+from Orange.widgets import widget, gui, settings
 from PyQt4.QtCore import Qt, QSize, QTimer
 
 from orangecontrib.timeseries import Timeseries
@@ -56,6 +56,8 @@ class OWTimeSlice(widget.OWWidget):
 
     MAX_SLIDER_VALUE = 500
 
+    loop_playback = settings.Setting(True)
+
     def __init__(self):
         super().__init__()
         self._delta = 0
@@ -70,7 +72,10 @@ class OWTimeSlice(widget.OWWidget):
         box = gui.vBox(self.controlArea, 'Time Slice')
         box.layout().addWidget(slider)
 
-        hbox = gui.hBox(self.controlArea, 'Step / Play Through')
+        vbox = gui.vBox(self.controlArea, 'Step / Play Through')
+        gui.checkBox(vbox, self, 'loop_playback',
+                     label='Loop playback')
+        hbox = gui.hBox(vbox)
         self.step_backward = gui.button(hbox, self, '⏮',
                                         callback=lambda: self.play_single_step(backward=True))
         button = self.play_button = gui.button(hbox, self, '▶',
@@ -116,6 +121,12 @@ class OWTimeSlice(widget.OWWidget):
         if maxValue == self.slider.maximum() and not backward:
             minValue = -delta
             maxValue = delta
+
+            if not self.loop_playback:
+                self.play_button.click()
+                assert not self.play_timer.isActive()
+                assert not self.play_button.isChecked()
+
         elif minValue == self.slider.minimum() and backward:
             maxValue = self.slider.maximum() + delta
             minValue = self.slider.maximum() - delta
