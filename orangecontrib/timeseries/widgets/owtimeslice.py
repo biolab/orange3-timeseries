@@ -59,6 +59,7 @@ class OWTimeSlice(widget.OWWidget):
     loop_playback = settings.Setting(True)
     steps_overlap = settings.Setting(True)
     playback_interval = settings.Setting(1000)
+    slider_values = settings.Setting((0, .2 * MAX_SLIDER_VALUE))
 
     def __init__(self):
         super().__init__()
@@ -69,7 +70,9 @@ class OWTimeSlice(widget.OWWidget):
         slider = self.slider = Slider(Qt.Horizontal, self,
                                       minimum=0, maximum=self.MAX_SLIDER_VALUE,
                                       tracking=False,
-                                      valuesChanged=self.valuesChanged)
+                                      valuesChanged=self.valuesChanged,
+                                      minimumValue=self.slider_values[0],
+                                      maximumValue=self.slider_values[1],)
         slider.setShowText(False)
         box = gui.vBox(self.controlArea, 'Time Slice')
         box.layout().addWidget(slider)
@@ -98,6 +101,7 @@ class OWTimeSlice(widget.OWWidget):
         gui.rubber(self.controlArea)
 
     def valuesChanged(self, minValue, maxValue):
+        self.slider_values = (minValue, maxValue)
         try:
             time_values = self.slider.time_values
         except AttributeError:
@@ -180,7 +184,6 @@ class OWTimeSlice(widget.OWWidget):
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
         slider.setScale(time_values.min(), time_values.max())
-        slider.setValues(slider.maximum() * .1, .3 * slider.maximum())
 
 
 if __name__ == '__main__':
