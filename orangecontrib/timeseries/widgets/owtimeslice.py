@@ -184,6 +184,7 @@ class OWTimeSlice(widget.OWWidget):
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
         slider.setScale(time_values.min(), time_values.max())
+        self.valuesChanged(slider.minimumValue(), slider.maximumValue())
 
 
 if __name__ == '__main__':
