@@ -1,8 +1,11 @@
 import numpy as np
 import operator
+
+from PyQt4.QtGui import QLabel, QDateTimeEdit
+from PyQt4.QtCore import QDateTime, Qt, QSize, QTimer
+
 from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
-from PyQt4.QtCore import Qt, QSize, QTimer
 
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
@@ -20,8 +23,13 @@ class _DoubleSlider:
     def scale(self, value):
         return (self._scale_minimum +
                 (self._scale_maximum - self._scale_minimum) *
-                (value - self.minimum()) / (
-                    self.maximum() - self.minimum()))
+                (value - self.minimum()) / (self.maximum() - self.minimum()))
+
+    def unscale(self, value):
+        # Unscale e.g. absolute time to slider value
+        return ((value - self._scale_minimum) *
+                (self.maximum() - self.minimum()) /
+                (self._scale_maximum - self._scale_minimum) + self.minimum())
 
     def setFormatter(self, formatter):
         self._formatter = formatter
@@ -55,6 +63,7 @@ class OWTimeSlice(widget.OWWidget):
         no_time_variable = widget.Msg('Data contains no time variable')
 
     MAX_SLIDER_VALUE = 500
+    DATE_FORMATS = ('yyyy-MM-dd', 'HH:mm:ss.zzz')
 
     loop_playback = settings.Setting(True)
     steps_overlap = settings.Setting(True)
@@ -76,6 +85,32 @@ class OWTimeSlice(widget.OWWidget):
         slider.setShowText(False)
         box = gui.vBox(self.controlArea, 'Time Slice')
         box.layout().addWidget(slider)
+
+        hbox = gui.hBox(box)
+
+        def _dateTimeChanged(editted):
+            def handler():
+                minTime = self.date_from.dateTime().toMSecsSinceEpoch() / 1000
+                maxTime = self.date_to.dateTime().toMSecsSinceEpoch() / 1000
+                if minTime > maxTime:
+                    minTime = maxTime = minTime if editted == self.date_from else maxTime
+
+                self.slider.setValues(self.slider.unscale(minTime),
+                                      self.slider.unscale(maxTime))
+            return handler
+
+        kwargs = dict(calendarPopup=True,
+                      displayFormat=' '.join(self.DATE_FORMATS),
+                      timeSpec=Qt.UTC)
+        date_from = self.date_from = QDateTimeEdit(self, **kwargs)
+        date_to = self.date_to = QDateTimeEdit(self, **kwargs)
+        date_from.dateTimeChanged.connect(_dateTimeChanged(date_from))
+        date_to.dateTimeChanged.connect(_dateTimeChanged(date_to))
+        hbox.layout().addStretch(100)
+        hbox.layout().addWidget(date_from)
+        hbox.layout().addWidget(QLabel(' – '))
+        hbox.layout().addWidget(date_to)
+        hbox.layout().addStretch(100)
 
         vbox = gui.vBox(self.controlArea, 'Step / Play Through')
         gui.checkBox(vbox, self, 'loop_playback',
@@ -109,9 +144,19 @@ class OWTimeSlice(widget.OWWidget):
         if not self.data:
             return
         self._delta = max(1, (maxValue - minValue))
-        minValue = self.slider.scale(minValue)
-        maxValue = self.slider.scale(maxValue)
-        indices = (minValue <= time_values) & (time_values <= maxValue)
+        minTime = self.slider.scale(minValue)
+        maxTime = self.slider.scale(maxValue)
+
+        self.date_from.blockSignals(True)
+        self.date_to.blockSignals(True)
+        from_dt = QDateTime.fromMSecsSinceEpoch(minTime * 1000).toUTC()
+        to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
+        self.date_from.setDateTime(from_dt)
+        self.date_to.setDateTime(to_dt)
+        self.date_from.blockSignals(False)
+        self.date_to.blockSignals(False)
+
+        indices = (minTime <= time_values) & (time_values <= maxTime)
         self.send('Subset', self.data[indices])
 
     def playthrough(self):
@@ -176,15 +221,25 @@ class OWTimeSlice(widget.OWWidget):
         self.Error.clear()
         var = data.time_variable
 
-        time_values = np.ravel(data[:, var])
+        time_values = data.get_column_view(var)[0]
+
         # Save values for handler
         slider.time_values = time_values
-
         slider.setDisabled(False)
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
         slider.setScale(time_values.min(), time_values.max())
         self.valuesChanged(slider.minimumValue(), slider.maximumValue())
+
+        # Update datetime edit fields
+        min_dt = QDateTime.fromMSecsSinceEpoch(time_values[0] * 1000).toUTC()
+        max_dt = QDateTime.fromMSecsSinceEpoch(time_values[-1] * 1000).toUTC()
+        self.date_from.setDateTimeRange(min_dt, max_dt)
+        self.date_to.setDateTimeRange(min_dt, max_dt)
+        date_format = '   '.join((self.DATE_FORMATS[0] if var.have_date else '',
+                                  self.DATE_FORMATS[1] if var.have_time else '')).strip()
+        self.date_from.setDisplayFormat(date_format)
+        self.date_to.setDisplayFormat(date_format)
 
 
 if __name__ == '__main__':
