@@ -139,12 +139,14 @@ class OWTimeSlice(widget.OWWidget):
 
         hbox = gui.hBox(vbox)
         self.step_backward = gui.button(hbox, self, '⏮',
-                                        callback=lambda: self.play_single_step(backward=True))
-        button = self.play_button = gui.button(hbox, self, '▶',
-                                               callback=self.playthrough)
-        button.setCheckable(True)
+                                        callback=lambda: self.play_single_step(backward=True),
+                                        autoDefault=False)
+        self.play_button = gui.button(hbox, self, '▶',
+                                      callback=self.playthrough,
+                                      toggleButton=True, default=True)
         self.step_forward = gui.button(hbox, self, '⏭',
-                                       callback=self.play_single_step)
+                                       callback=self.play_single_step,
+                                       autoDefault=False)
 
         gui.rubber(self.controlArea)
 
