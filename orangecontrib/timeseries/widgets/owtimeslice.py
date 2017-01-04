@@ -1,5 +1,6 @@
 import numpy as np
 import operator
+from collections import OrderedDict
 
 from PyQt4.QtGui import QLabel, QDateTimeEdit
 from PyQt4.QtCore import QDateTime, Qt, QSize, QTimer
@@ -64,9 +65,17 @@ class OWTimeSlice(widget.OWWidget):
 
     MAX_SLIDER_VALUE = 500
     DATE_FORMATS = ('yyyy-MM-dd', 'HH:mm:ss.zzz')
+    OVERLAP_AMOUNTS = OrderedDict((
+        ('all but one (= shift by one slider value)', 0),
+        ('6/7 of interval', 6/7),
+        ('3/4 of interval', 3/4),
+        ('1/2 of interval', 1/2),
+        ('1/3 of interval', 1/3),
+        ('1/5 of interval', 1/5)))
 
     loop_playback = settings.Setting(True)
     steps_overlap = settings.Setting(True)
+    overlap_amount = settings.Setting(next(iter(OVERLAP_AMOUNTS)))
     playback_interval = settings.Setting(1000)
     slider_values = settings.Setting((0, .2 * MAX_SLIDER_VALUE))
 
@@ -115,10 +124,14 @@ class OWTimeSlice(widget.OWWidget):
         vbox = gui.vBox(self.controlArea, 'Step / Play Through')
         gui.checkBox(vbox, self, 'loop_playback',
                      label='Loop playback')
-        gui.checkBox(vbox, self, 'steps_overlap',
-                     label='Steps overlap',
+        hbox = gui.hBox(vbox)
+        gui.checkBox(hbox, self, 'steps_overlap',
+                     label='Stepping overlaps by:',
                      toolTip='If enabled, the active interval moves forward '
                              '(backward) by half of the interval at each step.')
+        gui.comboBox(hbox, self, 'overlap_amount',
+                     items=tuple(self.OVERLAP_AMOUNTS.keys()),
+                     sendSelectedValue=True)
         gui.spin(vbox, self, 'playback_interval',
                  label='Playback delay (msec):',
                  minv=100, maxv=30000, step=200,
@@ -178,8 +191,14 @@ class OWTimeSlice(widget.OWWidget):
         op = operator.sub if backward else operator.add
         minValue, maxValue = self.slider.values()
         orig_delta = delta = self._delta
+
         if self.steps_overlap:
-            delta //= 2
+            overlap_amount = self.OVERLAP_AMOUNTS[self.overlap_amount]
+            if overlap_amount:
+                delta = max(1, int(round(delta * (1 - overlap_amount))))
+            else:
+                delta = 1  # single slider step (== 1/self.MAX_SLIDER_VALUE)
+
         if maxValue == self.slider.maximum() and not backward:
             minValue = self.slider.minimum()
             maxValue = minValue + orig_delta
@@ -195,7 +214,12 @@ class OWTimeSlice(widget.OWWidget):
         else:
             minValue = op(minValue, delta)
             maxValue = op(maxValue, delta)
+        # Blocking signals because we want this to be synchronous to avoid
+        # re-setting self._delta
+        self.slider.blockSignals(True)
         self.slider.setValues(minValue, maxValue)
+        self.slider.blockSignals(False)
+        self.valuesChanged(self.slider.minimumValue(), self.slider.maximumValue())
         self._delta = orig_delta  # Override valuesChanged handler
 
     def set_data(self, data):
