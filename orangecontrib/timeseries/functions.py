@@ -370,12 +370,12 @@ def seasonal_decompose(data, model='multiplicative', period=12, *, callback=None
         last_first = max(first, last - d)
 
         k, n = np.linalg.lstsq(
-            np.column_stack((np.arange(first, first_last), np.ones(d))),
+            np.column_stack((np.arange(first, first_last), np.ones(first_last - first))),
             trend[first:first_last])[0]
         trend[:first] = np.arange(0, first) * k + n
 
         k, n = np.linalg.lstsq(
-            np.column_stack((np.arange(last_first, last), np.ones(d))),
+            np.column_stack((np.arange(last_first, last), np.ones(last - last_first))),
             trend[last_first:last])[0]
         trend[last + 1:] = np.arange(last + 1, trend.size) * k + n
         return trend
