@@ -6,7 +6,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from PyQt4.QtGui import QListView
+from PyQt4.QtGui import QListView, QItemSelectionModel
 
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
@@ -227,10 +227,12 @@ class OWSpiralogram(widget.OWWidget):
     inputs = [("Time series", Table, 'set_data')]
     outputs = [("Time series", Timeseries)]
 
-    ax1 = settings.Setting('months of year')
-    ax2 = settings.Setting('years')
-    agg_attr = settings.Setting([])
-    agg_func = settings.Setting(0)
+    settingsHandler = settings.DomainContextHandler()
+
+    ax1 = settings.ContextSetting('months of year')
+    ax2 = settings.ContextSetting('years')
+    agg_attr = settings.ContextSetting([])
+    agg_func = settings.ContextSetting(0)
 
     def __init__(self):
         self.data = None
@@ -271,7 +273,7 @@ class OWSpiralogram(widget.OWWidget):
         def init_combos():
             for combo in (self.combo_ax1, self.combo_ax2):
                 combo.clear()
-            self.attrlist_model[:] = []
+            newmodel = []
             for i in Spiralogram.AxesCategories:
                 for combo in (self.combo_ax1, self.combo_ax2):
                     combo.addItem(_enum_str(i))
@@ -279,10 +281,11 @@ class OWSpiralogram(widget.OWWidget):
                 if (var.is_primitive() and
                         (var is not data.time_variable or
                          isinstance(var, TimeVariable) and data.time_delta is None)):
-                    self.attrlist_model.append(var)
+                    newmodel.append(var)
                 if var.is_discrete:
                     for combo in (self.combo_ax1, self.combo_ax2):
                         combo.addItem(gui.attributeIconDict[var], var.name)
+            self.attrlist_model.wrap(newmodel)
 
         init_combos()
         self.chart.clear()
@@ -290,8 +293,27 @@ class OWSpiralogram(widget.OWWidget):
         if data is None:
             self.commit()
             return
+
+        self.closeContext()
         self.ax1 = 'months of year'
         self.ax2 = 'years'
+        self.agg_attr = [data.domain[0]] if len(data.domain) else []
+        self.agg_func = 0
+        self.openContext(data.domain)
+
+        if self.agg_attr:
+            self.attrlist.blockSignals(True)
+            self.attrlist.selectionModel().clear()
+            for attr in self.agg_attr:
+                try:
+                    row = self.attrlist_model.indexOf(attr)
+                except ValueError:
+                    continue
+                self.attrlist.selectionModel().select(
+                    self.attrlist_model.index(row),
+                    QItemSelectionModel.SelectCurrent)
+            self.attrlist.blockSignals(False)
+
         self.replot()
 
     def replot(self):
