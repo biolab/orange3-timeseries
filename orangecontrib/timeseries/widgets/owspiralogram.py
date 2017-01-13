@@ -71,7 +71,7 @@ class Spiralogram(Highchart):
         yvals, yfunc = ydim.value
 
         values = Timeseries(Domain([], [], attr, source=timeseries.domain), timeseries).metas
-        time_values = np.ravel(timeseries[:, timeseries.time_variable])
+        time_values = timeseries.get_column_view(timeseries.time_variable)[0]
 
         if True:
             fromtimestamp = datetime.fromtimestamp
@@ -102,13 +102,13 @@ class Spiralogram(Highchart):
                 data.append(point)
                 if inds:
                     try:
-                        aggval = fagg(values[inds])
+                        aggval = np.round(fagg(values[inds]), 4)
                     except ValueError:
                         aggval = np.nan
                 else:
                     aggval = np.nan
                 if np.isnan(aggval):
-                    aggval = 'NaN'
+                    aggval = 'N/A'
                     point['select'] = ''
                     point['color'] = 'white'
                 else:
@@ -322,7 +322,7 @@ class OWSpiralogram(widget.OWWidget):
         # TODO test discrete
         if any(var.is_discrete for var in vars) and func != Mode:
             self.combo_func.setCurrentIndex(AGG_FUNCTIONS.index(Mode))
-            return
+            func = Mode
         try:
             ax1 = Spiralogram.AxesCategories[_enum_str(self.ax1, True)]
         except KeyError:
