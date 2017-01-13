@@ -136,6 +136,10 @@ class OWAggregate(widget.OWWidget):
             self.send('Time series', None)
             return
 
+        # Group-by expects data sorted
+        sorted_indices = np.argsort(data.time_values)
+        if not np.all(sorted_indices == np.arange(len(data))):
+            data = Timeseries.from_data_table(Table.from_table_rows(data, sorted_indices))
 
         attrs, cvars, metas = [], [], []
         for attr, _ in self.model:
