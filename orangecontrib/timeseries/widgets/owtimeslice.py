@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import numpy as np
 import operator
 from collections import OrderedDict
@@ -43,6 +45,15 @@ class _DoubleSlider:
 class Slider(_DoubleSlider, ViolinSlider):
     def sizeHint(self):
         return QSize(200, 100)
+
+
+@contextmanager
+def blockSignals(*objects):
+    for obj in objects:
+        obj.blockSignals(True)
+    yield
+    for obj in objects:
+        obj.blockSignals(False)
 
 
 class OWTimeSlice(widget.OWWidget):
@@ -103,9 +114,14 @@ class OWTimeSlice(widget.OWWidget):
                 maxTime = self.date_to.dateTime().toMSecsSinceEpoch() / 1000
                 if minTime > maxTime:
                     minTime = maxTime = minTime if editted == self.date_from else maxTime
+                    other = self.date_to if editted == self.date_from else self.date_from
+                    with blockSignals(other):
+                        other.setDateTime(editted.dateTime())
 
-                self.slider.setValues(self.slider.unscale(minTime),
-                                      self.slider.unscale(maxTime))
+                with blockSignals(self.slider):
+                    self.slider.setValues(self.slider.unscale(minTime),
+                                          self.slider.unscale(maxTime))
+                self.send_selection(minTime, maxTime)
             return handler
 
         kwargs = dict(calendarPopup=True,
@@ -152,25 +168,24 @@ class OWTimeSlice(widget.OWWidget):
 
     def valuesChanged(self, minValue, maxValue):
         self.slider_values = (minValue, maxValue)
-        try:
-            time_values = self.slider.time_values
-        except AttributeError:
-            return
-        if not self.data:
-            return
         self._delta = max(1, (maxValue - minValue))
         minTime = self.slider.scale(minValue)
         maxTime = self.slider.scale(maxValue)
 
-        self.date_from.blockSignals(True)
-        self.date_to.blockSignals(True)
         from_dt = QDateTime.fromMSecsSinceEpoch(minTime * 1000).toUTC()
         to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
-        self.date_from.setDateTime(from_dt)
-        self.date_to.setDateTime(to_dt)
-        self.date_from.blockSignals(False)
-        self.date_to.blockSignals(False)
+        with blockSignals(self.date_from,
+                          self.date_to):
+            self.date_from.setDateTime(from_dt)
+            self.date_to.setDateTime(to_dt)
 
+        self.send_selection(minTime, maxTime)
+
+    def send_selection(self, minTime, maxTime):
+        try:
+            time_values = self.data.time_values
+        except AttributeError:
+            return
         indices = (minTime <= time_values) & (time_values <= maxTime)
         self.send('Subset', self.data[indices])
 
@@ -218,9 +233,8 @@ class OWTimeSlice(widget.OWWidget):
             maxValue = op(maxValue, delta)
         # Blocking signals because we want this to be synchronous to avoid
         # re-setting self._delta
-        self.slider.blockSignals(True)
-        self.slider.setValues(minValue, maxValue)
-        self.slider.blockSignals(False)
+        with blockSignals(self.slider):
+            self.slider.setValues(minValue, maxValue)
         self.valuesChanged(self.slider.minimumValue(), self.slider.maximumValue())
         self._delta = orig_delta  # Override valuesChanged handler
 
@@ -247,10 +261,8 @@ class OWTimeSlice(widget.OWWidget):
         self.Error.clear()
         var = data.time_variable
 
-        time_values = data.get_column_view(var)[0]
+        time_values = data.time_values
 
-        # Save values for handler
-        slider.time_values = time_values
         slider.setDisabled(False)
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
