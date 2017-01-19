@@ -20,8 +20,6 @@ class Timeseries(Table):
         self._interp_multivariate = False
         self._time_delta = None
         # Set default time variable to first TimeVariable
-        self._time_variable = None
-        self._time_values = None #np.arange(len(self))
         try:
             self.time_variable = next(var for var in self.domain.attributes
                                       if isinstance(var, TimeVariable))
@@ -35,20 +33,21 @@ class Timeseries(Table):
     @property
     def time_values(self):
         """Time series measurements times"""
-        self._time_values = self._time_values if self._time_values is not None else np.arange(len(self))
-        return self._time_values
+        try:
+            return self.get_column_view(self.time_variable)[0]
+        except Exception:
+            return np.arange(len(self))
 
     @property
     def time_variable(self):
         """The :class:`TimeVariable` or :class:`ContinuousVariable` that
         represents the time variable in the time series"""
-        return self._time_variable
+        return self.attributes.get('time_variable')
 
     @time_variable.setter
     def time_variable(self, var):
         assert var in self.domain
-        self._time_variable = var
-        self._time_values = np.ravel(self[:, self._time_variable])
+        self.attributes['time_variable'] = var
 
         # Set detected time delta
         delta = np.unique(np.diff(self.time_values))
