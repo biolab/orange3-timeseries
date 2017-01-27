@@ -123,7 +123,7 @@ example. The data we model must have defined a class variable:
 >>> data.domain
 [Month | Air passengers]
 >>> data.domain.class_var
-ContinuousVariable('Air passengers')
+ContinuousVariable(name='Air passengers', number_of_decimals=3)
 
 We define the model with its parameters (see the reference for what arguments
 each model accepts):
@@ -144,32 +144,32 @@ We can also output the prediction as a :class:`Timeseries` object:
 >>> forecast = model.predict(10, as_table=True)
 >>> forecast.domain
 [Air passengers (forecast), Air passengers (95%CI low), Air passengers (95%CI high)]
->>> forecast
-[[470.456, 417.769, 523.142],
- [492.569, 414.076, 571.062],
- [498.446, 411.514, 585.378],
- [494.733, 407.034, 582.431],
- [488.717, 400.793, 576.641],
- ...
-]
+>>> np.set_printoptions(precision=1)
+>>> forecast.X
+array([[ 470.5,  417.8,  523.2],
+       [ 492.6,  414.1,  571.1],
+       [ 498.5,  411.5,  585.4],
+       ...
+       [ 492.7,  403. ,  582.4],
+       [ 497.1,  407.3,  586.8]])
 
 We can examine model's fitted values and residuals with appropriately-named
 methods:
 
 >>> model.fittedvalues(as_table=False)
-array([ 114.66946902,  121.69304444,  ..., 440.43509823,  386.75188552])
+array([ 114.7,  121.7,  ..., 440.4,  386.8])
 >>> model.residuals(as_table=False)
-array([  3.33053098,  10.30695556, ..., -50.43509823,  45.24811448])
+array([ 3.3,  10.3, ..., -50.4,  45.2])
 
 We can evaluate the model on in-sample, fitted values:
 
 >>> for measure, error in sorted(model.errors().items()):
-...     print('{:7s} {:>6.3f}'.format(measure.upper(), error))
-MAE     19.657
-MAPE     0.079
-POCID   58.451
-R2       0.948
-RMSE    27.060
+...     print('{:7s} {:>6.2f}'.format(measure.upper(), error))
+MAE      19.67
+MAPE      0.08
+POCID    58.45
+R2        0.95
+RMSE     27.06
 
 Finally, one should more robustly evaluate their models using cross validation.
 An example, edited for some clarity:
@@ -199,7 +199,8 @@ example:
 ...     if lag > 1:
 ...         print('Series {cons} lags by {ante} by {lag} lags.'.format(**locals()))
 ...
-Series Feature 1 lags by Feature 3 by 2 lags.
-Series Feature 2 lags by Feature 3 by 4 lags.
+Series Feature 1 lags by Feature 2 by 5 lags.
+Series Feature 1 lags by Feature 3 by 4 lags.
+Series Feature 2 lags by Feature 3 by 2 lags.
 
 Use this knowledge wisely.
