@@ -6,7 +6,7 @@ import pkg_resources
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
-VERSION = '0.2.5'
+VERSION = '0.2.6'
 
 ENTRY_POINTS = {
     'orange3.addon': (
