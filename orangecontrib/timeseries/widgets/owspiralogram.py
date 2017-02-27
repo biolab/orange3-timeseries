@@ -5,10 +5,9 @@ from numbers import Number
 from collections import defaultdict
 
 import numpy as np
+from Orange.util import color_to_hex
 
-from PyQt4.QtGui import QListView, QItemSelectionModel
-
-from Orange.data import Table, Domain, TimeVariable
+from Orange.data import Table, Domain, TimeVariable, DiscreteVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.highcharts import Highchart
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
@@ -18,6 +17,8 @@ from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode
 
+from PyQt4.QtGui import QListView, QItemSelectionModel
+from PyQt4.QtGui import QColor
 
 class Spiralogram(Highchart):
     """
@@ -28,17 +29,17 @@ class Spiralogram(Highchart):
     """
 
     class AxesCategories(Enum):
-        YEARS = ('', lambda d: d.year)
-        MONTHS = ('', lambda d: d.month)
-        DAYS = ('', lambda d: d.day)
-        MONTHS_OF_YEAR =  (tuple(range(1, 13)),  lambda d: d.month)
-        DAYS_OF_WEEK =    (tuple(range(0, 7)),   lambda d: d.weekday())
-        DAYS_OF_MONTH =   (tuple(range(1, 32)),  lambda d: d.day)
-        DAYS_OF_YEAR =    (tuple(range(1, 367)), lambda d: d.timetuple().tm_yday)
-        WEEKS_OF_YEAR =   (tuple(range(1, 54)),  lambda d: d.isocalendar()[1])
-        WEEKS_OF_MONTH =  (tuple(range(1, 6)),   lambda d: int(np.ceil((d.day + d.replace(day=1).weekday()) / 7)))
-        HOURS_OF_DAY =    (tuple(range(24)),     lambda d: d.hour)
-        MINUTES_OF_HOUR = (tuple(range(60)),     lambda d: d.minute)
+        YEARS =  ('', lambda _, d: d.year)
+        MONTHS = ('', lambda _, d: d.month)
+        DAYS =   ('', lambda _, d: d.day)
+        MONTHS_OF_YEAR =  (tuple(range(1, 13)),  lambda _, d: d.month)
+        DAYS_OF_WEEK =    (tuple(range(0, 7)),   lambda _, d: d.weekday())
+        DAYS_OF_MONTH =   (tuple(range(1, 32)),  lambda _, d: d.day)
+        DAYS_OF_YEAR =    (tuple(range(1, 367)), lambda _, d: d.timetuple().tm_yday)
+        WEEKS_OF_YEAR =   (tuple(range(1, 54)),  lambda _, d: d.isocalendar()[1])
+        WEEKS_OF_MONTH =  (tuple(range(1, 6)),   lambda _, d: int(np.ceil((d.day + d.replace(day=1).weekday()) / 7)))
+        HOURS_OF_DAY =    (tuple(range(24)),     lambda _, d: d.hour)
+        MINUTES_OF_HOUR = (tuple(range(60)),     lambda _, d: d.minute)
 
         @staticmethod
         def month_name(month):
@@ -61,30 +62,38 @@ class Spiralogram(Highchart):
         if timeseries is None or not attr:
             self.clear()
             return
-        # TODO: support discrete variables
         if isinstance(xdim, str) and xdim.isdigit():
             xdim = [str(i) for i in range(1, int(xdim) + 1)]
         if isinstance(ydim, str) and ydim.isdigit():
             ydim = [str(i) for i in range(1, int(ydim) + 1)]
 
-        xvals, xfunc = xdim.value
-        yvals, yfunc = ydim.value
+        if isinstance(xdim, DiscreteVariable):
+            xcol = timeseries.get_column_view(xdim)[0]
+            xvals, xfunc = xdim.values, lambda i, _: xdim.repr_val(xcol[i])
+        else:
+            xvals, xfunc = xdim.value
+        if isinstance(ydim, DiscreteVariable):
+            ycol = timeseries.get_column_view(ydim)[0]
+            yvals, yfunc = ydim.values, lambda i, _: ydim.repr_val(ycol[i])
+        else:
+            yvals, yfunc = ydim.value
 
-        values = Timeseries(Domain([], [], attr, source=timeseries.domain), timeseries).metas
-        time_values = timeseries.get_column_view(timeseries.time_variable)[0]
+        attr = attr[0]
+        values = timeseries.get_column_view(attr)[0]
+        time_values = timeseries.time_values
 
         if True:
             fromtimestamp = datetime.fromtimestamp
             time_values = [fromtimestamp(i) for i in time_values]
 
         if not yvals:
-            yvals = sorted(set(yfunc(i) for i in time_values))
+            yvals = sorted(set(yfunc(i, v) for i, v in enumerate(time_values)))
         if not xvals:
-            xvals = sorted(set(xfunc(i) for i in time_values))
+            xvals = sorted(set(xfunc(i, v) for i, v in enumerate(time_values)))
 
         indices = defaultdict(list)
         for i, tval in enumerate(time_values):
-            indices[(xfunc(tval), yfunc(tval))].append(i)
+            indices[(xfunc(i, tval), yfunc(i, tval))].append(i)
 
         series = []
         aggvals = []
@@ -107,7 +116,7 @@ class Spiralogram(Highchart):
                         aggval = np.nan
                 else:
                     aggval = np.nan
-                if np.isnan(aggval):
+                if isinstance(aggval, Number) and np.isnan(aggval):
                     aggval = 'N/A'
                     point['select'] = ''
                     point['color'] = 'white'
@@ -123,14 +132,26 @@ class Spiralogram(Highchart):
             return
         ptpval = maxval - minval
         color = GradientPaletteGenerator('#ffcccc', '#cc0000')
-        selected_color = GradientPaletteGenerator('#ccffcc', '#006600')
+        selected_color = GradientPaletteGenerator('#cdd1ff', '#0715cd')
         for serie in series:
             for point in serie['data']:
                 n = point['n']
                 if isinstance(n, Number):
                     val = (n - minval) / ptpval
-                    point['color'] = color[val]
-                    point['states'] = dict(select=dict(color=selected_color[val]))
+
+                    if attr.is_discrete:
+                        point['n'] = attr.repr_val(n)
+                    elif isinstance(attr, TimeVariable):
+                        point['n'] = attr.repr_val(n)
+
+                    if attr.is_discrete:
+                        point['color'] = color = color_to_hex(attr.colors[int(n)])
+                        sel_color = QColor(color).darker(150).name()
+                    else:
+                        point['color'] = color[val]
+                        sel_color = selected_color[val]
+                    point['states'] = dict(select=dict(borderColor="black",
+                                                       color=sel_color))
 
         # TODO: make a white hole in the middle. Center w/o data.
         self.chart(series=series,
@@ -252,7 +273,7 @@ class OWSpiralogram(widget.OWWidget):
         self.combo_func.setModel(func_model)
 
         self.attrlist_model = VariableListModel(parent=self)
-        self.attrlist = QListView(selectionMode=QListView.ExtendedSelection)
+        self.attrlist = QListView(selectionMode=QListView.SingleSelection)
         self.attrlist.setModel(self.attrlist_model)
         self.attrlist.selectionModel().selectionChanged.connect(
             self.attrlist_selectionChanged)
@@ -274,9 +295,10 @@ class OWSpiralogram(widget.OWWidget):
             for combo in (self.combo_ax1, self.combo_ax2):
                 combo.clear()
             newmodel = []
-            for i in Spiralogram.AxesCategories:
-                for combo in (self.combo_ax1, self.combo_ax2):
-                    combo.addItem(_enum_str(i))
+            if data.time_variable is not None:
+                for i in Spiralogram.AxesCategories:
+                    for combo in (self.combo_ax1, self.combo_ax2):
+                        combo.addItem(_enum_str(i))
             for var in data.domain if data is not None else []:
                 if (var.is_primitive() and
                         (var is not data.time_variable or
@@ -317,9 +339,11 @@ class OWSpiralogram(widget.OWWidget):
         self.replot()
 
     def replot(self):
+        if not self.combo_ax1.count() or not self.agg_attr:
+            return self.chart.clear()
+
         vars = self.agg_attr
         func = AGG_FUNCTIONS[self.agg_func]
-        # TODO test discrete
         if any(var.is_discrete for var in vars) and func != Mode:
             self.combo_func.setCurrentIndex(AGG_FUNCTIONS.index(Mode))
             func = Mode
@@ -347,7 +371,7 @@ if __name__ == "__main__":
 
     a = QApplication([])
     ow = OWSpiralogram()
-    ow.set_data(Timeseries('autoroute'))
+    ow.set_data(Table('cyber-security-breaches'))
 
     ow.show()
     a.exec()
