@@ -19,7 +19,7 @@ Inputs
 Description
 -----------
 
-In this widget, you can visualize the autocorrelation coefficients for selected time series.
+Visualize time series' periodicity in a spiral heatmap.
 
 .. figure:: images/spiralogram-stamped.png
 
