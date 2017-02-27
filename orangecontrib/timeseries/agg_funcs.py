@@ -36,6 +36,10 @@ class Count_nonzero(_AggFunc):
     __func__ = lambda arr: np.count_nonzero(arr[~np.isnan(arr)])
 
 
+class Count_defined(_AggFunc):
+    __func__ = lambda arr: (~np.isnan(arr)).sum()
+
+
 class Max(_AggFunc):
     __func__ = np.nanmax
 
@@ -120,4 +124,5 @@ AGG_FUNCTIONS = [
     Harmonic_mean,
     Geometric_mean,
     Count_nonzero,
+    Count_defined,
 ]
