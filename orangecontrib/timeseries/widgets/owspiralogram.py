@@ -3,6 +3,7 @@ from enum import Enum
 from itertools import chain
 from numbers import Number
 from collections import defaultdict
+from os import path
 
 import numpy as np
 from Orange.util import color_to_hex
@@ -156,7 +157,12 @@ class Spiralogram(Highchart):
         # TODO: make a white hole in the middle. Center w/o data.
         self.chart(series=series,
                    xAxis_categories=[xname(i) for i in xvals],
-                   yAxis_categories=[yname(i) for i in reversed(yvals)])
+                   yAxis_categories=[yname(i) for i in reversed(yvals)],
+                   javascript_after='''
+                       // Force zoomType which is by default disabled for polar charts
+                       chart.options.chart.zoomType = 'xy';
+                       chart.pointer.init(chart, chart.options);
+                   ''')
 
     def selection_indices(self, indices):
         result = []
@@ -171,6 +177,10 @@ class Spiralogram(Highchart):
             type='column',
             polar=True,
             panning=False,  # Fixes: https://github.com/highcharts/highcharts/issues/5240
+            events=dict(
+                selection='/**/ zoomSelection',  # from _spiralogram.js
+            ),
+            zoomType='xy',  # polar=True disabled this, but is again reenabled in JS after chart init
         ),
         legend=dict(
             enabled=False,  # FIXME: Have a heatmap-style legend
@@ -226,9 +236,12 @@ class Spiralogram(Highchart):
 
     def __init__(self, parent, *args, **kwargs):
         # TODO: Add colorAxes (heatmap legend)
+        with open(path.join(path.dirname(__file__), '_spiralogram.js')) as f:
+            javascript = f.read()
         super().__init__(parent, *args,
                          options=self.OPTIONS,
                          enable_select='+',  # TODO: implement mouse-drag select
+                         javascript=javascript,
                          **kwargs)
         self.indices = {}
 
