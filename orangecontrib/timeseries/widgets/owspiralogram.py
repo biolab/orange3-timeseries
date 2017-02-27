@@ -215,11 +215,6 @@ class Spiralogram(Highchart):
                 borderWidth=2,
                 pointPlacement='on',
                 allowPointSelect=True,
-                tooltip=dict(
-                    headerFormat=('<span style="font-size:13pt;color:{point.color}">\u25A0</span> '
-                                  '{series.name}, {point.key}:'),
-                    pointFormat=' <b>{point.n}</b><br/>',
-                ),
                 states=dict(
                     select=dict(
                         borderColor=None,  # Revert Orange's theme
@@ -229,7 +224,17 @@ class Spiralogram(Highchart):
         ),
         tooltip=dict(
             shared=False,
-
+            formatter=('''/**/
+                (function() {
+                    if (this.point.n == "N/A")
+                        return false;
+                    return '<span style="font-size:13pt;color:' + \
+                           this.point.color + '">\u25A0</span> ' + \
+                           this.series.name + ', ' + \
+                           this.x + ': <b>' + \
+                           this.point.n + '</b><br/>';
+                })
+            '''),
         )
         # series=[]  # Override this
     )
