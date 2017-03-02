@@ -26,7 +26,9 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
     plot_type = 'line'
 
     def __init__(self, owwidget, ax, varmodel):
-        super().__init__(owwidget)
+        QWidget.__init__(self, owwidget)
+        gui.OWComponent.__init__(self)
+
         self.ax = ax
         self.view = view = QListView(self, selectionMode=QTreeWidget.ExtendedSelection,)
         view.setModel(varmodel)
