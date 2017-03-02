@@ -64,10 +64,17 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
                      callback=lambda: self.sigLogarithmic.emit(ax, self.is_logarithmic))
         box.addWidget(view)
 
+    # This is here because sometimes enterEvent/leaveEvent below were called
+    # before the constructor set button_close appropriately. I have no idea.
+    button_close = None
+
     def enterEvent(self, event):
-        self.button_close.setVisible(True)
+        if self.button_close:
+            self.button_close.setVisible(True)
+
     def leaveEvent(self, event):
-        self.button_close.setVisible(False)
+        if self.button_close:
+            self.button_close.setVisible(False)
 
     def selection_changed(self):
         selection = [mi.model()[mi.row()]
