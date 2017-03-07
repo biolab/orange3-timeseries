@@ -313,7 +313,7 @@ class OWSpiralogram(widget.OWWidget):
             for combo in (self.combo_ax1, self.combo_ax2):
                 combo.clear()
             newmodel = []
-            if data.time_variable is not None:
+            if data is not None and data.time_variable is not None:
                 for i in Spiralogram.AxesCategories:
                     for combo in (self.combo_ax1, self.combo_ax2):
                         combo.addItem(_enum_str(i))
@@ -335,8 +335,10 @@ class OWSpiralogram(widget.OWWidget):
             return
 
         self.closeContext()
-        self.ax1 = 'months of year'
-        self.ax2 = 'years'
+        self.ax2 = next((self.combo_ax2.itemText(i)
+                         for i in range(self.combo_ax2.count())), '')
+        self.ax1 = next((self.combo_ax1.itemText(i)
+                         for i in range(1, self.combo_ax1.count())), self.ax2)
         self.agg_attr = [data.domain[0]] if len(data.domain) else []
         self.agg_func = 0
         self.openContext(data.domain)
