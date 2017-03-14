@@ -25,6 +25,8 @@ class OWCorrelogram(widget.OWWidget):
     use_pacf = settings.Setting(False)
     use_confint = settings.Setting(True)
 
+    graph_name = 'plot'
+
     def __init__(self):
         self.all_attrs = []
         opts = gui.widgetBox(self.controlArea, 'Options')

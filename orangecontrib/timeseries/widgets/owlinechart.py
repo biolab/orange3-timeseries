@@ -334,6 +334,8 @@ class OWLineChart(widget.OWWidget):
 
     attrs = settings.Setting({})  # Maps data.name -> [attrs]
 
+    graph_name = 'chart'
+
     def __init__(self):
         self.data = None
         self.plots = []

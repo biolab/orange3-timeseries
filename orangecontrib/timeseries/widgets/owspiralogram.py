@@ -273,6 +273,8 @@ class OWSpiralogram(widget.OWWidget):
     agg_attr = settings.ContextSetting([])
     agg_func = settings.ContextSetting(0)
 
+    graph_name = 'chart'
+
     def __init__(self):
         self.data = None
         self.indices = []

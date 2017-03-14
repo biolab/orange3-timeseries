@@ -24,6 +24,8 @@ class OWPeriodogram(widget.OWWidget):
 
     attrs = settings.Setting([])
 
+    graph_name = 'plot'
+
     def __init__(self):
         self.all_attrs = []
         gui.listBox(self.controlArea, self, 'attrs',
