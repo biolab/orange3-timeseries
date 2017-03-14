@@ -91,7 +91,8 @@ class Highstock(Highchart):
                          yAxis_labels_y=-3,
                          yAxis_labels_align_x='right',
                          yAxis_title_text=None,
-                         plotOptions_series_dataGrouping_groupPixelWidth=7,
+                         plotOptions_series_dataGrouping_groupPixelWidth=2,
+                         plotOptions_series_dataGrouping_approximation='high',
                          plotOptions_areasplinerange_states_hover_lineWidthPlus=0,
                          plotOptions_areasplinerange_tooltip_pointFormat='''
                             <span style="color:{point.color}">\u25CF</span>
