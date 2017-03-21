@@ -6,7 +6,7 @@ from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
 from orangecontrib.timeseries.util import cache_clears
-from Orange.widgets.highcharts import Highchart
+from orangecontrib.timeseries.widgets.highcharts import Highchart
 
 from PyQt4.QtGui import QListWidget
 from PyQt4.QtCore import QTimer
