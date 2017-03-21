@@ -15,7 +15,7 @@ Package documentation: http://orange3-timeseries.readthedocs.io/
 Installing
 ----------
 
-###With Anaconda
+### With Anaconda
 
 The easiest way to install Orange3-Timeseries on a non-GNU/Linux system is
 with [Anaconda] distribution for your OS (Python version 3.5).
@@ -40,18 +40,18 @@ to open Orange and check if everything is installed properly.
 
 [Anaconda]: https://www.continuum.io/downloads
 
-###From source
+### From source
 
 To install the add-on from source
 
-    #Clone the repository and move into it
+    # Clone the repository and move into it
     git clone https://github.com/biolab/orange3-timeseries.git
     cd orange3-timeseries
 
-    #Install corresponding wheels for your OS:
+    # Install corresponding wheels for your OS:
     pip install some-wheel.whl
 
-    #Install Orange3-Timeseries in editable/development mode.
+    # Install Orange3-Timeseries in editable/development mode.
     pip install -e .
 
  - [numpy+mkl](http://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy)
