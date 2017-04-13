@@ -6,7 +6,6 @@ import numpy as np
 
 from Orange.data import TimeVariable, Table
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.highcharts import Highchart
 
 from PyQt4.QtGui import QTreeWidget, QSizePolicy, \
     QWidget, QPushButton, QIcon, QListView, QVBoxLayout
@@ -14,6 +13,7 @@ from PyQt4.QtCore import Qt, QSize, pyqtSignal, QTimer
 
 from Orange.widgets.utils.itemmodels import VariableListModel
 from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries.widgets.highcharts import Highchart
 
 
 class PlotConfigWidget(QWidget, gui.OWComponent):

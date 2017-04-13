@@ -10,13 +10,13 @@ from Orange.util import color_to_hex
 
 from Orange.data import Table, Domain, TimeVariable, DiscreteVariable
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.highcharts import Highchart
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
 from Orange.widgets.utils.itemmodels import VariableListModel
 
 from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode
+from orangecontrib.timeseries.widgets.highcharts import Highchart
 
 from PyQt4.QtGui import QListView, QItemSelectionModel
 from PyQt4.QtGui import QColor
