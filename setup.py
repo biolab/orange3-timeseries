@@ -6,7 +6,7 @@ import pkg_resources
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
-VERSION = '0.3.0'
+VERSION = '0.3.1'
 
 ENTRY_POINTS = {
     'orange3.addon': (
@@ -60,6 +60,7 @@ if __name__ == '__main__':
     setup(
         name="Orange3-Timeseries",
         description="Orange3 add-on for exploring time series and sequential data.",
+        long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
         version=VERSION,
         author='Bioinformatics Laboratory, FRI UL',
         author_email='info@biolab.si',
