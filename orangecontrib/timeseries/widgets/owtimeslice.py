@@ -187,7 +187,7 @@ class OWTimeSlice(widget.OWWidget):
         except AttributeError:
             return
         indices = (minTime <= time_values) & (time_values <= maxTime)
-        self.send('Subset', self.data[indices])
+        self.send('Subset', self.data[indices] if indices.any() else None)
 
     def playthrough(self):
         playing = self.play_button.isChecked()
