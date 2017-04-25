@@ -6,7 +6,7 @@ import pkg_resources
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
-VERSION = '0.2.7'
+VERSION = '0.3.0'
 
 ENTRY_POINTS = {
     'orange3.addon': (
@@ -64,6 +64,7 @@ if __name__ == '__main__':
         author='Bioinformatics Laboratory, FRI UL',
         author_email='info@biolab.si',
         url='https://github.com/biolab/orange3-timeseries',
+        license='CC-BY-NC-3.0',
         keywords=(
             'time series',
             'sequence analysis',
