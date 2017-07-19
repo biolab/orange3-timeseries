@@ -4,7 +4,7 @@ from Orange.data import Table, ContinuousVariable
 from Orange.widgets import widget, gui, settings
 
 import numpy as np
-from PyQt4.QtGui import QListWidget
+from AnyQt.QtWidgets import QListWidget
 
 from orangecontrib.timeseries.util import cache_clears
 from orangecontrib.timeseries import (
@@ -108,7 +108,7 @@ class OWPeriodogram(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWPeriodogram()

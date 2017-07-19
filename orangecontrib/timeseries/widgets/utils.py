@@ -1,5 +1,5 @@
 from Orange.widgets.utils.itemmodels import PyListModel
-from PyQt4.QtCore import Qt
+from AnyQt.QtCore import Qt
 
 
 class ListModel(PyListModel):

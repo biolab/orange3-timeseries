@@ -4,8 +4,8 @@ import numpy as np
 import operator
 from collections import OrderedDict
 
-from PyQt4.QtGui import QLabel, QDateTimeEdit
-from PyQt4.QtCore import QDateTime, Qt, QSize, QTimer
+from AnyQt.QtWidgets import QLabel, QDateTimeEdit
+from AnyQt.QtCore import QDateTime, Qt, QSize, QTimer
 
 from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
@@ -281,7 +281,7 @@ class OWTimeSlice(widget.OWWidget):
 
 
 if __name__ == '__main__':
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
     app = QApplication([])
     w = OWTimeSlice()
     data = Table('/tmp/airpassengers.csv')

@@ -4,8 +4,8 @@ from collections import OrderedDict
 
 import numpy as np
 
-from PyQt4.QtGui import QStyledItemDelegate, QComboBox
-from PyQt4.QtCore import Qt
+from AnyQt.QtWidgets import QStyledItemDelegate, QComboBox
+from AnyQt.QtCore import Qt
 
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
@@ -179,7 +179,7 @@ class OWAggregate(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWAggregate()

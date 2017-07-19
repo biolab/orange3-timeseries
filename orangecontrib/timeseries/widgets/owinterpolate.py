@@ -1,4 +1,4 @@
-from PyQt4.QtCore import Qt
+from AnyQt.QtCore import Qt
 
 from Orange.data import Table
 from Orange.util import try_
@@ -72,7 +72,7 @@ class OWInterpolate(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWInterpolate()

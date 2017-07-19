@@ -116,7 +116,7 @@ class OWTableToTimeseries(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication, QLabel
+    from AnyQt.QtWidgets import QApplication, QLabel
 
     a = QApplication([])
     ow = OWTableToTimeseries()
