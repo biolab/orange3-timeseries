@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, date
 
-from PyQt4.QtCore import QDate
-from PyQt4.QtGui import QDateEdit, QComboBox
+from AnyQt.QtCore import QDate
+from AnyQt.QtWidgets import QDateEdit, QComboBox
 
 from Orange.widgets import widget, gui, settings
 
@@ -122,7 +122,7 @@ class OWYahooFinance(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWYahooFinance()

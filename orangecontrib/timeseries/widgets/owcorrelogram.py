@@ -8,8 +8,8 @@ from orangecontrib.timeseries import (
 from orangecontrib.timeseries.util import cache_clears
 from orangecontrib.timeseries.widgets.highcharts import Highchart
 
-from PyQt4.QtGui import QListWidget
-from PyQt4.QtCore import QTimer
+from AnyQt.QtWidgets import QListWidget
+from AnyQt.QtCore import QTimer
 
 
 class OWCorrelogram(widget.OWWidget):
@@ -117,7 +117,7 @@ class OWCorrelogram(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWCorrelogram()

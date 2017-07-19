@@ -1,7 +1,7 @@
 import numpy as np
 
-from PyQt4.QtGui import QListView
-from PyQt4.QtCore import Qt
+from AnyQt.QtWidgets import QListView
+from AnyQt.QtCore import Qt
 
 from Orange.data import Table, Domain
 from Orange.widgets import widget, gui, settings
@@ -106,7 +106,7 @@ class OWSeasonalAdjustment(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWSeasonalAdjustment()

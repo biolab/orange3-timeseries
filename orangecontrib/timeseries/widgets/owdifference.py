@@ -1,6 +1,6 @@
 import numpy as np
 
-from PyQt4.QtGui import QListView
+from AnyQt.QtWidgets import QListView
 
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets import widget, gui, settings
@@ -130,7 +130,7 @@ class OWDifference(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWDifference()

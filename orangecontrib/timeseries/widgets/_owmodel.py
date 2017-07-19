@@ -1,4 +1,4 @@
-from PyQt4.QtCore import QTimer
+from AnyQt.QtCore import QTimer
 
 from Orange.data import Table
 from Orange.widgets import widget, gui, settings

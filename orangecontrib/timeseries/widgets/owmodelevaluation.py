@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from PyQt4.QtCore import QSize
+from AnyQt.QtCore import QSize
 
 from Orange.data import Table
 from Orange.widgets import widget, gui, settings
@@ -99,7 +99,7 @@ class OWModelEvaluation(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
     from Orange.data import Domain
     from orangecontrib.timeseries import ARIMA, VAR
 

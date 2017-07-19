@@ -18,8 +18,9 @@ from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode
 from orangecontrib.timeseries.widgets.highcharts import Highchart
 
-from PyQt4.QtGui import QListView, QItemSelectionModel
-from PyQt4.QtGui import QColor
+from AnyQt.QtWidgets import QListView
+from AnyQt.QtCore import QItemSelectionModel
+from AnyQt.QtGui import QColor
 
 class Spiralogram(Highchart):
     """
@@ -389,7 +390,7 @@ class OWSpiralogram(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWSpiralogram()

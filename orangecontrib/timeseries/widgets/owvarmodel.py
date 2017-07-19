@@ -54,7 +54,7 @@ class OWVARModel(OWBaseModel):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
     from Orange.data import Domain
 
     a = QApplication([])

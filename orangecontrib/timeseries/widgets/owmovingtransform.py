@@ -1,5 +1,6 @@
-from PyQt4.QtCore import Qt, QSize
-from PyQt4.QtGui import QIcon, QStyledItemDelegate, QComboBox, QSpinBox
+from AnyQt.QtCore import Qt, QSize
+from AnyQt.QtWidgets import QStyledItemDelegate, QComboBox, QSpinBox
+from AnyQt.QtGui import QIcon
 
 from Orange.data import Domain, Table
 from Orange.widgets import widget, gui, settings
@@ -198,7 +199,7 @@ class OWMovingTransform(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWMovingTransform()

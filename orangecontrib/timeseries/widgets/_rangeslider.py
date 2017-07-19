@@ -4,9 +4,9 @@ from scipy.stats import gaussian_kde
 # from PyQt5.QtCore import *
 # from PyQt5.QtGui import *
 # from PyQt5.QtWidgets import *
-from PyQt4.QtGui import QSlider, QStyle, QStylePainter, QStyleOptionSlider, \
-    QPixmap, QPen, QPainter, QTransform, QBrush, QFont
-from PyQt4.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize
+from AnyQt.QtWidgets import QSlider, QStyle, QStylePainter, QStyleOptionSlider
+from AnyQt.QtGui import QPixmap, QPen, QPainter, QTransform, QBrush, QFont
+from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize
 
 
 def _INVALID(*args):
@@ -388,7 +388,7 @@ class ViolinSlider(RangeSlider):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication, QDialog, QGridLayout, QLabel
+    from AnyQt.QtWidgets import QApplication, QDialog, QGridLayout, QLabel
     app = QApplication([])
     win = QDialog()
     grid = QGridLayout(win)

@@ -7,9 +7,10 @@ import numpy as np
 from Orange.data import TimeVariable, Table
 from Orange.widgets import widget, gui, settings
 
-from PyQt4.QtGui import QTreeWidget, QSizePolicy, \
-    QWidget, QPushButton, QIcon, QListView, QVBoxLayout
-from PyQt4.QtCore import Qt, QSize, pyqtSignal, QTimer
+from AnyQt.QtWidgets import QTreeWidget, QSizePolicy, \
+    QWidget, QPushButton, QListView, QVBoxLayout
+from AnyQt.QtGui import QIcon
+from AnyQt.QtCore import Qt, QSize, pyqtSignal, QTimer
 
 from Orange.widgets.utils.itemmodels import VariableListModel
 from orangecontrib.timeseries import Timeseries
@@ -412,7 +413,7 @@ class OWLineChart(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
     from orangecontrib.timeseries import ARIMA, VAR
 
     a = QApplication([])
