@@ -163,7 +163,7 @@ class Highstock(Highchart):
         delta = data.time_delta if isinstance(data.time_variable, TimeVariable) else None
 
         for attr in series:
-            newseries.append(np.ravel(data[:, attr]))
+            newseries.append(data.get_column_view(attr)[0])
             names.append(attr.name)
             deltas.append(None)
             forecasts.append(None)
@@ -194,7 +194,7 @@ class Highstock(Highchart):
                 tvals = data.time_values
 
                 if isinstance(delta, Number):
-                    deltas[-1] = (tvals[0] * 1000, tvals[-1] * 1000, delta, None)
+                    deltas[-1] = (tvals[0] * 1000, tvals[-1] * 1000, delta * 1000, None)
                 elif delta:
                     deltas[-1] = (tvals[0] * 1000, tvals[-1] * 1000) + delta
                 else:
