@@ -315,15 +315,6 @@ class Highstock(Highchart):
             chart.redraw(false);
         ''' % locals())
 
-    def enable_rangeSelector(self, enable):
-        display = 'initial' if enable else 'none'
-        self.evalJS(
-            '$(".highcharts-range-selector-buttons, '
-            '   .highcharts-input-group").css({display: "%s"});' % display)
-        # Reset the range selector to full view
-        if not enable:
-            self.evalJS('$(chart.rangeSelector.buttons[5]).click();')
-
 
 class OWLineChart(widget.OWWidget):
     name = 'Line Chart'
@@ -353,7 +344,14 @@ class OWLineChart(widget.OWWidget):
         # TODO: allow selecting ranges that are sent to output as subset table
         self.chart = highstock = Highstock(self, highchart='StockChart')
         self.mainArea.layout().addWidget(highstock)
-        highstock.chart()
+        # highstock.evalJS('Highcharts.setOptions({navigator: {enabled:false}});')
+        highstock.chart(
+            # For some reason, these options don't work as global opts applied at Highstock init time
+            # Disable top range selector
+            rangeSelector_enabled=False,
+            rangeSelector_inputEnabled=False,
+            # Disable bottom miniview navigator (it doesn't update)
+            navigator_enabled=False, )
         QTimer.singleShot(0, self.add_plot)
 
     def add_plot(self):
@@ -401,8 +399,6 @@ class OWLineChart(widget.OWWidget):
 
         self.varmodel.wrap([var for var in data.domain
                             if var.is_continuous and var != data.time_variable])
-        self.chart.enable_rangeSelector(
-            isinstance(data.time_variable, TimeVariable))
 
     def set_forecast(self, forecast, id):
         if forecast is not None:
