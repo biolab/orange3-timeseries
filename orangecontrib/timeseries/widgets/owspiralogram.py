@@ -97,6 +97,9 @@ class Spiralogram(Highchart):
         for i, tval in enumerate(time_values):
             indices[(xfunc(i, tval), yfunc(i, tval))].append(i)
 
+        if self._owwidget.invert_date_order:
+            yvals = yvals[::-1]
+
         series = []
         aggvals = []
         self.indices = []
@@ -250,6 +253,8 @@ class Spiralogram(Highchart):
                          javascript=javascript,
                          **kwargs)
         self.indices = {}
+        assert isinstance(parent, widget.OWWidget)
+        self._owwidget = parent
 
 
 def _enum_str(enum_value, inverse=False):
@@ -271,8 +276,11 @@ class OWSpiralogram(widget.OWWidget):
 
     ax1 = settings.ContextSetting('months of year')
     ax2 = settings.ContextSetting('years')
+
     agg_attr = settings.ContextSetting([])
     agg_func = settings.ContextSetting(0)
+
+    invert_date_order = settings.Setting(False)
 
     graph_name = 'chart'
 
@@ -286,6 +294,9 @@ class OWSpiralogram(widget.OWWidget):
         self.combo_ax1 = gui.comboBox(
             box, self, 'ax1', label='Radial:', callback=self.replot,
             sendSelectedValue=True, orientation='horizontal')
+        gui.checkBox(box, self, 'invert_date_order', 'Invert Y axis order',
+                     callback=self.replot)
+
         box = gui.vBox(self.controlArea, 'Aggregation')
         self.combo_func = gui.comboBox(
             box, self, 'agg_func', label='Function:', orientation='horizontal',
@@ -299,7 +310,9 @@ class OWSpiralogram(widget.OWWidget):
         self.attrlist.selectionModel().selectionChanged.connect(
             self.attrlist_selectionChanged)
         box.layout().addWidget(self.attrlist)
+
         gui.rubber(self.controlArea)
+
         self.chart = chart = Spiralogram(self,
                                          selection_callback=self.on_selection)
         self.mainArea.layout().addWidget(chart)
