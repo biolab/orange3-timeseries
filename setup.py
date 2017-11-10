@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 
 import os
-import sys
-import pkg_resources
 from setuptools import setup, find_packages
-from setuptools.command.install import install
 
 VERSION = '0.3.1'
 
@@ -33,29 +30,6 @@ ENTRY_POINTS = {
 }
 
 
-class LinkDatasets(install):
-    def run(self):
-        super().run()
-
-        old_cwd = os.getcwd()
-        os.chdir(os.path.abspath(os.path.sep))
-
-        src = pkg_resources.resource_filename('orangecontrib.timeseries', 'datasets')
-        dst = os.path.join(pkg_resources.resource_filename('Orange', 'datasets'), 'timeseries')
-
-        try:
-            os.remove(dst)
-        except OSError:
-            pass
-        try:
-            os.symlink(src, dst, target_is_directory=True)
-        except OSError:
-            pass
-        finally:
-            os.chdir(old_cwd)
-
-
-
 if __name__ == '__main__':
     setup(
         name="Orange3-Timeseries",
@@ -74,7 +48,6 @@ if __name__ == '__main__':
             'VAR model',
             'forecast'
         ),
-        cmdclass={'install': LinkDatasets},
         packages=find_packages(),
         package_data={
             "orangecontrib.timeseries.widgets": ["icons/*.svg",
