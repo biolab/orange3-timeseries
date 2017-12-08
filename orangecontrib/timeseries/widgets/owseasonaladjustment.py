@@ -76,7 +76,7 @@ class OWSeasonalAdjustment(widget.OWWidget):
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         if data is not None:
-            self.model.wrap([var for var in data.domain
+            self.model.wrap([var for var in data.domain.variables
                              if var.is_continuous and var is not data.time_variable])
         self.on_changed()
 

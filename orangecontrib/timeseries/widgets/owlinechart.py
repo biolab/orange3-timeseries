@@ -397,7 +397,7 @@ class OWLineChart(widget.OWWidget):
                  getattr(data.time_variable, 'have_time', False))) else
             'linear')
 
-        self.varmodel.wrap([var for var in data.domain
+        self.varmodel.wrap([var for var in data.domain.variables
                             if var.is_continuous and var != data.time_variable])
 
     def set_forecast(self, forecast, id):

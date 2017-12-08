@@ -181,7 +181,7 @@ class OWMovingTransform(widget.OWWidget):
         self.add_button.setDisabled(not len(getattr(data, 'domain', ())))
         self.table_model.clear()
         if data is not None:
-            self.var_model.wrap([var for var in data.domain
+            self.var_model.wrap([var for var in data.domain.variables
                                  if var.is_continuous and var is not data.time_variable])
         self.on_changed()
 
