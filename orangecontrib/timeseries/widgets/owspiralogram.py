@@ -333,7 +333,7 @@ class OWSpiralogram(widget.OWWidget):
                 for i in Spiralogram.AxesCategories:
                     for combo in (self.combo_ax1, self.combo_ax2):
                         combo.addItem(_enum_str(i))
-            for var in data.domain if data is not None else []:
+            for var in data.domain.variables if data is not None else []:
                 if (var.is_primitive() and
                         (var is not data.time_variable or
                          isinstance(var, TimeVariable) and data.time_delta is None)):
@@ -355,7 +355,7 @@ class OWSpiralogram(widget.OWWidget):
                          for i in range(self.combo_ax2.count())), '')
         self.ax1 = next((self.combo_ax1.itemText(i)
                          for i in range(1, self.combo_ax1.count())), self.ax2)
-        self.agg_attr = [data.domain[0]] if len(data.domain) else []
+        self.agg_attr = [data.domain.variables[0]] if len(data.domain.variables) else []
         self.agg_func = 0
         self.openContext(data.domain)
 

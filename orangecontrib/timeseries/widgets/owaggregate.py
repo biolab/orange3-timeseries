@@ -123,7 +123,7 @@ class OWAggregate(widget.OWWidget):
                           AGG_FUNCTIONS[0] if attr.is_continuous else
                           Mode if attr.is_discrete else
                           Concatenate if attr.is_string else None]
-                         for attr in chain(data.domain, data.domain.metas)
+                         for attr in chain(data.domain.variables, data.domain.metas)
                          if attr != data.time_variable])
         self.commit()
 

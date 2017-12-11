@@ -72,7 +72,7 @@ class OWCorrelogram(widget.OWWidget):
             self.plot.clear()
             return
         self.all_attrs = [(var.name, gui.attributeIconDict[var])
-                          for var in data.domain
+                          for var in data.domain.variables
                           if (var is not data.time_variable and
                               isinstance(var, ContinuousVariable))]
         self.attrs = [0]
