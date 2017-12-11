@@ -3,13 +3,8 @@ from AnyQt.QtCore import Qt
 from Orange.data import Table
 from Orange.util import try_
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.widget import Input, Output
 from orangecontrib.timeseries import Timeseries
-
-
-class Output:
-    TIMESERIES = 'Time series'
-    INTERPOLATED = 'Interpolated time series'
-    INTERPOLATOR = 'Interpolation model'
 
 
 class OWInterpolate(widget.OWWidget):
@@ -18,12 +13,13 @@ class OWInterpolate(widget.OWWidget):
     icon = 'icons/Interpolate.svg'
     priority = 15
 
-    inputs = [("Time series", Table, 'set_data')]
-    outputs = [
-        (Output.TIMESERIES, Timeseries),
-        (Output.INTERPOLATED, Timeseries), # TODO
-        # (Output.INTERPOLATOR, Model)     # TODO
-    ]
+    class Inputs:
+        time_series = Input("Time series", Table)
+
+    class Outputs:
+        interpolated = Output("Interpolated time series", Timeseries, default=True)
+        timeseries = Output("Time series", Timeseries)  # TODO
+        # interpolator = Output("Interpolation model", Model)  # TODO
 
     want_main_area = False
     resizing_enabled = False
@@ -55,6 +51,7 @@ class OWInterpolate(widget.OWWidget):
                      callback=self.on_changed)
         gui.auto_commit(box, self, 'autoapply', 'Apply')
 
+    @Inputs.time_series
     def set_data(self, data):
         self.data = None if data is None else Timeseries.from_data_table(data)
         self.on_changed()
@@ -67,8 +64,8 @@ class OWInterpolate(widget.OWWidget):
         if data is not None:
             data = data.copy()
             data.set_interpolation(self.interpolation, self.multivariate)
-        self.send(Output.TIMESERIES, data)
-        self.send(Output.INTERPOLATED, try_(lambda: data.interp()) or None)
+        self.Outputs.timeseries.send(data)
+        self.Outputs.interpolated.send(try_(lambda: data.interp()) or None)
 
 
 if __name__ == "__main__":
