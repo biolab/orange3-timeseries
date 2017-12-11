@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from Orange.data import Table, ContinuousVariable
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.widget import Input
 
 import numpy as np
 from AnyQt.QtWidgets import QListWidget
@@ -20,7 +21,8 @@ class OWPeriodogram(widget.OWWidget):
     icon = 'icons/Periodogram.svg'
     priority = 100
 
-    inputs = [("Time series", Table, 'set_data')]
+    class Inputs:
+        time_series = Input("Time series", Table)
 
     attrs = settings.Setting([])
 
@@ -78,6 +80,7 @@ class OWPeriodogram(widget.OWWidget):
         return periods, pgram
 
     @cache_clears(periodogram)
+    @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.all_attrs = []

@@ -12,6 +12,7 @@ from Orange.data import Table, Domain, TimeVariable, DiscreteVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
 from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries
@@ -269,8 +270,11 @@ class OWSpiralogram(widget.OWWidget):
     icon = 'icons/Spiralogram.svg'
     priority = 120
 
-    inputs = [("Time series", Table, 'set_data')]
-    outputs = [("Time series", Timeseries)]
+    class Inputs:
+        time_series = Input("Time series", Table)
+
+    class Outputs:
+        time_series = Output("Time series", Timeseries)
 
     settingsHandler = settings.DomainContextHandler()
 
@@ -322,6 +326,7 @@ class OWSpiralogram(widget.OWWidget):
                          for i in self.attrlist.selectionModel().selectedIndexes()]
         self.replot()
 
+    @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
 
@@ -399,7 +404,7 @@ class OWSpiralogram(widget.OWWidget):
         self.commit()
 
     def commit(self):
-        self.send('Time series', self.data[self.indices] if self.data else None)
+        self.Outputs.time_series.send(self.data[self.indices] if self.data else None)
 
 
 if __name__ == "__main__":

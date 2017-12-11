@@ -6,6 +6,7 @@ import numpy as np
 
 from Orange.data import TimeVariable, Table
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.widget import Input
 
 from AnyQt.QtWidgets import QTreeWidget, QSizePolicy, \
     QWidget, QPushButton, QListView, QVBoxLayout
@@ -322,8 +323,9 @@ class OWLineChart(widget.OWWidget):
     icon = 'icons/LineChart.svg'
     priority = 90
 
-    inputs = [("Time series", Table, 'set_data'),
-              ('Forecast', Timeseries, 'set_forecast', widget.Multiple)]
+    class Inputs:
+        time_series = Input("Time series", Table)
+        forecast = Input("Forecast", Timeseries, multiple=True)
 
     attrs = settings.Setting({})  # Maps data.name -> [attrs]
 
@@ -369,6 +371,7 @@ class OWLineChart(widget.OWWidget):
         self.add_button.setDisabled(len(self.configs) >= 5)
         self.configsArea.layout().addWidget(config)
 
+    @Inputs.time_series
     def set_data(self, data):
         # TODO: set xAxis resolution and tooltip time contents depending on
         # data.time_delta. See: http://imgur.com/yrnlgQz
@@ -400,6 +403,7 @@ class OWLineChart(widget.OWWidget):
         self.varmodel.wrap([var for var in data.domain.variables
                             if var.is_continuous and var != data.time_variable])
 
+    @Inputs.forecast
     def set_forecast(self, forecast, id):
         if forecast is not None:
             self.forecasts[id] = forecast

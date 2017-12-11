@@ -5,11 +5,9 @@ import numpy as np
 from Orange.data import Table, ContinuousVariable, TimeVariable, Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.widget import Input, Output
+
 from orangecontrib.timeseries import Timeseries
-
-
-class Output:
-    TIMESERIES = 'Time series'
 
 
 class OWTableToTimeseries(widget.OWWidget):
@@ -18,8 +16,11 @@ class OWTableToTimeseries(widget.OWWidget):
     icon = 'icons/TableToTimeseries.svg'
     priority = 10
 
-    inputs = [("Data", Table, 'set_data')]
-    outputs = [(Output.TIMESERIES, Timeseries)]
+    class Inputs:
+        data = Input("Data", Table)
+
+    class Outputs:
+        time_series = Output("Time series", Timeseries)
 
     want_main_area = False
     resizing_enabled = False
@@ -55,6 +56,7 @@ class OWTableToTimeseries(widget.OWWidget):
         gui.auto_commit(self.controlArea, self, 'autocommit', '&Apply')
         # TODO: seasonally adjust data (select attributes & season cycle length (e.g. 12 if you have monthly data))
 
+    @Inputs.data
     def set_data(self, data):
         self.data = data
         self.attrs_model.clear()
@@ -77,7 +79,7 @@ class OWTableToTimeseries(widget.OWWidget):
         data = self.data
         self.Error.clear()
         if data is None or self.selected_attr not in data.domain:
-            self.send(Output.TIMESERIES, None)
+            self.Outputs.time_series.send(None)
             return
 
         attrs = data.domain.attributes
@@ -113,7 +115,7 @@ class OWTableToTimeseries(widget.OWWidget):
         ts = Timeseries(data.domain, data)
         # TODO: ensure equidistant
         ts.time_variable = time_var
-        self.send(Output.TIMESERIES, ts)
+        self.Outputs.time_series.send(ts)
 
 
 if __name__ == "__main__":

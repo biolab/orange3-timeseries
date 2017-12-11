@@ -7,6 +7,7 @@ from AnyQt.QtCore import QSize
 from Orange.data import Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import PyTableModel
+from Orange.widgets.widget import Input
 
 from orangecontrib.timeseries import Timeseries, model_evaluation
 from orangecontrib.timeseries.models import _BaseModel
@@ -31,8 +32,9 @@ class OWModelEvaluation(widget.OWWidget):
     icon = 'icons/ModelEvaluation.svg'
     priority = 300
 
-    inputs = [("Time series", Table, 'set_data'),
-              ("Time series model", _BaseModel, 'set_model', widget.Multiple)]
+    class Inputs:
+        time_series = Input("Time series", Table)
+        time_series_model = Input("Time series model", _BaseModel, multiple=True)
 
     n_folds = settings.Setting(20)
     forecast_steps = settings.Setting(3)
@@ -64,10 +66,12 @@ class OWModelEvaluation(widget.OWWidget):
     def sizeHint(self):
         return QSize(650, 175)
 
+    @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.on_changed()
 
+    @Inputs.time_series_model
     def set_model(self, model, id):
         if model is None:
             self._models.pop(id, None)

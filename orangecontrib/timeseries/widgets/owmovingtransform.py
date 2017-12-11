@@ -5,14 +5,11 @@ from AnyQt.QtGui import QIcon
 from Orange.data import Domain, Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel, PyTableModel
+from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries, moving_transform
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mean, Cumulative_sum, Cumulative_product
-
-
-class Output:
-    TIMESERIES = 'Time series'
 
 
 class OWMovingTransform(widget.OWWidget):
@@ -21,8 +18,11 @@ class OWMovingTransform(widget.OWWidget):
     icon = 'icons/MovingTransform.svg'
     priority = 20
 
-    inputs = [("Time series", Table, 'set_data')]
-    outputs = [("Time series", Timeseries)]
+    class Inputs:
+        time_series = Input("Time series", Table)
+
+    class Outputs:
+        time_series = Output("Time series", Timeseries)
 
     want_main_area = False
 
@@ -176,6 +176,7 @@ class OWMovingTransform(widget.OWWidget):
                                    selection_model.Select | selection_model.Rows)
         self.commit()
 
+    @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.add_button.setDisabled(not len(getattr(data, 'domain', ())))
@@ -191,11 +192,11 @@ class OWMovingTransform(widget.OWWidget):
     def commit(self):
         data = self.data
         if not data:
-            self.send(Output.TIMESERIES, None)
+            self.Outputs.time_series.send(None)
             return
 
         ts = moving_transform(data, self.table_model, self.non_overlapping and self.fixed_wlen)
-        self.send(Output.TIMESERIES, ts)
+        self.Outputs.time_series.send(ts)
 
 
 if __name__ == "__main__":

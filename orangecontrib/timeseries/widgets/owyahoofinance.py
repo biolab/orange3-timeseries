@@ -4,13 +4,10 @@ from AnyQt.QtCore import QDate
 from AnyQt.QtWidgets import QDateEdit, QComboBox
 
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.widget import Output
 
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries import finance_data, DataGranularity
-
-
-class Output:
-    TIMESERIES = "Time series"
 
 
 class OWYahooFinance(widget.OWWidget):
@@ -19,7 +16,8 @@ class OWYahooFinance(widget.OWWidget):
     icon = 'icons/YahooFinance.svg'
     priority = 9
 
-    outputs = [(Output.TIMESERIES, Timeseries)]
+    class Outputs:
+        time_series = Output("Time series", Timeseries)
 
     QT_DATE_FORMAT = 'yyyy-MM-dd'
     PY_DATE_FORMAT = '%Y-%m-%d'
@@ -114,7 +112,7 @@ class OWYahooFinance(widget.OWWidget):
                 # Treat finance data as equispaced
                 data.is_equispaced = True
 
-                self.send(Output.TIMESERIES, data)
+                self.Outputs.time_series.send(data)
             except Exception as e:
                 self.Error.download_error(getattr(e, 'status', -1))
             finally:

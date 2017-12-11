@@ -3,6 +3,8 @@ from functools import lru_cache
 from Orange.data import Table, ContinuousVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
+from Orange.widgets.widget import Input
+
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
 from orangecontrib.timeseries.util import cache_clears
@@ -19,7 +21,8 @@ class OWCorrelogram(widget.OWWidget):
     icon = 'icons/Correlogram.svg'
     priority = 110
 
-    inputs = [("Time series", Table, 'set_data')]
+    class Inputs:
+        time_series = Input("Time series", Table)
 
     attrs = settings.Setting([])
     use_pacf = settings.Setting(False)
@@ -65,6 +68,7 @@ class OWCorrelogram(widget.OWWidget):
         func = partial_autocorrelation if pacf else autocorrelation
         return func(x, alpha=.05 if confint else None)
 
+    @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.all_attrs = []
