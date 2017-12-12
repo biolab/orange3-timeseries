@@ -10,6 +10,7 @@ from AnyQt.QtCore import Qt
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import PyTableModel
+from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets.utils import ListModel
@@ -23,8 +24,11 @@ class OWAggregate(widget.OWWidget):
     icon = 'icons/Aggregate.svg'
     priority = 560
 
-    inputs = [("Time series", Table, 'set_data')]
-    outputs = [("Time series", Timeseries)]
+    class Inputs:
+        time_series = Input("Time series", Table)
+
+    class Outputs:
+        time_series = Output("Time series", Timeseries)
 
     ax1 = settings.Setting('months of year')
     ax2 = settings.Setting('years')
@@ -108,6 +112,7 @@ class OWAggregate(widget.OWWidget):
         self.controlArea.layout().addWidget(view)
         gui.auto_commit(self.controlArea, self, 'autocommit', '&Apply')
 
+    @Inputs.time_series
     def set_data(self, data):
         self.Error.clear()
         data = None if data is None else Timeseries.from_data_table(data)
@@ -133,7 +138,7 @@ class OWAggregate(widget.OWWidget):
     def commit(self):
         data = self.data
         if not data:
-            self.send('Time series', None)
+            self.Outputs.time_series.send(None)
             return
 
         # Group-by expects data sorted
@@ -175,7 +180,7 @@ class OWAggregate(widget.OWWidget):
 
         ts = Timeseries(Domain([data.time_variable] + attrs, cvars, metas),
                         np.column_stack((times, np.row_stack(X))), np.array(Y), np.array(M, dtype=object))
-        self.send('Time series', ts)
+        self.Outputs.time_series.send(ts)
 
 
 if __name__ == "__main__":

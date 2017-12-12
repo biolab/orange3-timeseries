@@ -9,6 +9,7 @@ from AnyQt.QtCore import QDateTime, Qt, QSize, QTimer
 
 from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
@@ -62,12 +63,11 @@ class OWTimeSlice(widget.OWWidget):
     icon = 'icons/TimeSlice.svg'
     priority = 550
 
-    inputs = [
-        ('Data', Table, 'set_data'),
-    ]
-    outputs = [
-        ('Subset', Table)
-    ]
+    class Inputs:
+        data = Input("Data", Table)
+
+    class Outputs:
+        subset = Output("Subset", Table)
 
     want_main_area = False
 
@@ -187,7 +187,7 @@ class OWTimeSlice(widget.OWWidget):
         except AttributeError:
             return
         indices = (minTime <= time_values) & (time_values <= maxTime)
-        self.send('Subset', self.data[indices] if indices.any() else None)
+        self.Outputs.subset.send(self.data[indices] if indices.any() else None)
 
     def playthrough(self):
         playing = self.play_button.isChecked()
@@ -238,6 +238,7 @@ class OWTimeSlice(widget.OWWidget):
         self.valuesChanged(self.slider.minimumValue(), self.slider.maximumValue())
         self._delta = orig_delta  # Override valuesChanged handler
 
+    @Inputs.data
     def set_data(self, data):
         slider = self.slider
         self.data = data = None if data is None else Timeseries.from_data_table(data)
@@ -248,7 +249,7 @@ class OWTimeSlice(widget.OWWidget):
             slider.setScale(0, 0)
             slider.setValues(0, 0)
             slider.setDisabled(True)
-            self.send('Subset', None)
+            self.Outputs.subset.send(None)
 
         if data is None:
             disabled()

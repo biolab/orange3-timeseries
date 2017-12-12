@@ -5,13 +5,10 @@ from AnyQt.QtWidgets import QListView
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets.utils import available_name
-
-
-class Output:
-    TIMESERIES = 'Time series'
 
 
 class OWDifference(widget.OWWidget):
@@ -21,8 +18,11 @@ class OWDifference(widget.OWWidget):
     icon = 'icons/Difference.svg'
     priority = 570
 
-    inputs = [("Time series", Table, 'set_data')]
-    outputs = [("Time series", Timeseries)]
+    class Inputs:
+        time_series = Input("Time series", Table)
+
+    class Outputs:
+        time_series = Output("Time series", Timeseries)
 
     want_main_area = False
     resizing_enabled = False
@@ -71,6 +71,7 @@ class OWDifference(widget.OWWidget):
         box.layout().addWidget(view)
         gui.auto_commit(box, self, 'autocommit', '&Apply')
 
+    @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         if data is not None:
@@ -87,7 +88,7 @@ class OWDifference(widget.OWWidget):
     def commit(self):
         data = self.data
         if not data or not len(self.selected):
-            self.send(Output.TIMESERIES, None)
+            self.Outputs.time_series.send(None)
             return
 
         X = []
@@ -126,7 +127,7 @@ class OWDifference(widget.OWWidget):
                         np.column_stack((data.X, np.column_stack(X))),
                         data.Y, data.metas)
         ts.time_variable = data.time_variable
-        self.send(Output.TIMESERIES, ts)
+        self.Outputs.time_series.send(ts)
 
 
 if __name__ == "__main__":

@@ -2,30 +2,23 @@ from AnyQt.QtCore import QTimer
 
 from Orange.data import Table
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.widget import Input, Output
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.models import _BaseModel
-
-
-class Output:
-    LEARNER = 'Time series model'
-    FORECAST = 'Forecast'
-    FITTED_VALUES = 'Fitted values'
-    RESIDUALS = 'Residuals'
 
 
 class OWBaseModel(widget.OWWidget):
     """Abstract widget representing a time series model"""
     LEARNER = None
 
-    inputs = [
-        ('Time series', Table, 'set_data'),
-    ]
-    outputs = [
-        (Output.LEARNER, _BaseModel),
-        (Output.FORECAST, Timeseries),
-        (Output.FITTED_VALUES, Timeseries),
-        (Output.RESIDUALS, Timeseries),
-    ]
+    class Inputs:
+        time_series = Input("Time series", Table)
+
+    class Outputs:
+        learner = Output("Time series model", _BaseModel)
+        forecast = Output("Forecast",  Timeseries)
+        fitted_values = Output("Fitted values", Timeseries)
+        residuals = Output("Residuals", Timeseries)
 
     want_main_area = False
     resizing_enabled = False
@@ -57,6 +50,7 @@ class OWBaseModel(widget.OWWidget):
         """Creates a learner (cunfit model) with current configuration """
         raise NotImplementedError
 
+    @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.update_model()
@@ -73,7 +67,7 @@ class OWBaseModel(widget.OWWidget):
         learner = self.learner = self.create_learner()
         self.name_lineedit.setPlaceholderText(str(self.learner))
         learner.name = self.learner_name or str(learner)
-        self.send(Output.LEARNER, learner)
+        self.Outputs.learner.send(learner)
 
     def fit_model(self, model, data):
         return model.fit(data.interp())
@@ -102,9 +96,9 @@ class OWBaseModel(widget.OWWidget):
                 action = 'forecasting' if is_fit else 'fitting model'
                 self.Error.model_error(action, ex.__class__.__name__,
                                        ex.args[0] if ex.args else '')
-        self.send(Output.FORECAST, forecast)
-        self.send(Output.FITTED_VALUES, fittedvalues)
-        self.send(Output.RESIDUALS, residuals)
+        self.Outputs.forecast.send(forecast)
+        self.Outputs.fitted_values.send(fittedvalues)
+        self.Outputs.residuals.send(residuals)
 
     def is_data_valid(self):
         data = self.data

@@ -1,4 +1,6 @@
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.widget import Input
+
 from orangecontrib.timeseries import Timeseries, ARIMA
 from orangecontrib.timeseries.widgets._owmodel import OWBaseModel
 
@@ -23,13 +25,14 @@ class OWARIMAModel(OWBaseModel):
                        widget.Message.Warning)
     ]
 
-    inputs = OWBaseModel.inputs + [
-        ('Exogenous data', Timeseries, 'set_exog_data')]
+    class Inputs(OWBaseModel.Inputs):
+        exogenous_data = Input("Exogenous data", Timeseries)
 
     def __init__(self):
         super().__init__()
         self.exog_data = None
 
+    @Inputs.exogenous_data
     def set_exog_data(self, data):
         self.exog_data = data
         self.update_model()
