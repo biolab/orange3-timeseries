@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 from Orange.data import Table, ContinuousVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.colorpalette import ColorPaletteGenerator
@@ -7,11 +5,9 @@ from Orange.widgets.widget import Input
 
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
-from orangecontrib.timeseries.util import cache_clears
 from orangecontrib.timeseries.widgets.highcharts import Highchart
 
 from AnyQt.QtWidgets import QListWidget
-from AnyQt.QtCore import QTimer
 
 
 class OWCorrelogram(widget.OWWidget):
