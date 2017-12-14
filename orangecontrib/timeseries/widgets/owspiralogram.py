@@ -62,6 +62,16 @@ class Spiralogram(Highchart):
             return lambda val: val
 
     def setSeries(self, timeseries, attr, xdim, ydim, fagg):
+        def fromtimestamp(epoch):
+            """
+            On some systems (Windows) the function above
+            might raise IOError.
+            """
+            try:
+                return datetime.fromtimestamp(epoch)
+            except IOError:
+                return None
+
         if timeseries is None or not attr:
             self.clear()
             return
@@ -83,20 +93,17 @@ class Spiralogram(Highchart):
 
         attr = attr[0]
         values = timeseries.get_column_view(attr)[0]
-        time_values = timeseries.time_values
-
-        if True:
-            fromtimestamp = datetime.fromtimestamp
-            time_values = [fromtimestamp(i) for i in time_values]
+        time_values = [fromtimestamp(i) for i in timeseries.time_values]
 
         if not yvals:
-            yvals = sorted(set(yfunc(i, v) for i, v in enumerate(time_values)))
+            yvals = sorted(set(yfunc(i, v) for i, v in enumerate(time_values) if v is not None))
         if not xvals:
-            xvals = sorted(set(xfunc(i, v) for i, v in enumerate(time_values)))
+            xvals = sorted(set(xfunc(i, v) for i, v in enumerate(time_values) if v is not None))
 
         indices = defaultdict(list)
         for i, tval in enumerate(time_values):
-            indices[(xfunc(i, tval), yfunc(i, tval))].append(i)
+            if tval is not None:
+                indices[(xfunc(i, tval), yfunc(i, tval))].append(i)
 
         if self._owwidget.invert_date_order:
             yvals = yvals[::-1]
