@@ -1,3 +1,5 @@
+from numpy.linalg.linalg import LinAlgError
+
 from AnyQt.QtCore import Qt
 
 from Orange.data import Table
@@ -85,7 +87,7 @@ class OWGrangerCausality(widget.OWWidget):
                                         callback=progress.advance)
                 res = [[lag, row, '→', col]
                        for lag, row, col in res]
-        except ValueError as ex:
+        except (ValueError, LinAlgError) as ex:
             self.Error.unexpected_error(ex.args[0])
         else:
             self.model.wrap(res)
