@@ -165,6 +165,7 @@ class OWTimeSlice(widget.OWWidget):
                                        autoDefault=False)
 
         gui.rubber(self.controlArea)
+        self._set_disabled(True)
 
     def valuesChanged(self, minValue, maxValue):
         self.slider_values = (minValue, maxValue)
@@ -238,6 +239,13 @@ class OWTimeSlice(widget.OWWidget):
         self.valuesChanged(self.slider.minimumValue(), self.slider.maximumValue())
         self._delta = orig_delta  # Override valuesChanged handler
 
+    def _set_disabled(self, is_disabled):
+        for func in [self.date_from, self.date_to, self.step_backward, self.play_button,
+                     self.step_forward, self.controls.loop_playback,
+                     self.controls.steps_overlap, self.controls.overlap_amount,
+                     self.controls.playback_interval, self.slider]:
+            func.setDisabled(is_disabled)
+
     @Inputs.data
     def set_data(self, data):
         slider = self.slider
@@ -248,7 +256,7 @@ class OWTimeSlice(widget.OWWidget):
             slider.setHistogram(None)
             slider.setScale(0, 0)
             slider.setValues(0, 0)
-            slider.setDisabled(True)
+            self._set_disabled(True)
             self.Outputs.subset.send(None)
 
         if data is None:
@@ -264,7 +272,7 @@ class OWTimeSlice(widget.OWWidget):
 
         time_values = data.time_values
 
-        slider.setDisabled(False)
+        self._set_disabled(False)
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
         slider.setScale(time_values.min(), time_values.max())
