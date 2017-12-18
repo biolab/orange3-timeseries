@@ -107,6 +107,7 @@ class OWTableToTimeseries(widget.OWWidget):
                                       source=data).metas.ravel()
             if np.isnan(values).any():
                 self.Error.nan_times(time_var.name)
+                self.Outputs.time_series.send(None)
                 return
             ordered = np.argsort(values)
             if (ordered != np.arange(len(ordered))).any():
