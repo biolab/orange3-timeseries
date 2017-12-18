@@ -6,7 +6,7 @@ from AnyQt.QtCore import Qt
 from Orange.data import Table, Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
-from Orange.widgets.widget import Input, Output
+from Orange.widgets.widget import Input, Output, Msg
 
 from orangecontrib.timeseries import Timeseries, seasonal_decompose
 
@@ -52,6 +52,9 @@ class OWSeasonalAdjustment(widget.OWWidget):
 
     DECOMPOSITION_MODELS = ('additive', 'multiplicative')
 
+    class Error(widget.OWWidget.Error):
+        seasonal_decompose_fail = Msg("{}")
+
     def __init__(self):
         self.data = None
         box = gui.vBox(self.controlArea, 'Seasonal Adjustment')
@@ -87,6 +90,7 @@ class OWSeasonalAdjustment(widget.OWWidget):
         self.commit()
 
     def commit(self):
+        self.Error.seasonal_decompose_fail.clear()
         data = self.data
         if not data or not self.selected:
             self.Outputs.time_series.send(data)
@@ -95,14 +99,21 @@ class OWSeasonalAdjustment(widget.OWWidget):
         selected_subset = Timeseries(Domain(self.selected, source=data.domain), data)  # FIXME: might not pass selected interpolation method
 
         with self.progressBar(len(self.selected)) as progress:
-            adjusted_data = seasonal_decompose(
-                selected_subset,
-                self.DECOMPOSITION_MODELS[self.decomposition],
-                self.n_periods,
-                callback=lambda *_: progress.advance())
+            try:
+                adjusted_data = seasonal_decompose(
+                    selected_subset,
+                    self.DECOMPOSITION_MODELS[self.decomposition],
+                    self.n_periods,
+                    callback=lambda *_: progress.advance())
+            except ValueError as ex:
+                self.Error.seasonal_decompose_fail(str(ex))
+                adjusted_data = None
 
-        ts = Timeseries(Timeseries.concatenate((data, adjusted_data)))
-        ts.time_variable = data.time_variable
+        if adjusted_data is not None:
+            ts = Timeseries(Timeseries.concatenate((data, adjusted_data)))
+            ts.time_variable = data.time_variable
+        else:
+            ts = None
         self.Outputs.time_series.send(ts)
 
 
