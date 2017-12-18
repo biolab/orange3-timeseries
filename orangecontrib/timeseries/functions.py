@@ -308,7 +308,9 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
     for A in (X, Y):
         for i, col in enumerate(A.T):
             isnan = np.isnan(col)
-            if not isnan.any():
+            # there is no need to interpolate if there are no nans
+            # there needs to be at least two numbers
+            if not isnan.any() or sum(~isnan) < 2:
                 continue
 
             # Mean interpolation
