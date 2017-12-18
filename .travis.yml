@@ -1,9 +1,7 @@
 language: python
-
 sudo: false   # use container-based infrastructure
-
-python:
-  - "3.4"
+dist: trusty
+python: "3.5"
 
 addons:
     apt:
@@ -22,10 +20,11 @@ before_install:
     - pip install codecov
 
 install:
+    - pip install PyQt5 AnyQt
     - travis_wait pip install -e .
 
 script:
-    - coverage run setup.py test
+    - catchsegv xvfb-run -a -s "-screen 0 1280x1024x24" coverage run setup.py test
 
 after_success:
     - codecov

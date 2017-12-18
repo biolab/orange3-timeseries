@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import os
+import sys
+import unittest
 from setuptools import setup, find_packages
 
 VERSION = '0.3.2'
@@ -28,6 +30,14 @@ ENTRY_POINTS = {
         'html-index = orangecontrib.timeseries.widgets:WIDGET_HELP_PATH',
     )
 }
+
+
+# http://stackoverflow.com/a/37033551/892987
+def discover_tests():
+    return unittest.defaultTestLoader.discover(
+        'orangecontrib.timeseries',
+        pattern='test_*.py',
+        top_level_dir='.')
 
 
 if __name__ == '__main__':
@@ -67,7 +77,7 @@ if __name__ == '__main__':
             'scipy>=0.17',
         ],
         entry_points=ENTRY_POINTS,
-        test_suite='orangecontrib.timeseries.tests',
+        test_suite='setup.discover_tests',
         namespace_packages=['orangecontrib'],
         zip_safe=False,
         classifiers=[
