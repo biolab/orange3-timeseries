@@ -8,6 +8,7 @@ Start by importing the relevant objects:
 Let's load new :class:`Timeseries`, for example:
 
 >>> data = Timeseries('airpassengers')
+>>> np.set_printoptions(precision=1)
 
 :class:`Timeseries` object is just an :any:`Orange.data.Table` object with some
 extensions.
@@ -25,9 +26,9 @@ data-bearing column, which also happens to be a class variable:
 
 >>> periods, pgram_values = periodogram(data.Y, detrend='diff')
 >>> periods
-array([  2.38333333,   3.04255319,   3.97222222,   5.95833333,  11.91666667])
+array([  2.4,   3. ,   4. ,   6. ,  11.9])
 >>> pgram_values
-array([ 0.14585092,  0.17023564,  0.23531016,  1.        ,  0.90136873])
+array([ 0.1,  0.2,  0.2,  1. ,  0.9])
 
 Obviously, 6 and 12 are important periods for this data set.
 
@@ -40,16 +41,16 @@ For example:
 
 >>> acf = autocorrelation(data.Y)
 >>> acf[:4]
-array([[  12.        ,    0.82952186],
-       [  24.        ,    0.6386278 ],
-       [  36.        ,    0.4493648 ],
-       [  48.        ,    0.19895185]])
+array([[ 12. ,   0.8],
+       [ 24. ,   0.6],
+       [ 36. ,   0.4],
+       [ 48. ,   0.2]])
 >>> pacf = partial_autocorrelation(data.Y)
 >>> pacf[:4]
-array([[  9.        ,   0.23248854],
-       [ 13.        ,  -0.53969124],
-       [ 25.        ,  -0.16274616],
-       [ 40.        ,  -0.08833969]])
+array([[  9. ,   0.2],
+       [ 13. ,  -0.5],
+       [ 25. ,  -0.2],
+       [ 40. ,  -0.1]])
 
 
 Interpolation
@@ -65,7 +66,7 @@ using :func:`interpolate_timeseries` function:
 
 >>> interpolated = interpolate_timeseries(data, method='cubic')
 >>> interpolated[7:11].Y
-array([ 151.22663433,  146.80661022,  137.77326894,  127.15995178])
+array([ 151.2,  146.8,  137.8,  127.2])
 >>> data = interpolated
 
 
@@ -101,11 +102,11 @@ For example:
 >>> transformed.domain
 [Month, Air passengers (10; nanmean) | Air passengers]
 >>> transformed
-[[1949-01-01, 112.000 | 112.000],
- [1949-02-01, 115.000 | 118.000],
- [1949-03-01, 120.667 | 132.000],
- [1949-04-01, 122.750 | 129.000],
- [1949-05-01, 122.400 | 121.000],
+[[1949-01-01, 112.000 | 112],
+ [1949-02-01, 115.000 | 118],
+ [1949-03-01, 120.667 | 132],
+ [1949-04-01, 122.750 | 129],
+ [1949-05-01, 122.400 | 121],
  ...
 ]
 
@@ -123,7 +124,7 @@ example. The data we model must have defined a class variable:
 >>> data.domain
 [Month | Air passengers]
 >>> data.domain.class_var
-ContinuousVariable(name='Air passengers', number_of_decimals=3)
+ContinuousVariable(name='Air passengers', number_of_decimals=0)
 
 We define the model with its parameters (see the reference for what arguments
 each model accepts):
@@ -144,9 +145,8 @@ We can also output the prediction as a :class:`Timeseries` object:
 >>> forecast = model.predict(10, as_table=True)
 >>> forecast.domain
 [Air passengers (forecast), Air passengers (95%CI low), Air passengers (95%CI high)]
->>> np.set_printoptions(precision=1)
 >>> forecast.X
-array([[ 470.5,  417.8,  523.2],
+array([[ 470.5,  417.8,  523.1],
        [ 492.6,  414.1,  571.1],
        [ 498.5,  411.5,  585.4],
        ...
@@ -165,7 +165,7 @@ We can evaluate the model on in-sample, fitted values:
 
 >>> for measure, error in sorted(model.errors().items()):
 ...     print('{:7s} {:>6.2f}'.format(measure.upper(), error))
-MAE      19.67
+MAE      19.66
 MAPE      0.08
 POCID    58.45
 R2        0.95
@@ -199,8 +199,7 @@ example:
 ...     if lag > 1:
 ...         print('Series {cons} lags by {ante} by {lag} lags.'.format(**locals()))
 ...
-Series Feature 1 lags by Feature 2 by 5 lags.
-Series Feature 1 lags by Feature 3 by 4 lags.
-Series Feature 2 lags by Feature 3 by 2 lags.
+Series Feature 1 lags by Feature 2 by 3 lags.
+Series Feature 2 lags by Feature 3 by 4 lags.
 
 Use this knowledge wisely.
