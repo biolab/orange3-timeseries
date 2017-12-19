@@ -11,6 +11,9 @@ from Orange.widgets.widget import Input, Output, Msg
 from orangecontrib.timeseries import Timeseries, seasonal_decompose
 
 
+MAX_PERIODS = 1000
+
+
 class OWSeasonalAdjustment(widget.OWWidget):
     name = 'Seasonal Adjustment'
     description = 'Remove the seasonal component of a time series that ' \
@@ -54,11 +57,12 @@ class OWSeasonalAdjustment(widget.OWWidget):
 
     class Error(widget.OWWidget.Error):
         seasonal_decompose_fail = Msg("{}")
+        not_enough_instances = Msg("Time series has to have at least 3 instances.")
 
     def __init__(self):
         self.data = None
         box = gui.vBox(self.controlArea, 'Seasonal Adjustment')
-        gui.spin(box, self, 'n_periods', 2, 1000,
+        gui.spin(box, self, 'n_periods', 2, MAX_PERIODS,
                  label='Season period:',
                  callback=self.on_changed,
                  tooltip='The expected length of full cycle. E.g., if you have '
@@ -78,10 +82,19 @@ class OWSeasonalAdjustment(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
-        if data is not None:
+        self.Error.not_enough_instances.clear()
+        self.data = None
+        self.model.clear()
+        data = None if data is None else Timeseries.from_data_table(data)
+        if data is None:
+            pass
+        elif len(data) > 2:
+            self.data = data
             self.model.wrap([var for var in data.domain.variables
                              if var.is_continuous and var is not data.time_variable])
+            self.controls.n_periods.setMaximum(min(MAX_PERIODS, len(data) - 1))
+        else:
+            self.Error.not_enough_instances()
         self.on_changed()
 
     def on_changed(self):
