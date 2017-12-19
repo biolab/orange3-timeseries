@@ -73,6 +73,7 @@ if __name__ == '__main__':
             'Orange3',
             'statsmodels>=0.6.1',
             'pandas',  # statsmodels requires this but doesn't have it in dependencies?
+            'pandas_datareader',
             'numpy',
             'scipy>=0.17',
         ],
