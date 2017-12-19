@@ -1,5 +1,4 @@
 from datetime import date
-from enum import Enum
 import logging
 
 import pandas_datareader.data as web
@@ -13,13 +12,6 @@ try:
     from Orange.data.pandas_compat import table_from_frame
 except ImportError:
     log.error("Yahoo Finance requires Orange >= 3.9")
-
-
-class DataGranularity(Enum):
-    DAILY, \
-    WEEKLY, \
-    MONTHLY, \
-    DIVIDENDS_ONLY = 'dwmv'
 
 
 def quandl_data(symbol,

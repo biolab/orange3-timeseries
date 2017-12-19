@@ -7,7 +7,7 @@ from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Output
 
 from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries import finance_data, DataGranularity
+from orangecontrib.timeseries import finance_data
 
 
 class OWYahooFinance(widget.OWWidget):
@@ -27,7 +27,6 @@ class OWYahooFinance(widget.OWWidget):
         (datetime.now().date() - timedelta(5 * 365)).strftime(PY_DATE_FORMAT))
     date_to = settings.Setting(datetime.now().date().strftime(PY_DATE_FORMAT))
     symbols = settings.Setting(['AMZN', 'AAPL', 'GOOG', 'FB', 'SPY', '^DJI', '^TNX'])
-    data_granularity = settings.Setting(0)
 
     want_main_area = False
     resizing_enabled = False
@@ -76,16 +75,10 @@ class OWYahooFinance(widget.OWWidget):
         gui.label(hbox, self, "To:")
         hbox.layout().addWidget(date_to)
 
-        gui.radioButtons(box, self, 'data_granularity',
-                         btnLabels=[i.name.capitalize().replace('_', ' ')
-                                    for i in DataGranularity],
-                         box='Resolution')
         self.button = gui.button(self.controlArea, self, 'Download',
                                  callback=self.download)
 
     def download(self):
-        granularity = list(DataGranularity)[self.data_granularity].value
-
         date_from = datetime.strptime(self.date_from, self.PY_DATE_FORMAT)
         date_to = datetime.strptime(self.date_to, self.PY_DATE_FORMAT)
 
@@ -108,7 +101,7 @@ class OWYahooFinance(widget.OWWidget):
             try:
                 progress.advance()
                 self.button.setDisabled(True)
-                data = finance_data(symbol, date_from, date_to, granularity)
+                data = finance_data(symbol, date_from, date_to)
                 # Treat finance data as equispaced
                 data.is_equispaced = True
 
