@@ -30,6 +30,30 @@ class TestOWSeasonalAdjustment(WidgetTest):
         self.send_signal(w.Inputs.time_series, None)
         self.assertFalse(w.Error.seasonal_decompose_fail.is_shown())
 
+    def test_too_many_periods(self):
+        """
+        Do not crash when there are too many season periods.
+        GH-38
+        """
+        w = self.widget
+        time_series = Timeseries(Table("iris")[::30])
+        self.assertEqual(w.n_periods, 12)
+        self.send_signal(w.Inputs.time_series, time_series)
+        self.assertEqual(w.n_periods, 4)
+
+    def test_not_enough_instances(self):
+        """
+        At least three instances are needed.
+        GH-38
+        """
+        w = self.widget
+        time_series = Timeseries(Table("iris")[:2])
+        self.assertFalse(w.Error.not_enough_instances.is_shown())
+        self.send_signal(w.Inputs.time_series, time_series)
+        self.assertTrue(w.Error.not_enough_instances.is_shown())
+        self.send_signal(w.Inputs.time_series, None)
+        self.assertFalse(w.Error.not_enough_instances.is_shown())
+
 
 if __name__ == "__main__":
     unittest.main()
