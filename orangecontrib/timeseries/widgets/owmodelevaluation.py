@@ -43,6 +43,10 @@ class OWModelEvaluation(widget.OWWidget):
     class Error(widget.OWWidget.Error):
         unexpected_error = widget.Msg('Unexpected error: {}')
 
+    class Warning(widget.OWWidget.Warning):
+        model_not_appropriate = widget.Msg(
+            'Model or its settings are not appropriate for this type of data.')
+
     def __init__(self):
         self.data = None
         self._models = OrderedDict()
@@ -84,6 +88,7 @@ class OWModelEvaluation(widget.OWWidget):
 
     def commit(self):
         self.Error.unexpected_error.clear()
+        self.Warning.model_not_appropriate.clear()
         self.model.clear()
         data = self.data
         if not data or not self._models:
@@ -97,9 +102,12 @@ class OWModelEvaluation(widget.OWWidget):
             self.Error.unexpected_error(e.args[0])
             return
         res = np.array(res, dtype=object)
-        self.model.setHorizontalHeaderLabels(res[0, 1:].tolist())
-        self.model.setVerticalHeaderLabels(res[1:, 0].tolist())
-        self.model.wrap(res[1:, 1:].tolist())
+        if res.ndim > 1:
+            self.model.setHorizontalHeaderLabels(res[0, 1:].tolist())
+            self.model.setVerticalHeaderLabels(res[1:, 0].tolist())
+            self.model.wrap(res[1:, 1:].tolist())
+        else:
+            self.Warning.model_not_appropriate()
 
 
 if __name__ == "__main__":
