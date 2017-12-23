@@ -78,7 +78,7 @@ class OWTableToTimeseries(widget.OWWidget):
     def commit(self):
         data = self.data
         self.Error.clear()
-        if data is None or self.selected_attr not in data.domain:
+        if data is None or (self.selected_attr not in data.domain and not self.radio_sequential):
             self.Outputs.time_series.send(None)
             return
 

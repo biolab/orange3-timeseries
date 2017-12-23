@@ -29,6 +29,19 @@ class TestAsTimeSeriesWidget(WidgetTest):
         self.assertTrue(w.Error.nan_times.is_shown())
         self.assertIsNone(self.get_output(w.Outputs.time_series))
 
+    def test_non_cont_sequental(self):
+        """
+        Widget can create sequental time variable and values
+        if input data does not have any continuous variables.
+        GH-40
+        """
+        w = self.widget
+        table = Table("titanic")
+        self.send_signal(w.Inputs.data, table)
+        self.assertIsNone(self.get_output(w.Outputs.time_series))
+        w.controls.radio_sequential.buttons[1].click()
+        self.assertIsNotNone(self.get_output(w.Outputs.time_series))
+
 
 if __name__ == "__main__":
     unittest.main()
