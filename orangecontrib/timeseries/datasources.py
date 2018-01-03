@@ -1,16 +1,17 @@
-
 from datetime import date
-from enum import Enum
+import logging
+
+import pandas_datareader.data as web
 
 from Orange.data import Domain
 from orangecontrib.timeseries import Timeseries
 
+log = logging.getLogger(__name__)
 
-class DataGranularity(Enum):
-    DAILY, \
-    WEEKLY, \
-    MONTHLY, \
-    DIVIDENDS_ONLY = 'dwmv'
+try:
+    from Orange.data.pandas_compat import table_from_frame
+except ImportError:
+    raise RuntimeError("Yahoo Finance requires Orange >= 3.9")
 
 
 def quandl_data(symbol,
@@ -78,19 +79,8 @@ def finance_data(symbol,
     if until is None:
         until = date.today()
 
-    YAHOO_URL = ('http://chart.finance.yahoo.com/table.csv?'
-                 's={SYMBOL}&d={TO_MONTH}&e={TO_DAY}&f={TO_YEAR}&'
-                 'g={GRANULARITY}&a={FROM_MONTH}&b={FROM_DAY}&c={FROM_YEAR}&ignore=.csv')
-    url = YAHOO_URL.format(SYMBOL=symbol,
-                           GRANULARITY=granularity,
-                           TO_MONTH=until.month - 1,
-                           TO_DAY=until.day,
-                           TO_YEAR=until.year,
-                           FROM_MONTH=since.month - 1,
-                           FROM_DAY=since.day,
-                           FROM_YEAR=since.year)
-
-    data = Timeseries.from_url(url)[::-1]
+    f = web.DataReader(symbol, 'yahoo', since, until)
+    data = Timeseries(table_from_frame(f))
 
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]

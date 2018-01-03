@@ -1,8 +1,10 @@
 import sys
-import os
+import unittest
 from os import path, walk
 
 from doctest import DocTestSuite, DocFileSuite, ELLIPSIS, NORMALIZE_WHITESPACE
+
+import Orange
 
 SKIP_DIRS = (
     # Skip modules which import and initialize stuff that require QApplication
@@ -71,6 +73,7 @@ def suite(package):
                        )
 
 
+@unittest.skipIf(Orange.__version__ < "3.9", "Because it fails on Orange < 3.9.")
 def load_tests(loader, tests, ignore):
     # This follows the load_tests protocol
     # https://docs.python.org/3/library/unittest.html#load-tests-protocol
