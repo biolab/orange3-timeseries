@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 try:
     from Orange.data.pandas_compat import table_from_frame
 except ImportError:
-    log.error("Yahoo Finance requires Orange >= 3.9")
+    raise RuntimeError("Yahoo Finance requires Orange >= 3.9")
 
 
 def quandl_data(symbol,

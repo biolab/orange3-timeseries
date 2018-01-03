@@ -7,7 +7,7 @@ from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Output
 
 from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries import finance_data
+from orangecontrib.timeseries.datasources import finance_data
 
 
 class OWYahooFinance(widget.OWWidget):
