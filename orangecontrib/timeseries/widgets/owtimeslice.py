@@ -293,7 +293,7 @@ if __name__ == '__main__':
     from AnyQt.QtWidgets import QApplication
     app = QApplication([])
     w = OWTimeSlice()
-    data = Table('/tmp/airpassengers.csv')
+    data = Table('airpassengers')
     w.set_data(data)
     w.show()
     app.exec()

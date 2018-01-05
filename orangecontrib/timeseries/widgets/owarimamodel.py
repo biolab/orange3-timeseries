@@ -68,7 +68,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWARIMAModel()
 
-    data = Timeseries('yahoo')
+    data = Timeseries('nfl_game_scores')
     domain = Domain(data.domain.attributes[:-1], data.domain.attributes[-1])
     data = Timeseries.from_numpy(domain, data.X[:, :-1], data.X[:, -1])
     ow.set_data(data)
