@@ -116,9 +116,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWPeriodogram()
 
-    data = Timeseries('yahoo_MSFT')
-    data = Timeseries('autoroute')
-    # data = Timeseries('UCI-SML2010-1')
+    data = Timeseries('airpassengers')
     ow.set_data(data)
 
     ow.show()

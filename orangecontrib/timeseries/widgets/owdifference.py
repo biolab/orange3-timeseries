@@ -136,7 +136,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWDifference()
 
-    data = Timeseries('yahoo_MSFT')
+    data = Timeseries('uniqlo_(fast_retailing)_stocks_2012-2016')
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
     if 'Adj Close' in attrs:

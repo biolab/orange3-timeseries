@@ -118,12 +118,12 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWModelEvaluation()
 
-    data = Timeseries('yahoo_MSFT')
+    data = Timeseries('uniqlo_(fast_retailing)_stocks_2012-2016')
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
-    if 'Adj Close' in attrs:
-        attrs.remove('Adj Close')
-        data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+    if 'Close' in attrs:
+        attrs.remove('Close')
+        data = Timeseries(Domain(attrs, [data.domain['Close']], None, source=data.domain), data)
 
     ow.set_data(data)
     ow.set_model(ARIMA((1, 1, 1)), 1)

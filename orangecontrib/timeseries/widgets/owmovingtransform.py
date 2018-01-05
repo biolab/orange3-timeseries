@@ -205,12 +205,12 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWMovingTransform()
 
-    data = Timeseries('yahoo_MSFT')
+    data = Timeseries('uniqlo_(fast_retailing)_stocks_2012-2016')
     attrs = [var.name for var in data.domain.attributes]
-    if 'Adj Close' in attrs:
+    if 'Close' in attrs:
         # Make Adjusted Close a class variable
-        attrs.remove('Adj Close')
-        data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+        attrs.remove('Close')
+        data = Timeseries(Domain(attrs, [data.domain['Close']], None, source=data.domain), data)
 
     ow.set_data(data)
 

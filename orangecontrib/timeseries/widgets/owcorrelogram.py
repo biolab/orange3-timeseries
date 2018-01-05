@@ -122,8 +122,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWCorrelogram()
 
-    # data = Timeseries('yahoo_MSFT')
-    data = Timeseries('UCI-SML2010-1')
+    data = Timeseries('uniqlo_(fast_retailing)_stocks_2012-2016')
     ow.set_data(data)
 
     ow.show()

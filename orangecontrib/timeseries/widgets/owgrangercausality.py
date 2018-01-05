@@ -100,7 +100,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWGrangerCausality()
 
-    data = Timeseries('yahoo_MSFT')
+    data = Timeseries('uniqlo_(fast_retailing)_stocks_2012-2016')
     ow.set_data(data)
 
     ow.show()
