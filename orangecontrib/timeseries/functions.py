@@ -386,7 +386,7 @@ def seasonal_decompose(data, model='multiplicative', period=12, *, callback=None
     X = []
     recomposition = sub if model == 'additive' else truediv
     interp_data = data.interp()
-    for var in data.domain:
+    for var in data.domain.variables:
         decomposed = sm.tsa.seasonal_decompose(np.ravel(interp_data[:, var]),
                                                model=model,
                                                freq=period)
@@ -449,7 +449,7 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
     # http://statsmodels.sourceforge.net/devel/vector_ar.html#granger-causality
 
     data = data.interp()
-    domain = [var for var in data.domain if var.is_continuous]
+    domain = [var for var in data.domain.variables if var.is_continuous]
     res = []
 
     for row_attr in domain:
