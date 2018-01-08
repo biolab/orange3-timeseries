@@ -46,6 +46,12 @@ class Timeseries(Table):
 
     @time_variable.setter
     def time_variable(self, var):
+        if var is None:
+            self.attributes = self.attributes.copy()
+            if 'time_variable' in self.attributes:
+                self.attributes.pop('time_variable')
+            return
+
         assert var in self.domain
         self.attributes = self.attributes.copy()
         self.attributes['time_variable'] = var
