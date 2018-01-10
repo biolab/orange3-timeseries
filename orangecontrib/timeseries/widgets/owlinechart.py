@@ -8,10 +8,10 @@ from Orange.data import TimeVariable, Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Input
 
-from AnyQt.QtWidgets import QTreeWidget, QSizePolicy, \
+from AnyQt.QtWidgets import QTreeWidget, \
     QWidget, QPushButton, QListView, QVBoxLayout
 from AnyQt.QtGui import QIcon
-from AnyQt.QtCore import Qt, QSize, pyqtSignal, QTimer
+from AnyQt.QtCore import QSize, pyqtSignal, QTimer
 
 from Orange.widgets.utils.itemmodels import VariableListModel
 from orangecontrib.timeseries import Timeseries
@@ -419,12 +419,11 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWLineChart()
 
-    msft = Timeseries('yahoo_MSFT')
-    ow.set_data(msft),
-    # ow.set_data(Timeseries('UCI-SML2010-1'))
+    airpassengers = Timeseries('airpassengers')
+    ow.set_data(airpassengers),
 
-    msft = msft.interp()
-    model = ARIMA((3, 1, 1)).fit(msft)
+    msft = airpassengers.interp()
+    model = ARIMA((3, 1, 1)).fit(airpassengers)
     ow.set_forecast(model.predict(10, as_table=True), 0)
     model = VAR(4).fit(msft)
     ow.set_forecast(model.predict(10, as_table=True), 1)

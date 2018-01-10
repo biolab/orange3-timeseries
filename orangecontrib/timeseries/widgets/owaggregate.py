@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     a = QApplication([])
     ow = OWAggregate()
-    ow.set_data(Timeseries('autoroute'))
+    ow.set_data(Timeseries('airpassengers'))
 
     ow.show()
     a.exec()
