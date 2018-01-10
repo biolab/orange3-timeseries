@@ -1,5 +1,3 @@
-import numpy as np
-
 from AnyQt.QtWidgets import QListView
 from AnyQt.QtCore import Qt
 
@@ -136,7 +134,6 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWSeasonalAdjustment()
 
-    # data = Timeseries('yahoo_MSFT')
     data = Timeseries('airpassengers')
     if not data.domain.class_var and 'Adj Close' in data.domain:
         # Make Adjusted Close a class variable

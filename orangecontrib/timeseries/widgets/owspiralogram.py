@@ -6,9 +6,9 @@ from collections import defaultdict
 from os import path
 
 import numpy as np
-from Orange.util import color_to_hex
 
 from Orange.data import Table, Domain, TimeVariable, DiscreteVariable
+from Orange.util import color_to_hex
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
 from Orange.widgets.utils.itemmodels import VariableListModel
@@ -22,6 +22,7 @@ from orangecontrib.timeseries.widgets.highcharts import Highchart
 from AnyQt.QtWidgets import QListView
 from AnyQt.QtCore import QItemSelectionModel
 from AnyQt.QtGui import QColor
+
 
 class Spiralogram(Highchart):
     """

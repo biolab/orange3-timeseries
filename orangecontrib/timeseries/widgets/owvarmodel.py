@@ -55,12 +55,11 @@ class OWVARModel(OWBaseModel):
 
 if __name__ == "__main__":
     from AnyQt.QtWidgets import QApplication
-    from Orange.data import Domain
 
     a = QApplication([])
     ow = OWVARModel()
 
-    data = Timeseries('yahoo_MSFT')
+    data = Timeseries('airpassengers')
     ow.set_data(data)
 
     ow.show()

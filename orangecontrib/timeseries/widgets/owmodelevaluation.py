@@ -118,7 +118,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWModelEvaluation()
 
-    data = Timeseries('yahoo_MSFT')
+    data = Timeseries('airpassengers')
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
     if 'Adj Close' in attrs:

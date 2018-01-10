@@ -120,12 +120,12 @@ class OWTableToTimeseries(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication, QLabel
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication([])
     ow = OWTableToTimeseries()
 
-    data = Timeseries('yahoo1')
+    data = Timeseries('airpassengers')
     ow.set_data(data)
 
     ow.show()
