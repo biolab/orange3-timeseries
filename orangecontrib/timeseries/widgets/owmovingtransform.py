@@ -5,7 +5,7 @@ from AnyQt.QtGui import QIcon
 from Orange.data import Domain, Table
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel, PyTableModel
-from Orange.widgets.widget import Input, Output
+from Orange.widgets.widget import Input, Output, Msg
 
 from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries, moving_transform
@@ -44,6 +44,9 @@ class OWMovingTransform(widget.OWWidget):
                        'fixed-window-length-times shorter.'.format(_NON_OVERLAPPING_WINDOWS),
                        'non-overlapping')
     ]
+
+    class Warning(widget.OWWidget.Information):
+        no_transforms_added = Msg("At least one transform should be added.")
 
     def __init__(self):
         self.data = None
@@ -190,8 +193,14 @@ class OWMovingTransform(widget.OWWidget):
         self.commit()
 
     def commit(self):
+        self.Warning.no_transforms_added.clear()
         data = self.data
         if not data:
+            self.Outputs.time_series.send(None)
+            return
+
+        if not len(self.table_model):
+            self.Warning.no_transforms_added()
             self.Outputs.time_series.send(None)
             return
 
