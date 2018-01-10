@@ -178,8 +178,11 @@ class OWAggregate(widget.OWWidget):
             Y.append(ys)
             M.append(ms)
 
-        ts = Timeseries(Domain([data.time_variable] + attrs, cvars, metas),
-                        np.column_stack((times, np.row_stack(X))), np.array(Y), np.array(M, dtype=object))
+        ts = Timeseries(
+            Domain([data.time_variable] + attrs, cvars, metas),
+            np.column_stack((times, np.row_stack(X))),
+            np.array(Y),
+            np.array(np.row_stack(M), dtype=object))
         self.Outputs.time_series.send(ts)
 
 
