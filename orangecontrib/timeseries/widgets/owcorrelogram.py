@@ -26,6 +26,9 @@ class OWCorrelogram(widget.OWWidget):
 
     graph_name = 'plot'
 
+    class Error(widget.OWWidget.Error):
+        no_instances = widget.Msg("At least 2 data instances are required")
+
     def __init__(self):
         self.all_attrs = []
         opts = gui.widgetBox(self.controlArea, 'Options')
@@ -66,9 +69,14 @@ class OWCorrelogram(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
+        self.Error.no_instances.clear()
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         self.all_attrs = []
         if data is None:
+            self.plot.clear()
+            return
+        if len(data) < 2:
+            self.Error.no_instances()
             self.plot.clear()
             return
         self.all_attrs = [(var.name, gui.attributeIconDict[var])

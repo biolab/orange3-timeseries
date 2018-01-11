@@ -29,6 +29,21 @@ class TestCorrelogramWidget(WidgetTest):
         time_series.X[2, 1] = 42
         self.send_signal(self.widget.Inputs.time_series, time_series)
 
+    def test_no_instances(self):
+        """
+        At least two instances are required.
+        GH-45
+        """
+        def assert_error_shown(data, is_shown):
+            self.send_signal(self.widget.Inputs.time_series, data)
+            self.assertEqual(self.widget.Error.no_instances.is_shown(), is_shown)
+
+        ts = Timeseries("airpassengers")
+
+        self.assertFalse(self.widget.Error.no_instances.is_shown())
+        for data, is_shown in ((ts[:1], True), (ts, False), (ts[:0], True), (None, False)):
+            assert_error_shown(data, is_shown)
+
 
 if __name__ == "__main__":
     unittest.main()
