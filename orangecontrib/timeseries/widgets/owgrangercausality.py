@@ -18,7 +18,7 @@ class OWGrangerCausality(widget.OWWidget):
     priority = 190
 
     class Inputs:
-        time_series = Input("Time series", Table)
+        time_series = Input("Time series", Table, replaces=["Timeseries"])
 
     max_lag = settings.Setting(20)
     confidence = settings.Setting(95)
