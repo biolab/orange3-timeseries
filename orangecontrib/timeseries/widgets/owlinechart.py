@@ -161,7 +161,6 @@ class Highstock(Highchart):
         ci_percents = []
 
         data = self.parent.data
-        delta = data.time_delta if isinstance(data.time_variable, TimeVariable) else None
 
         for attr in series:
             newseries.append(data.get_column_view(attr)[0])
@@ -386,6 +385,7 @@ class OWLineChart(widget.OWWidget):
 
         self.data = data = None if data is None else Timeseries.from_data_table(data)
         if data is None:
+            self.varmodel.clear()
             self.chart.clear()
             return
         if getattr(data.time_variable, 'utc_offset', False):
