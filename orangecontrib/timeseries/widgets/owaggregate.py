@@ -1,4 +1,3 @@
-from datetime import datetime
 from itertools import chain, groupby
 from collections import OrderedDict
 
@@ -12,7 +11,7 @@ from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import PyTableModel
 from Orange.widgets.widget import Input, Output
 
-from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries import Timeseries, fromtimestamp, timestamp
 from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode, Concatenate
 
@@ -158,7 +157,7 @@ class OWAggregate(widget.OWWidget):
         aggreagate_time = self.AGG_TIME[self.agg_interval]
 
         def time_key(i):
-            return aggreagate_time(datetime.fromtimestamp(data.time_values[i])).timestamp()
+            return timestamp(aggreagate_time(fromtimestamp(data.time_values[i])))
 
         times = []
         X, Y, M = [], [], []

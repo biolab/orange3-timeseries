@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from numbers import Number
 
 import numpy as np
@@ -626,3 +627,25 @@ def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):
         row[0] = row[0] + ' (in-sample)'
         res.append(row)
     return res
+
+
+SECONDS = 126230400
+DAYS = 1461
+
+
+def timestamp(dt):
+    try:
+        ts = dt.timestamp()
+    except OverflowError:
+        k = (1970 - dt.year) / 4 + 1
+        ts = (dt + timedelta(days=k * DAYS)).timestamp() - k * SECONDS
+    return ts
+
+
+def fromtimestamp(ts):
+    try:
+        dt = datetime.fromtimestamp(ts)
+    except OSError:
+        k = -ts // SECONDS + 1
+        dt = datetime.fromtimestamp(ts + k * SECONDS) - timedelta(days=k * DAYS)
+    return dt
