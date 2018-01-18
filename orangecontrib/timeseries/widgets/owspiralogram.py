@@ -370,7 +370,8 @@ class OWSpiralogram(widget.OWWidget):
                          for i in range(1, self.combo_ax1.count())), self.ax2)
         self.agg_attr = [data.domain.variables[0]] if len(data.domain.variables) else []
         self.agg_func = 0
-        self.openContext(data.domain)
+        if getattr(data, 'time_variable', None) is not None:
+            self.openContext(data.domain)
 
         if self.agg_attr:
             self.attrlist.blockSignals(True)
