@@ -300,12 +300,18 @@ class OWSpiralogram(widget.OWWidget):
         self.data = None
         self.indices = []
         box = gui.vBox(self.controlArea, 'Axes')
+        self.combo_ax2_model = VariableListModel(parent=self)
+        self.combo_ax1_model = VariableListModel(parent=self)
+        for model in (self.combo_ax1_model, self.combo_ax2_model):
+            model[:] = [_enum_str(i) for i in Spiralogram.AxesCategories]
         self.combo_ax2 = gui.comboBox(
             box, self, 'ax2', label='Y axis:', callback=self.replot,
-            sendSelectedValue=True, orientation='horizontal')
+            sendSelectedValue=True, orientation='horizontal',
+            model=self.combo_ax2_model)
         self.combo_ax1 = gui.comboBox(
             box, self, 'ax1', label='Radial:', callback=self.replot,
-            sendSelectedValue=True, orientation='horizontal')
+            sendSelectedValue=True, orientation='horizontal',
+            model=self.combo_ax1_model)
         gui.checkBox(box, self, 'invert_date_order', 'Invert Y axis order',
                      callback=self.replot)
 
@@ -339,21 +345,20 @@ class OWSpiralogram(widget.OWWidget):
         self.data = data = None if data is None else Timeseries.from_data_table(data)
 
         def init_combos():
-            for combo in (self.combo_ax1, self.combo_ax2):
-                combo.clear()
+            for model in (self.combo_ax1_model, self.combo_ax2_model):
+                model.clear()
             newmodel = []
             if data is not None and data.time_variable is not None:
-                for i in Spiralogram.AxesCategories:
-                    for combo in (self.combo_ax1, self.combo_ax2):
-                        combo.addItem(_enum_str(i))
+                for model in (self.combo_ax1_model, self.combo_ax2_model):
+                    model[:] = [_enum_str(i) for i in Spiralogram.AxesCategories]
             for var in data.domain.variables if data is not None else []:
                 if (var.is_primitive() and
                         (var is not data.time_variable or
                          isinstance(var, TimeVariable) and data.time_delta is None)):
                     newmodel.append(var)
                 if var.is_discrete:
-                    for combo in (self.combo_ax1, self.combo_ax2):
-                        combo.addItem(gui.attributeIconDict[var], var.name)
+                    for model in (self.combo_ax1_model, self.combo_ax2_model):
+                        model.append(var)
             self.attrlist_model.wrap(newmodel)
 
         init_combos()
@@ -370,7 +375,8 @@ class OWSpiralogram(widget.OWWidget):
                          for i in range(1, self.combo_ax1.count())), self.ax2)
         self.agg_attr = [data.domain.variables[0]] if len(data.domain.variables) else []
         self.agg_func = 0
-        self.openContext(data.domain)
+        if getattr(data, 'time_variable', None) is not None:
+            self.openContext(data.domain)
 
         if self.agg_attr:
             self.attrlist.blockSignals(True)
