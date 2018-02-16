@@ -3,13 +3,6 @@ sudo: false   # use container-based infrastructure
 dist: trusty
 python: "3.5"
 
-addons:
-    apt:
-        packages:
-            - gfortran
-            - libblas-dev
-            - liblapack-dev
-
 cache:
     apt: true
     pip: true
