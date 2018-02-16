@@ -28,7 +28,7 @@ data-bearing column, which also happens to be a class variable:
 >>> periods
 array([  2.4,   3. ,   4. ,   6. ,  11.9])
 >>> pgram_values
-array([ 0.1,  0.2,  0.2,  1. ,  0.9])
+array([0.1, 0.2, 0.2, 1. , 0.9])
 
 Obviously, 6 and 12 are important periods for this data set.
 
@@ -41,16 +41,16 @@ For example:
 
 >>> acf = autocorrelation(data.Y)
 >>> acf[:4]
-array([[ 12. ,   0.8],
-       [ 24. ,   0.6],
-       [ 36. ,   0.4],
-       [ 48. ,   0.2]])
+array([[12. ,  0.8],
+       [24. ,  0.6],
+       [36. ,  0.4],
+       [48. ,  0.2]])
 >>> pacf = partial_autocorrelation(data.Y)
 >>> pacf[:4]
-array([[  9. ,   0.2],
-       [ 13. ,  -0.5],
-       [ 25. ,  -0.2],
-       [ 40. ,  -0.1]])
+array([[ 9. ,  0.2],
+       [13. , -0.5],
+       [25. , -0.2],
+       [40. , -0.1]])
 
 
 Interpolation
@@ -58,7 +58,7 @@ Interpolation
 Let's say your data is missing some values:
 
 >>> data.Y[7:11]
-array([ 148.,  136.,  119.,  104.])
+array([148., 136., 119., 104.])
 >>> data.Y[7:11] = np.nan
 
 You can interpolate those values with one of supported interpolation methods
@@ -66,7 +66,7 @@ using :func:`interpolate_timeseries` function:
 
 >>> interpolated = interpolate_timeseries(data, method='cubic')
 >>> interpolated[7:11].Y
-array([ 151.2,  146.8,  137.8,  127.2])
+array([151.2, 146.8, 137.8, 127.2])
 >>> data = interpolated
 
 
@@ -75,6 +75,7 @@ Seasonal decomposition
 To decompose the time series into trend, seasonal and residual components,
 use :func:`seasonal_decompose` function:
 
+>>> from Orange.data import Domain
 >>> passengers = Timeseries(Domain(['Air passengers'], source=data.domain), data)
 >>> decomposed = seasonal_decompose(passengers, model='multiplicative', period=12)
 >>> decomposed.domain
@@ -146,18 +147,18 @@ We can also output the prediction as a :class:`Timeseries` object:
 >>> forecast.domain
 [Air passengers (forecast), Air passengers (95%CI low), Air passengers (95%CI high)]
 >>> forecast.X
-array([[ 470.5,  417.8,  523.1],
-       [ 492.6,  414.1,  571.1],
-       [ 498.5,  411.5,  585.4],
+array([[470.5, 417.8, 523.1],
+       [492.6, 414.1, 571.1],
+       [498.5, 411.5, 585.4],
        ...
-       [ 492.7,  403. ,  582.4],
-       [ 497.1,  407.3,  586.8]])
+       [492.7, 403. , 582.4],
+       [497.1, 407.3, 586.8]])
 
 We can examine model's fitted values and residuals with appropriately-named
 methods:
 
 >>> model.fittedvalues(as_table=False)
-array([ 114.7,  121.7,  ..., 440.4,  386.8])
+array([114.7, 121.7, ..., 440.4, 386.8])
 >>> model.residuals(as_table=False)
 array([ 3.3,  10.3, ..., -50.4,  45.2])
 
