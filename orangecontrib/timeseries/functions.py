@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+import datetime
+from datetime import timedelta
 from numbers import Number
 
 import numpy as np
@@ -644,8 +645,8 @@ def timestamp(dt):
 
 def fromtimestamp(ts):
     try:
-        dt = datetime.fromtimestamp(ts)
+        dt = datetime.datetime.fromtimestamp(ts)
     except OSError:
         k = -ts // SECONDS + 1
-        dt = datetime.fromtimestamp(ts + k * SECONDS) - timedelta(days=k * DAYS)
+        dt = datetime.datetime.fromtimestamp(ts + k * SECONDS) - timedelta(days=k * DAYS)
     return dt
