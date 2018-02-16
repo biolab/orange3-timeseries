@@ -3,13 +3,6 @@ sudo: false   # use container-based infrastructure
 dist: trusty
 python: "3.5"
 
-addons:
-    apt:
-        packages:
-            - gfortran
-            - libblas-dev
-            - liblapack-dev
-
 cache:
     apt: true
     pip: true
@@ -20,7 +13,7 @@ before_install:
     - pip install codecov
 
 install:
-    - pip install PyQt5 AnyQt
+    - pip install PyQt5==5.9.2 AnyQt
     - travis_wait pip install -e .
 
 script:

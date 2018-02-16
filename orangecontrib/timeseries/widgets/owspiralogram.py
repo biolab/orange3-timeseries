@@ -1,4 +1,3 @@
-from datetime import datetime
 from enum import Enum
 from itertools import chain
 from numbers import Number
@@ -15,7 +14,7 @@ from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries.widgets.utils import ListModel
-from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries import Timeseries, fromtimestamp
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode
 from orangecontrib.timeseries.widgets.highcharts import Highchart
 
@@ -63,16 +62,6 @@ class Spiralogram(Highchart):
             return lambda val: val
 
     def setSeries(self, timeseries, attr, xdim, ydim, fagg):
-        def fromtimestamp(epoch):
-            """
-            On some systems (Windows) the function above
-            might raise IOError.
-            """
-            try:
-                return datetime.fromtimestamp(epoch)
-            except IOError:
-                return None
-
         if timeseries is None or not attr:
             self.clear()
             return
