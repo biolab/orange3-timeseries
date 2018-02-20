@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
 import os
-import sys
 import unittest
 from setuptools import setup, find_packages
 
-VERSION = '0.3.2'
+VERSION = '0.3.3'
 
 ENTRY_POINTS = {
     'orange3.addon': (
