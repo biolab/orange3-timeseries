@@ -57,6 +57,9 @@ def _detrend(x, type):
 
 
 def _significant_periods(periods, pgram):
+    if pgram.size == 0:
+        return periods, pgram
+
     # Order ascending
     periods = periods[::-1]
     pgram = pgram[::-1]
