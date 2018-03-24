@@ -647,6 +647,6 @@ def fromtimestamp(ts):
     try:
         dt = datetime.datetime.fromtimestamp(ts)
     except OSError:
-        k = -ts // SECONDS + 1
+        k = int(-ts // SECONDS + 1)  # Cast avoids "unsupported type for timedelta days: numpy.int32"
         dt = datetime.datetime.fromtimestamp(ts + k * SECONDS) - timedelta(days=k * DAYS)
     return dt
