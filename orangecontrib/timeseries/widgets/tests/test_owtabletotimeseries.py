@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+from Orange.data import Domain
 
 from Orange.data import Table
 from Orange.widgets.tests.base import WidgetTest
@@ -12,6 +13,19 @@ from orangecontrib.timeseries.widgets.owtabletotimeseries import OWTableToTimese
 class TestAsTimeSeriesWidget(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWTableToTimeseries)  # type: OWTableToTimeseries
+
+    def test_time_as_metas(self):
+        """
+        As Timeseries should accept attributes from X and metas.
+        """
+        w = self.widget
+        data = Table("cyber-security-breaches")[:20]
+        self.send_signal(w.Inputs.data, data)
+        self.assertEqual(len(w.attrs_model), 4)
+        new_domain = Domain(data.domain[:6], metas=[data.domain[6]])
+        new_data = Table(new_domain, data)
+        self.send_signal(w.Inputs.data, new_data)
+        self.assertEqual(len(w.attrs_model), 4)
 
     def test_timeseries_column_nans(self):
         """
