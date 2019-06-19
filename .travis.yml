@@ -1,23 +1,29 @@
 language: python
-sudo: false   # use container-based infrastructure
-dist: trusty
-python: "3.5"
+dist: xenial # trusty doesn't support Py3.7
 
 cache:
     apt: true
     pip: true
     ccache: true
 
+matrix:
+    include:
+        - &python36
+          python: '3.6'
+        - &python37
+          python: '3.7'
+
 before_install:
     - pip install -U setuptools pip wheel
     - pip install codecov
 
 install:
-    - pip install PyQt5==5.9.2 AnyQt
+    - pip install pyqt5==5.11.*
     - travis_wait pip install -e .
 
 script:
-    - catchsegv xvfb-run -a -s "-screen 0 1280x1024x24" coverage run setup.py test
+    - XVFBARGS="-screen 0 1280x1024x24"
+    - catchsegv xvfb-run -a -s "$XVFBARGS" coverage run setup.py test
 
 after_success:
     - codecov
