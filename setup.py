@@ -61,7 +61,7 @@ if __name__ == '__main__':
         },
         install_requires=[
             'Orange3',
-            'statsmodels>=0.6.1',
+            'statsmodels>=0.10.0',
             'pandas',  # statsmodels requires this but doesn't have it in dependencies?
             'pandas_datareader',
             'numpy',
