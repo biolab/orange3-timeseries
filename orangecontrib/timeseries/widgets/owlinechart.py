@@ -82,6 +82,7 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
         selection = [mi.model()[mi.row()]
                      for mi in self.view.selectionModel().selectedIndexes()]
         self.sigSelection.emit(self.ax, selection)
+        self.sigType.emit(self.ax, self.plot_type)
 
 
 class Highstock(Highchart):
