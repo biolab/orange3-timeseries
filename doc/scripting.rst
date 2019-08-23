@@ -10,7 +10,7 @@ Let's load new :class:`Timeseries`, for example:
 >>> data = Timeseries('airpassengers')
 >>> np.set_printoptions(precision=1)
 
-:class:`Timeseries` object is just an :any:`Orange.data.Table` object with some
+:class:`Timeseries` object is just an :class:`Orange.data.Table` object with some
 extensions.
 
 Find more info and function docstrings in the :doc:`reference <reference>`.
