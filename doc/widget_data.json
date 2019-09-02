@@ -1,0 +1,107 @@
+{
+"Aggregate": {
+"title": "Aggregate",
+"file": "widgets/aggregate.md",
+"icon": "widgets/icons/aggregate.png",
+"keywords": [],
+"category": "Timeseries"
+    },
+"ARIMA": {
+"title": "ARIMA Model",
+"file": "widgets/arima.md",
+"icon": "widgets/icons/arima.png",
+"keywords": [],
+"category": "Timeseries"
+    },
+"As Timeseries": {
+"title": "As Timeseries",
+"file": "widgets/as_timeseries.md",
+"icon": "widgets/icons/as-timeseries.png",
+"keywords": [],
+"category": "Timeseries"
+    },
+"Correlogram": {
+"title": "Correlogram",
+"file": "widgets/correlogram.md",
+"icon": "widgets/icons/correlogram.png",
+"keywords": [],
+"category": "Timeseries"
+    },
+"Difference": {
+    "title": "Difference",
+    "file": "widgets/difference.md",
+    "icon": "widgets/icons/difference.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Granger Causality": {
+    "title": "Granger Causality",
+    "file": "widgets/granger_causality.md",
+    "icon": "widgets/icons/granger-causality.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Interpolate": {
+    "title": "Interpolate",
+    "file": "widgets/interpolate.md",
+    "icon": "widgets/icons/interpolate.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Line Chart": {
+    "title": "Line Chart",
+    "file": "widgets/line_chart.md",
+    "icon": "widgets/icons/line-chart.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Model Evaluation": {
+    "title": "Model Evaluation",
+    "file": "widgets/model_evaluation.md",
+    "icon": "widgets/icons/model-evaluation.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Moving Transform": {
+    "title": "Moving Transform",
+    "file": "widgets/moving_transform.md",
+    "icon": "widgets/icons/moving-transform.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Periodogram": {
+    "title": "Periodogram",
+    "file": "widgets/periodogram.md",
+    "icon": "widgets/icons/periodogram.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Seasonal Adjustment": {
+    "title": "Seasonal Adjustment",
+    "file": "widgets/seasonal_adjustment.md",
+    "icon": "widgets/icons/seasonal-adjustment.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Spiralogram": {
+    "title": "Spiralogram",
+    "file": "widgets/spiralogram.md",
+    "icon": "widgets/icons/spiralogram.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"VAR": {
+    "title": "VAR Model",
+    "file": "widgets/var.md",
+    "icon": "widgets/icons/var.png",
+    "keywords": [],
+    "category": "Timeseries"
+    },
+"Yahoo Finance": {
+    "title": "Yahoo Finance",
+    "file": "widgets/yahoo_finance.md",
+    "icon": "widgets/icons/yahoo-finance.png",
+    "keywords": [],
+    "category": "Timeseries"
+    }
+}
