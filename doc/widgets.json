@@ -1,0 +1,119 @@
+[
+ [
+  "Time Series",
+  [
+   {
+    "text": "Yahoo Finance",
+    "doc": "widgets/yahoo_finance.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/YahooFinance.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "As Timeseries",
+    "doc": "widgets/as_timeseries.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/TableToTimeseries.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Interpolate",
+    "doc": "widgets/interpolate.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/Interpolate.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Moving Transform",
+    "doc": "widgets/moving_transform.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/MovingTransform.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Line Chart",
+    "doc": "widgets/line_chart.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/LineChart.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Periodogram",
+    "doc": "widgets/periodogram.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/Periodogram.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Correlogram",
+    "doc": "widgets/correlogram.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/Correlogram.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Spiralogram",
+    "doc": "widgets/spiralogram.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/Spiralogram.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Granger Causality",
+    "doc": "widgets/granger_causality.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/GrangerCausality.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "ARIMA Model",
+    "doc": "widgets/arima.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/ARIMA.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "VAR Model",
+    "doc": "widgets/var.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/VAR.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Model Evaluation",
+    "doc": "widgets/model_evaluation.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/ModelEvaluation.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Time Slice",
+    "doc": null,
+    "icon": "../orangecontrib/timeseries/widgets/icons/TimeSlice.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Aggregate",
+    "doc": "widgets/aggregate.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/Aggregate.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Difference",
+    "doc": "widgets/difference.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/Difference.svg",
+    "background": "#33aaff",
+    "keywords": []
+   },
+   {
+    "text": "Seasonal Adjustment",
+    "doc": "widgets/seasonal_adjustment.md",
+    "icon": "../orangecontrib/timeseries/widgets/icons/SeasonalAdjustment.svg",
+    "background": "#33aaff",
+    "keywords": []
+   }
+  ]
+ ]
+]
