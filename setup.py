@@ -5,6 +5,10 @@ from setuptools import setup, find_packages
 
 VERSION = '0.3.3'
 
+README_FILE = os.path.join(os.path.dirname(__file__), 'README.pypi')
+LONG_DESCRIPTION = open(README_FILE).read()
+
+
 ENTRY_POINTS = {
     'orange3.addon': (
         'timeseries = orangecontrib.timeseries',
@@ -34,7 +38,7 @@ if __name__ == '__main__':
     setup(
         name="Orange3-Timeseries",
         description="Orange3 add-on for exploring time series and sequential data.",
-        long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
+        long_description=LONG_DESCRIPTION,
         version=VERSION,
         author='Bioinformatics Laboratory, FRI UL',
         author_email='info@biolab.si',
