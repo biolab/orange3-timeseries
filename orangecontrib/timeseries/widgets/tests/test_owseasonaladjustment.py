@@ -54,6 +54,19 @@ class TestOWSeasonalAdjustment(WidgetTest):
         self.send_signal(w.Inputs.time_series, None)
         self.assertFalse(w.Error.not_enough_instances.is_shown())
 
+    def test_output(self):
+        """
+        Adjusted values are added to the input data.
+        """
+        w = self.widget
+        w.autocommit = True
+        time_series = Timeseries(Table("iris"))
+        self.send_signal(w.Inputs.time_series, time_series)
+        selmodel = w.view.selectionModel()
+        selmodel.select(w.model.index(0), selmodel.Select)
+        self.assertGreater(len(self.get_output("Time series").domain),
+                           len(time_series.domain))
+
 
 if __name__ == "__main__":
     unittest.main()
