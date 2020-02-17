@@ -5,6 +5,7 @@ from Orange.data import Table, Domain
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.widget import Input, Output, Msg
+from numpy import hstack
 
 from orangecontrib.timeseries import Timeseries, seasonal_decompose
 
@@ -107,7 +108,9 @@ class OWSeasonalAdjustment(widget.OWWidget):
             self.Outputs.time_series.send(data)
             return
 
-        selected_subset = Timeseries(Domain(self.selected, source=data.domain), data)  # FIXME: might not pass selected interpolation method
+        selected_subset = Timeseries.from_table(Domain(self.selected,
+                                                source=data.domain), data)
+        # FIXME: might not pass selected interpolation method
 
         with self.progressBar(len(self.selected)) as progress:
             try:
@@ -121,7 +124,14 @@ class OWSeasonalAdjustment(widget.OWWidget):
                 adjusted_data = None
 
         if adjusted_data is not None:
-            ts = Timeseries(Timeseries.concatenate((data, adjusted_data)))
+            new_domain = Domain(data.domain.attributes +
+                                adjusted_data.domain.attributes,
+                                data.domain.class_vars,
+                                data.domain.metas)
+            ts = Timeseries.from_numpy(new_domain, X=hstack((data.X,
+                                                       adjusted_data.X)),
+                                                   Y=data.Y,
+                                                   metas=data.metas)
             ts.time_variable = data.time_variable
         else:
             ts = None
