@@ -83,7 +83,8 @@ class Spiralogram(Highchart):
 
         attr = attr[0]
         values = timeseries.get_column_view(attr)[0]
-        time_values = [fromtimestamp(i) for i in timeseries.time_values]
+        time_values = [fromtimestamp(i, tz=timeseries.time_variable.timezone)
+                       for i in timeseries.time_values]
 
         if not yvals:
             yvals = sorted(set(yfunc(i, v) for i, v in enumerate(time_values) if v is not None))
