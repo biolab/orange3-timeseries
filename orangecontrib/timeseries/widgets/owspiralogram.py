@@ -286,6 +286,10 @@ class OWSpiralogram(widget.OWWidget):
 
     graph_name = 'chart'
 
+    class Error(widget.OWWidget.Error):
+        no_time_variable = widget.Msg(
+            'Spiralogram requires time series with a time variable.')
+
     def __init__(self):
         self.data = None
         self.indices = []
@@ -332,7 +336,18 @@ class OWSpiralogram(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
+        self.Error.clear()
         self.data = data = None if data is None else Timeseries.from_data_table(data)
+
+        if data is None:
+            self.commit()
+            return
+
+        if self.data.time_variable is None or not isinstance(
+                self.data.time_variable, TimeVariable):
+            self.Error.no_time_variable()
+            self.commit()
+            return
 
         def init_combos():
             for model in (self.combo_ax1_model, self.combo_ax2_model):
@@ -353,10 +368,6 @@ class OWSpiralogram(widget.OWWidget):
 
         init_combos()
         self.chart.clear()
-
-        if data is None:
-            self.commit()
-            return
 
         self.closeContext()
         self.ax2 = next((self.combo_ax2.itemText(i)
@@ -396,7 +407,7 @@ class OWSpiralogram(widget.OWWidget):
             ax1 = Spiralogram.AxesCategories[_enum_str(self.ax1, True)]
         except KeyError:
             ax1 = self.data.domain[self.ax1]
-        # TODO: Allow having only a sinle (i.e. radial) axis
+        # TODO: Allow having only a single (i.e. radial) axis
         try:
             ax2 = Spiralogram.AxesCategories[_enum_str(self.ax2, True)]
         except KeyError:
@@ -416,7 +427,7 @@ if __name__ == "__main__":
 
     a = QApplication([])
     ow = OWSpiralogram()
-    ow.set_data(Table('cyber-security-breaches'))
+    ow.set_data(Table.from_file('airpassengers'))
 
     ow.show()
     a.exec()
