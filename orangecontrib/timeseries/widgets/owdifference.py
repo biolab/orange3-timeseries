@@ -4,7 +4,9 @@ from AnyQt.QtWidgets import QListView
 
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.utils.itemmodels import VariableListModel
+from Orange.widgets.settings import DomainContextHandler, ContextSetting
+from Orange.widgets.utils.itemmodels import VariableListModel, select_rows, \
+    signal_blocking
 from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
@@ -24,14 +26,16 @@ class OWDifference(widget.OWWidget):
     class Outputs:
         time_series = Output("Time series", Timeseries)
 
+    settingsHandler = DomainContextHandler()
+    selected = ContextSetting([], schema_only=True)
+
     want_main_area = False
     resizing_enabled = False
 
     diff_order = settings.Setting(1)
     shift_period = settings.Setting(1)
     invert_direction = settings.Setting(True)
-    selected = settings.Setting([])
-    autocommit = settings.Setting(False)
+    autocommit = settings.Setting(True)
 
     UserAdviceMessages = [
         widget.Message('You can difference the series up to the 2nd order. '
@@ -42,6 +46,7 @@ class OWDifference(widget.OWWidget):
 
     def __init__(self):
         self.data = None
+
         box = gui.vBox(self.controlArea, 'Differencing')
         self.order_spin = gui.spin(
             box, self, 'diff_order', 1, 2,
@@ -73,16 +78,43 @@ class OWDifference(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.closeContext()
+        self.data = data = None if data is None else Timeseries.from_data_table(
+            data)
         if data is not None:
-            self.model.wrap([var for var in data.domain.variables
-                             if var.is_continuous and var is not data.time_variable])
+            self.model[:] = [var for var in data.domain.variables
+                             if var.is_continuous and var is not
+                             data.time_variable]
+            self.select_default_variable()
+            self.openContext(self.data)
+            self._restore_selection()
+        else:
+            self.reset_model()
         self.on_changed()
+
+    def _restore_selection(self):
+        def restore(view, selection):
+            with signal_blocking(view.selectionModel()):
+                # gymnastics for transforming variable names back to indices
+                var_list = [var for var in self.data.domain.variables
+                            if var.is_continuous and var is not
+                            self.data.time_variable]
+                indices = [var_list.index(i) for i in selection]
+                select_rows(view, indices)
+        restore(self.view, self.selected)
+
+    def select_default_variable(self):
+        self.selected = [0]
+        select_rows(self.view, self.selected)
+
+    def reset_model(self):
+        self.model.wrap([])
 
     def on_changed(self):
         self.order_spin.setDisabled(self.shift_period != 1)
-        self.selected = [self.model[i.row()].name
-                         for i in self.view.selectionModel().selectedIndexes()]
+        var_names = [i.row()
+                     for i in self.view.selectionModel().selectedRows()]
+        self.selected = [self.model[v] for v in var_names]
         self.commit()
 
     def commit(self):
@@ -115,7 +147,7 @@ class OWDifference(widget.OWWidget):
 
             X.append(out)
 
-            template = '{} (diff; {})'.format(var,
+            template = '{} (diff; {})'.format(var.name,
                                               'order={}'.format(order) if shift == 1 else
                                               'shift={}'.format(shift))
             name = available_name(data.domain, template)
