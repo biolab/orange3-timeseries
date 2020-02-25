@@ -157,7 +157,8 @@ class OWAggregate(widget.OWWidget):
         aggreagate_time = self.AGG_TIME[self.agg_interval]
 
         def time_key(i):
-            return timestamp(aggreagate_time(fromtimestamp(data.time_values[i])))
+            return timestamp(aggreagate_time(fromtimestamp(data.time_values[i],
+                                                           tz=data.time_variable.timezone)))
 
         times = []
         X, Y, M = [], [], []
@@ -190,7 +191,7 @@ if __name__ == "__main__":
 
     a = QApplication([])
     ow = OWAggregate()
-    ow.set_data(Timeseries('airpassengers'))
+    ow.set_data(Timeseries.from_file('airpassengers'))
 
     ow.show()
     a.exec()
