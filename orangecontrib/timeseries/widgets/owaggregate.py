@@ -8,6 +8,7 @@ from AnyQt.QtCore import Qt
 
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.settings import ContextSetting, DomainContextHandler
 from Orange.widgets.utils.itemmodels import PyTableModel
 from Orange.widgets.widget import Input, Output
 
@@ -29,10 +30,9 @@ class OWAggregate(widget.OWWidget):
     class Outputs:
         time_series = Output("Time series", Timeseries)
 
-    ax1 = settings.Setting('months of year')
-    ax2 = settings.Setting('years')
-    agg_attr = settings.Setting([])
-    agg_func = settings.Setting(0)
+    settingsHandler = DomainContextHandler()
+    variables = ContextSetting([])
+    agg_funcs = ContextSetting([])
 
     want_main_area = False
 
@@ -55,14 +55,13 @@ class OWAggregate(widget.OWWidget):
 
     def __init__(self):
         self.data = None
-        self.indices = []
 
         gui.comboBox(self.controlArea, self, 'agg_interval',
                      label='Aggregate by:',
                      items=tuple(self.AGG_TIME.keys()),
                      sendSelectedValue=True,
                      orientation=Qt.Horizontal,
-                     callback=self.on_changed,)
+                     callback=lambda: self.commit)
         self.model = model = PyTableModel(parent=self, editable=[False, True])
         model.setHorizontalHeaderLabels(['Attribute', 'Aggregation function'])
 
@@ -107,12 +106,14 @@ class OWAggregate(widget.OWWidget):
 
         view = TableView(self)
         view.setModel(model)
-        model.dataChanged.connect(self.on_changed)
+        self.settingsAboutToBePacked.connect(self.pack_settings)
         self.controlArea.layout().addWidget(view)
         gui.auto_commit(self.controlArea, self, 'autocommit', '&Apply')
 
     @Inputs.time_series
     def set_data(self, data):
+        self.pack_settings()
+        self.closeContext()
         self.Error.clear()
         data = None if data is None else Timeseries.from_data_table(data)
         if data is not None and not isinstance(data.time_variable, TimeVariable):
@@ -123,16 +124,27 @@ class OWAggregate(widget.OWWidget):
             self.model.clear()
             self.commit()
             return
-        self.model.wrap([[attr,
-                          AGG_FUNCTIONS[0] if attr.is_continuous else
-                          Mode if attr.is_discrete else
-                          Concatenate if attr.is_string else None]
-                         for attr in chain(data.domain.variables, data.domain.metas)
-                         if attr != data.time_variable])
+        self.set_default(self.data)
+        self.openContext(self.data)
+        self.unpack_settings()
         self.commit()
 
-    def on_changed(self):
-        self.commit()
+    def set_default(self, data):
+        self.variables = [attr for attr in chain(data.domain.variables,
+                                                 data.domain.metas)
+                          if attr != data.time_variable]
+        self.agg_funcs = [AGG_FUNCTIONS[0] if attr.is_continuous else
+                          Mode if attr.is_discrete else
+                          Concatenate if attr.is_string else None
+                          for attr in self.variables]
+
+    def pack_settings(self):
+        self.variables = [i[0] for i in self.model.tolist()]
+        self.agg_funcs = [i[1] for i in self.model.tolist()]
+
+    def unpack_settings(self):
+        self.model[:] = [[var, func] for var, func in zip(self.variables,
+                                                          self.agg_funcs)]
 
     def commit(self):
         data = self.data
@@ -154,10 +166,10 @@ class OWAggregate(widget.OWWidget):
             else:
                 metas.append(attr)
 
-        aggreagate_time = self.AGG_TIME[self.agg_interval]
+        aggregate_time = self.AGG_TIME[self.agg_interval]
 
         def time_key(i):
-            return timestamp(aggreagate_time(fromtimestamp(data.time_values[i],
+            return timestamp(aggregate_time(fromtimestamp(data.time_values[i],
                                                            tz=data.time_variable.timezone)))
 
         times = []
