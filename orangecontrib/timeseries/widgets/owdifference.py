@@ -1,6 +1,7 @@
 import numpy as np
 
-from AnyQt.QtWidgets import QListView
+from AnyQt.QtCore import Qt
+from AnyQt.QtWidgets import QListView, QButtonGroup, QRadioButton
 
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets import widget, gui, settings
@@ -19,6 +20,7 @@ class OWDifference(widget.OWWidget):
                   '1st or 2nd order discrete difference along its values. '
     icon = 'icons/Difference.svg'
     priority = 570
+    keywords = ['difference', 'derivative', 'quotient']
 
     class Inputs:
         time_series = Input("Time series", Table)
@@ -32,11 +34,13 @@ class OWDifference(widget.OWWidget):
     want_main_area = False
     resizing_enabled = False
 
+    calc_difference = settings.Setting(True)
     diff_order = settings.Setting(1)
     shift_period = settings.Setting(1)
     invert_direction = settings.Setting(True)
     autocommit = settings.Setting(True)
-
+    selected = settings.Setting([])
+    
     UserAdviceMessages = [
         widget.Message('You can difference the series up to the 2nd order. '
                        'However, if you shift the series by other than 1 step, '
@@ -48,6 +52,12 @@ class OWDifference(widget.OWWidget):
         self.data = None
 
         box = gui.vBox(self.controlArea, 'Differencing')
+
+        gui.radioButtons(box, self, 'calc_difference', 
+                        ['Quotient', 'Difference'], label='Calculate :',
+                        callback=self.on_changed,
+                        orientation = Qt.Horizontal)
+    
         self.order_spin = gui.spin(
             box, self, 'diff_order', 1, 2,
             label='Differencing order:',
@@ -55,6 +65,7 @@ class OWDifference(widget.OWWidget):
             tooltip='The value corresponds to n-th order numerical '
                     'derivative of the series. \nThe order is fixed to 1 '
                     'if the shift period is other than 1.')
+        self.order_spin.setEnabled(self.calc_difference)
         gui.spin(box, self, 'shift_period', 1, 100,
                  label='Shift:',
                  callback=self.on_changed,
@@ -111,7 +122,7 @@ class OWDifference(widget.OWWidget):
         self.model.wrap([])
 
     def on_changed(self):
-        self.order_spin.setDisabled(self.shift_period != 1)
+        self.order_spin.setDisabled(self.shift_period != 1 or not self.calc_difference)
         var_names = [i.row()
                      for i in self.view.selectionModel().selectedRows()]
         self.selected = [self.model[v] for v in var_names]
@@ -128,6 +139,7 @@ class OWDifference(widget.OWWidget):
         invert = self.invert_direction
         shift = self.shift_period
         order = self.diff_order
+        
         for var in self.selected:
             col = np.ravel(data[:, var])
 
@@ -135,11 +147,14 @@ class OWDifference(widget.OWWidget):
                 col = col[::-1]
 
             out = np.empty(len(col))
-            if shift == 1:
+            if self.calc_difference and shift == 1:
                 out[:-order] = np.diff(col, order)
                 out[-order:] = np.nan
             else:
-                out[:-shift] = col[shift:] - col[:-shift]
+                if self.calc_difference:
+                    out[:-shift] = col[shift:] - col[:-shift]
+                else:
+                    out[:-shift] = np.divide(col[shift:], col[:-shift])
                 out[-shift:] = np.nan
 
             if invert:
@@ -147,7 +162,8 @@ class OWDifference(widget.OWWidget):
 
             X.append(out)
 
-            template = '{} (diff; {})'.format(var.name,
+            template = '{} ({}; {})'.format(var,
+                                              'diff' if self.calc_difference else 'qout',
                                               'order={}'.format(order) if shift == 1 else
                                               'shift={}'.format(shift))
             name = available_name(data.domain, template)
