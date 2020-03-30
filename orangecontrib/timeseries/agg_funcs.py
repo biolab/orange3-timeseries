@@ -48,10 +48,6 @@ class Min(_AggFunc):
     __func__ = np.nanmin
 
 
-class Mean(_AggFunc):
-    __func__ = np.nanmean
-
-
 class Median(_AggFunc):
     __func__ = np.nanmedian
 
