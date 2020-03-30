@@ -5,6 +5,7 @@ from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets.owspiralogram import OWSpiralogram
+from Orange.widgets.tests.utils import simulate
 
 
 class TestOWSpiralogram(WidgetTest):
@@ -54,6 +55,16 @@ class TestOWSpiralogram(WidgetTest):
         self.select_item(w, 0)
         output = self.get_output(w.Outputs.time_series)
         self.assertEqual(output[0][0], "1949-01-01")
+
+    def test_cb_axes(self):
+        """ Test that all possible axes work, including discrete variables. """
+        w = self.widget
+        data = Timeseries.from_url('http://datasets.orange.biolab.si/core/philadelphia-crime.csv.xz')
+        self.send_signal(w.Inputs.time_series, data)
+        # test all possibilities for Y axis
+        simulate.combobox_run_through_all(w.combo_ax2)
+        # test all possibilites for radial
+        simulate.combobox_run_through_all(w.combo_ax1)
 
 
 if __name__ == "__main__":
