@@ -98,38 +98,35 @@ class OWTimeSlice(widget.OWWidget):
         slider = self.slider = Slider(Qt.Horizontal, self,
                                       minimum=0, maximum=self.MAX_SLIDER_VALUE,
                                       tracking=False,
-                                      valuesChanged=self.valuesChanged,
+                                      valuesChanged=self.sliderValuesChanged,
                                       minimumValue=self.slider_values[0],
-                                      maximumValue=self.slider_values[1],)
+                                      maximumValue=self.slider_values[1])
         slider.setShowText(False)
         box = gui.vBox(self.controlArea, 'Time Slice')
         box.layout().addWidget(slider)
 
         hbox = gui.hBox(box)
 
-        def _dateTimeChanged(editted):
-            def handler():
-                minTime = self.date_from.dateTime().toMSecsSinceEpoch() / 1000
-                maxTime = self.date_to.dateTime().toMSecsSinceEpoch() / 1000
-                if minTime > maxTime:
-                    minTime = maxTime = minTime if editted == self.date_from else maxTime
-                    other = self.date_to if editted == self.date_from else self.date_from
-                    with blockSignals(other):
-                        other.setDateTime(editted.dateTime())
-
-                with blockSignals(self.slider):
-                    self.slider.setValues(self.slider.unscale(minTime),
-                                          self.slider.unscale(maxTime))
-                self.send_selection(minTime, maxTime)
-            return handler
-
         kwargs = dict(calendarPopup=True,
                       displayFormat=' '.join(self.DATE_FORMATS),
                       timeSpec=Qt.UTC)
         date_from = self.date_from = QDateTimeEdit(self, **kwargs)
         date_to = self.date_to = QDateTimeEdit(self, **kwargs)
-        date_from.dateTimeChanged.connect(_dateTimeChanged(date_from))
-        date_to.dateTimeChanged.connect(_dateTimeChanged(date_to))
+
+        def datetime_edited(dt_edit):
+            minTime = self.date_from.dateTime().toMSecsSinceEpoch() / 1000
+            maxTime = self.date_to.dateTime().toMSecsSinceEpoch() / 1000
+            if minTime > maxTime:
+                minTime = maxTime = minTime if dt_edit == self.date_from else maxTime
+                other = self.date_to if dt_edit == self.date_from else self.date_from
+                with blockSignals(other):
+                    other.setDateTime(dt_edit.dateTime())
+
+            self.dteditValuesChanged(minTime, maxTime)
+
+        date_from.dateTimeChanged.connect(lambda: datetime_edited(date_from))
+        date_to.dateTimeChanged.connect(lambda: datetime_edited(date_to))
+
         hbox.layout().addStretch(100)
         hbox.layout().addWidget(date_from)
         hbox.layout().addWidget(QLabel(' – '))
@@ -166,18 +163,31 @@ class OWTimeSlice(widget.OWWidget):
         gui.rubber(self.controlArea)
         self._set_disabled(True)
 
-    def valuesChanged(self, minValue, maxValue):
-        self.slider_values = (minValue, maxValue)
+    def sliderValuesChanged(self, minValue, maxValue):
         self._delta = max(1, (maxValue - minValue))
         minTime = self.slider.scale(minValue)
         maxTime = self.slider.scale(maxValue)
 
         from_dt = QDateTime.fromMSecsSinceEpoch(minTime * 1000).toUTC()
         to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
-        with blockSignals(self.date_from,
-                          self.date_to):
-            self.date_from.setDateTime(from_dt)
-            self.date_to.setDateTime(to_dt)
+        if self.date_from.dateTime() != from_dt:
+            with blockSignals(self.date_from):
+                self.date_from.setDateTime(from_dt)
+        if self.date_from.dateTime() != to_dt:
+            with blockSignals(self.date_to):
+                self.date_to.setDateTime(to_dt)
+
+        self.send_selection(minTime, maxTime)
+
+    def dteditValuesChanged(self, minTime, maxTime):
+        minValue = self.slider.unscale(minTime)
+        maxValue = self.slider.unscale(maxTime)
+        self._delta = max(1, (maxValue - minValue))
+
+        if self.slider_values != (minValue, maxValue):
+            self.slider_values = (minValue, maxValue)
+            with blockSignals(self.slider):
+                self.slider.setValues(minValue, maxValue)
 
         self.send_selection(minTime, maxTime)
 
@@ -235,7 +245,7 @@ class OWTimeSlice(widget.OWWidget):
         # re-setting self._delta
         with blockSignals(self.slider):
             self.slider.setValues(minValue, maxValue)
-        self.valuesChanged(self.slider.minimumValue(), self.slider.maximumValue())
+        self.sliderValuesChanged(self.slider.minimumValue(), self.slider.maximumValue())
         self._delta = orig_delta  # Override valuesChanged handler
 
     def _set_disabled(self, is_disabled):
@@ -275,7 +285,7 @@ class OWTimeSlice(widget.OWWidget):
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
         slider.setScale(time_values.min(), time_values.max())
-        self.valuesChanged(slider.minimumValue(), slider.maximumValue())
+        self.sliderValuesChanged(slider.minimumValue(), slider.maximumValue())
 
         # Update datetime edit fields
         min_dt = QDateTime.fromMSecsSinceEpoch(time_values[0] * 1000).toUTC()
