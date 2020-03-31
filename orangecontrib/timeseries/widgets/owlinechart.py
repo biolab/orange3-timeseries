@@ -94,6 +94,7 @@ class Highstock(Highchart):
                          yAxis_labels_y=-3,
                          yAxis_labels_align_x='right',
                          yAxis_title_text=None,
+                         enable_scrollbar = False,
                          plotOptions_series_dataGrouping_groupPixelWidth=2,
                          plotOptions_series_dataGrouping_approximation='high',
                          plotOptions_areasplinerange_states_hover_lineWidthPlus=0,
@@ -110,7 +111,7 @@ class Highstock(Highchart):
         MARGIN = 2
         HEIGHT = (100 - (len(self.axes) - 1) * MARGIN) // len(self.axes)
         self.evalJS('''
-            var SKIP_AXES = 2,
+            var SKIP_AXES = 1,
                 HEIGHT = %(HEIGHT)f,
                 MARGIN = %(MARGIN)f;
             for (var i = 0; i < chart.yAxis.length - SKIP_AXES; ++i) {
@@ -298,8 +299,13 @@ class Highstock(Highchart):
 
     def setLogarithmic(self, ax, is_logarithmic):
         self.evalJS('''
-            chart.get('%(ax)s').update({ type: '%(type)s' });
-        ''' % dict(ax=ax, type='logarithmic' if is_logarithmic else 'linear'))
+            chart.get('%(ax)s').update({ type: '%(type)s', allowNegativeLog:
+            %(negative)s, tickInterval: %(tick)s,
+        });
+        ''' % dict(ax=ax, type='logarithmic' if is_logarithmic else 'linear',
+                   negative='true' if is_logarithmic else 'false',
+                   tick=1 if is_logarithmic else 'undefined'))
+
 
     def setType(self, ax, type):
         step, type = ('true', 'line') if type == 'step line' else ('false', type)
@@ -369,7 +375,15 @@ class OWLineChart(widget.OWWidget):
                                  self.add_button.setDisabled(False))
         self.configs.append(config)
         self.add_button.setDisabled(len(self.configs) >= 5)
+        config.sigClosed.connect(lambda ax, widget: self.remove_plot(widget))
+
         self.configsArea.layout().addWidget(config)
+
+    def remove_plot(self, plot):
+        self.configs.remove(plot)
+        # # self.configsArea.layout()
+        if len(self.chart.axes) < 2:
+            self.resize(QSize(925, 635))
 
     @Inputs.time_series
     def set_data(self, data):
