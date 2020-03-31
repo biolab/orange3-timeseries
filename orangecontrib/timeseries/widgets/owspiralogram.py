@@ -6,7 +6,7 @@ from os import path
 
 import numpy as np
 
-from Orange.data import Table, Domain, TimeVariable, DiscreteVariable
+from Orange.data import Table, TimeVariable, DiscreteVariable
 from Orange.util import color_to_hex
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.colorpalette import GradientPaletteGenerator
@@ -257,6 +257,8 @@ class Spiralogram(Highchart):
 
 
 def _enum_str(enum_value, inverse=False):
+    if isinstance(enum_value, DiscreteVariable):
+        enum_value = str(enum_value)
     if inverse:
         return enum_value.replace(' ', '_').upper()
     return enum_value.name.replace('_', ' ').lower()
