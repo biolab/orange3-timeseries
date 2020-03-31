@@ -40,6 +40,7 @@ class RangeSlider(QSlider):
         self.__hovered_control = QStyle.SC_None
         self.__active_slider = -1
         self.__click_offset = 0
+        self.__new_selection_drawing_origin = None  # type: (int, int)
 
     def paintEvent(self, event):
         # based on
@@ -105,6 +106,8 @@ class RangeSlider(QSlider):
             QStyle.CC_Slider, option, position, self) == QStyle.SC_SliderHandle
 
     def mouseReleaseEvent(self, event):
+        if self.__new_selection_drawing_origin:
+            self.__new_selection_drawing_origin = None
         self.__pressed_control = QStyle.SC_None
         if not self.hasTracking():
             self.setValues(self.__min_position, self.__max_position)
@@ -117,11 +120,11 @@ class RangeSlider(QSlider):
         event.accept()
         opt = QStyleOptionSlider()
         self.initStyleOption(opt)
-        self.__active_slider = -1
 
         for i, value in enumerate((self.__min_position, self.__max_position)):
             opt.sliderPosition = value
             if self._hitTestHandle(opt, event.pos()):
+                # Then move the handle
                 self.__active_slider = i
                 self.__pressed_control = QStyle.SC_SliderHandle
 
@@ -130,12 +133,27 @@ class RangeSlider(QSlider):
                 self.setSliderDown(True)
                 break
         else:
-            # If the user clicks the groove between the handles, the whole
-            # interval is moved
             self.__pressed_control = QStyle.SC_SliderGroove
-            self.__click_offset = self._pixelPosToRangeValue(self._pick(event.pos()))
+            self.__click_offset = self._pixelPosToRangeValue(
+                self._pick(event.pos()))
             self.triggerAction(self.SliderMove)
             self.setRepeatAction(self.SliderNoAction)
+
+            # Did the user click between the handles?
+            if self.__min_position < self.__click_offset < self.__max_position:
+                # Then move the whole interval
+                self.__active_slider = -1
+            else:
+                # Else draw a new interval
+                self.__new_selection_drawing_origin = low_v, hi_v = \
+                    self._pixelPosToSurroundingRangeValues(self._pick(event.pos()))
+                self.__min_position = low_v
+                self.__max_position = hi_v
+                self.update()
+                self.slidersMoved.emit(self.__min_position,
+                                       self.__max_position)
+                if self.hasTracking():
+                    self.setValues(self.__min_position, self.__max_position)
 
     def mouseMoveEvent(self, event):
         if self.__pressed_control not in (QStyle.SC_SliderGroove,
@@ -148,14 +166,29 @@ class RangeSlider(QSlider):
         self.initStyleOption(opt)
         pos = self._pixelPosToRangeValue(self._pick(event.pos()))
 
+        if self.__new_selection_drawing_origin:
+            # Drawing new time window
+            if pos <= self.__click_offset and self.__active_slider != 0:
+                self.__active_slider = 0
+                self.__max_position = self.__new_selection_drawing_origin[1]
+            elif pos > self.__click_offset and self.__active_slider != 1:
+                self.__active_slider = 1
+                self.__min_position = self.__new_selection_drawing_origin[0]
+
         if self.__active_slider < 0:
+            # Moving the time window
             offset = pos - self.__click_offset
-            self.__max_position = min(self.__max_position + offset, self.maximum())
-            self.__min_position = max(self.__min_position + offset, self.minimum())
+            self.__max_position = min(self.__max_position + offset,
+                                      self.maximum())
+            self.__min_position = max(self.__min_position + offset,
+                                      self.minimum())
             self.__click_offset = pos
         else:
+            # Moving a handle
             if self.__active_slider == 0:
-                if self.__max_position <= pos < self.maximum():
+                if not self.__new_selection_drawing_origin \
+                        and self.__max_position <= pos < self.maximum():
+                    # Flip to other slider
                     self.__active_slider = 1
                     self.__min_position = self.__max_position
                     self.__max_position = min(self.maximum(),
@@ -165,8 +198,11 @@ class RangeSlider(QSlider):
                     self.__min_position = max(self.minimum(),
                                               min(pos,
                                                   self.__max_position - 1))
+
             else:
-                if self.minimum() < pos <= self.__min_position:
+                if not self.__new_selection_drawing_origin \
+                        and self.minimum() < pos <= self.__min_position:
+                    # Flip to other slider
                     self.__active_slider = 0
                     self.__max_position = self.__min_position
                     self.__min_position = max(self.minimum(),
@@ -217,6 +253,36 @@ class RangeSlider(QSlider):
         return QStyle.sliderValueFromPosition(
             self.minimum(), self.maximum(), pos - slider_min,
             slider_max - slider_min, self.invertedAppearance())
+
+    def _pixelPosToSurroundingRangeValues(self, pos):
+        groove = self._subControlRect(QStyle.SC_SliderGroove)
+        handle = self._subControlRect(QStyle.SC_SliderHandle)
+
+        if self.orientation() == Qt.Horizontal:
+            slider_length = handle.width()
+            slider_min = groove.x()
+            slider_max = groove.right() - slider_length + 1
+        else:
+            slider_length = handle.height()
+            slider_min = groove.y()
+            slider_max = groove.bottom() - slider_length + 1
+
+        val = QStyle.sliderValueFromPosition(
+            self.minimum(), self.maximum(),
+            pos - slider_min, slider_max - slider_min,
+            self.invertedAppearance()
+        )
+
+        val_to_pixel = QStyle.sliderPositionFromValue(
+            self.minimum(), self.maximum(),
+            val, slider_max - slider_min,
+            self.invertedAppearance()
+        )
+
+        if val == self.maximum() or val_to_pixel > pos:
+            return val - 1, val
+        else:
+            return val, val + 1
 
     def values(self):
         return self.__min_value, self.__max_value
