@@ -1,3 +1,5 @@
+from enum import IntEnum
+
 import numpy as np
 
 from AnyQt.QtCore import Qt
@@ -20,7 +22,7 @@ class OWDifference(widget.OWWidget):
                   '1st or 2nd order discrete difference along its values. '
     icon = 'icons/Difference.svg'
     priority = 570
-    keywords = ['difference', 'derivative', 'quotient']
+    keywords = ['difference', 'derivative', 'quotient', 'percent change']
 
     class Inputs:
         time_series = Input("Time series", Table)
@@ -30,11 +32,16 @@ class OWDifference(widget.OWWidget):
 
     settingsHandler = DomainContextHandler()
     selected = ContextSetting([], schema_only=True)
+    class Operation(IntEnum):
+        DIFFERENCE = 0
+        QUOTIENT = 1
+        PERCENT = 2
 
     want_main_area = False
     resizing_enabled = False
+    op_names = dict(enumerate(['diff', 'quot', 'perc']))
 
-    calc_difference = settings.Setting(True)
+    chosen_operation = settings.Setting(0)
     diff_order = settings.Setting(1)
     shift_period = settings.Setting(1)
     invert_direction = settings.Setting(True)
@@ -53,10 +60,10 @@ class OWDifference(widget.OWWidget):
 
         box = gui.vBox(self.controlArea, 'Differencing')
 
-        gui.radioButtons(box, self, 'calc_difference', 
-                        ['Quotient', 'Difference'], label='Calculate :',
-                        callback=self.on_changed,
-                        orientation = Qt.Horizontal)
+        gui.comboBox(box, self, 'chosen_operation', 
+                        orientation=Qt.Horizontal,
+                        items=['Difference','Quotient', 'Percentage change'], label='Compute :',
+                        callback=self.on_changed)
     
         self.order_spin = gui.spin(
             box, self, 'diff_order', 1, 2,
@@ -65,7 +72,7 @@ class OWDifference(widget.OWWidget):
             tooltip='The value corresponds to n-th order numerical '
                     'derivative of the series. \nThe order is fixed to 1 '
                     'if the shift period is other than 1.')
-        self.order_spin.setEnabled(self.calc_difference)
+        self.order_spin.setEnabled(not self.chosen_operation)
         gui.spin(box, self, 'shift_period', 1, 100,
                  label='Shift:',
                  callback=self.on_changed,
@@ -122,7 +129,7 @@ class OWDifference(widget.OWWidget):
         self.model.wrap([])
 
     def on_changed(self):
-        self.order_spin.setDisabled(self.shift_period != 1 or not self.calc_difference)
+        self.order_spin.setDisabled(self.shift_period != 1 or self.chosen_operation)
         var_names = [i.row()
                      for i in self.view.selectionModel().selectedRows()]
         self.selected = [self.model[v] for v in var_names]
@@ -139,6 +146,7 @@ class OWDifference(widget.OWWidget):
         invert = self.invert_direction
         shift = self.shift_period
         order = self.diff_order
+        op = self.chosen_operation
         
         for var in self.selected:
             col = np.ravel(data[:, var])
@@ -147,14 +155,16 @@ class OWDifference(widget.OWWidget):
                 col = col[::-1]
 
             out = np.empty(len(col))
-            if self.calc_difference and shift == 1:
+            if op == self.Operation.DIFFERENCE and shift == 1:
                 out[:-order] = np.diff(col, order)
                 out[-order:] = np.nan
             else:
-                if self.calc_difference:
+                if op == self.Operation.DIFFERENCE:
                     out[:-shift] = col[shift:] - col[:-shift]
                 else:
                     out[:-shift] = np.divide(col[shift:], col[:-shift])
+                    if op == self.Operation.PERCENT:
+                        out = (out -1) * 100
                 out[-shift:] = np.nan
 
             if invert:
@@ -163,8 +173,10 @@ class OWDifference(widget.OWWidget):
             X.append(out)
 
             template = '{} ({}; {})'.format(var,
-                                              'diff' if self.calc_difference else 'qout',
-                                              'order={}'.format(order) if shift == 1 else
+                                              self.op_names[op],
+                                              'order={}'.format(order) if op == self.Operation.DIFFERENCE
+                                                                          and shift == 1 
+                                                                        else
                                               'shift={}'.format(shift))
             name = available_name(data.domain, template)
             attrs.append(ContinuousVariable(name))

@@ -61,7 +61,7 @@ class TestOWDifference(WidgetTest):
 
     def test_qoutient(self):
         w = self.widget
-        w.calc_difference = False
+        w.chosen_operation = w.Operation.QUOTIENT
         w.invert_direction = False
         w.shift_period = 1
         self.send_signal(w.Inputs.time_series, self.data[:6])
@@ -71,9 +71,21 @@ class TestOWDifference(WidgetTest):
         true_out = np.asarray([1, 1, 1, 1, 2, np.nan])
         np.testing.assert_array_equal(out, true_out)
 
+    def test_percent(self):
+        w = self.widget
+        w.chosen_operation = w.Operation.PERCENT
+        w.invert_direction = False
+        w.shift_period = 1
+        self.send_signal(w.Inputs.time_series, self.data[:6])
+        w.selected = ['petal width']
+        w.commit()
+        out = self.get_output(w.Outputs.time_series).X[:, -1]
+        true_out = np.asarray([0, 0, 0, 0, 100, np.nan])
+        np.testing.assert_array_equal(out, true_out)
+
     def test_order_spin(self):
         w = self.widget
-        w.calc_difference = True
+        w.chosen_operation = w.Operation.DIFFERENCE
         w.shift_period = 1
         w.on_changed()
         self.assertTrue(w.order_spin.isEnabled())
@@ -86,13 +98,17 @@ class TestOWDifference(WidgetTest):
         w.on_changed()
         self.assertTrue(w.order_spin.isEnabled())
 
-        w.calc_difference = False
+        w.chosen_operation = w.Operation.QUOTIENT
         w.on_changed()
         self.assertFalse(w.order_spin.isEnabled())
         
-        w.calc_difference = True
+        w.chosen_operation = w.Operation.DIFFERENCE
         w.on_changed()
         self.assertTrue(w.order_spin.isEnabled())
+
+        w.chosen_operation = w.Operation.PERCENT
+        w.on_changed()
+        self.assertFalse(w.order_spin.isEnabled())
 
 if __name__ == "__main__":
     unittest.main()
