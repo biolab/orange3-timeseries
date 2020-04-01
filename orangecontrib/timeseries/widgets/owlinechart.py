@@ -139,6 +139,9 @@ class Highstock(Highchart):
         # TODO: multiple series on the bottom navigator, http://jsfiddle.net/highcharts/SD4XN/
         return ax
 
+    def add_legend(self):
+        self.evalJS('''chart.legend.options.enabled = true;''')
+
     def removeAxis(self, ax):
         self.axes.remove(ax)
         self.evalJS('''
@@ -361,6 +364,7 @@ class OWLineChart(widget.OWWidget):
             # Disable bottom miniview navigator (it doesn't update)
             navigator_enabled=False, )
         QTimer.singleShot(0, self.add_plot)
+        self.chart.add_legend()
 
     def add_plot(self):
         ax = self.chart.addAxis()
