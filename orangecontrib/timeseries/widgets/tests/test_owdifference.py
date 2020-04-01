@@ -16,8 +16,10 @@ class TestOWDifference(WidgetTest):
         url = "https://datasets.biolab.si/core/ewba-slovenia-illegal-dumpsites.tab"
         self.data = Timeseries.from_url(url)
         self.simple_data = Table('iris')
+        self.selected = [self.simple_data.domain.attributes[-1]]
 
     def test_saved_selection(self):
+        self.widget.chosen_operation = self.widget.Operation.DIFF
         self.send_signal(self.widget.Inputs.time_series, self.data)
         output = self.get_output(self.widget.Outputs.time_series)
         # first item is selected and computed
@@ -39,11 +41,11 @@ class TestOWDifference(WidgetTest):
 
     def test_difference(self):
         w = self.widget
-        w.calc_difference = True
+        w.chosen_operation = w.Operation.DIFF
         w.diff_order = 1
         w.shift_period = 1
-        self.send_signal(w.Inputs.time_series, self.data[:6])
-        w.selected = ['petal width']
+        self.send_signal(w.Inputs.time_series, self.simple_data[:6])
+        w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
         true_out = np.asarray([np.nan, 0, 0, 0, 0, -0.2])
@@ -52,20 +54,20 @@ class TestOWDifference(WidgetTest):
         # test order always one, if shift > 1
         w.shift_period = 2
         w.diff_order = 5
-        self.send_signal(w.Inputs.time_series, self.data[:6])
-        w.selected = ['petal width']
+        self.send_signal(w.Inputs.time_series, self.simple_data[:6])
+        w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
         true_out = np.asarray([np.nan, np.nan, 0, 0, 0, -0.2])
         np.testing.assert_array_equal(out, true_out)
 
-    def test_qoutient(self):
+    def test_quotient(self):
         w = self.widget
-        w.chosen_operation = w.Operation.QUOTIENT
         w.invert_direction = False
         w.shift_period = 1
-        self.send_signal(w.Inputs.time_series, self.data[:6])
-        w.selected = ['petal width']
+        self.send_signal(w.Inputs.time_series, self.simple_data[:6])
+        w.chosen_operation = w.Operation.QUOT
+        w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
         true_out = np.asarray([1, 1, 1, 1, 2, np.nan])
@@ -73,11 +75,11 @@ class TestOWDifference(WidgetTest):
 
     def test_percent(self):
         w = self.widget
-        w.chosen_operation = w.Operation.PERCENT
         w.invert_direction = False
         w.shift_period = 1
-        self.send_signal(w.Inputs.time_series, self.data[:6])
-        w.selected = ['petal width']
+        self.send_signal(w.Inputs.time_series, self.simple_data[:6])
+        w.chosen_operation = w.Operation.PERC
+        w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
         true_out = np.asarray([0, 0, 0, 0, 100, np.nan])
@@ -85,7 +87,7 @@ class TestOWDifference(WidgetTest):
 
     def test_order_spin(self):
         w = self.widget
-        w.chosen_operation = w.Operation.DIFFERENCE
+        w.chosen_operation = w.Operation.DIFF
         w.shift_period = 1
         w.on_changed()
         self.assertTrue(w.order_spin.isEnabled())
@@ -93,22 +95,23 @@ class TestOWDifference(WidgetTest):
         w.shift_period = 2
         w.on_changed()
         self.assertFalse(w.order_spin.isEnabled())
-        
+
         w.shift_period = 1
         w.on_changed()
         self.assertTrue(w.order_spin.isEnabled())
 
-        w.chosen_operation = w.Operation.QUOTIENT
+        w.chosen_operation = w.Operation.QUOT
         w.on_changed()
         self.assertFalse(w.order_spin.isEnabled())
-        
-        w.chosen_operation = w.Operation.DIFFERENCE
+
+        w.chosen_operation = w.Operation.DIFF
         w.on_changed()
         self.assertTrue(w.order_spin.isEnabled())
 
-        w.chosen_operation = w.Operation.PERCENT
+        w.chosen_operation = w.Operation.PERC
         w.on_changed()
         self.assertFalse(w.order_spin.isEnabled())
+
 
 if __name__ == "__main__":
     unittest.main()
