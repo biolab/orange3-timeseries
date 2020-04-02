@@ -194,11 +194,20 @@ class RangeSlider(QSlider):
 
         if self.__active_slider < 0:
             # Moving the time window
+            width = self.__max_position - self.__min_position
             offset = pos - self.__click_offset
-            self.__max_position = min(self.__max_position + offset,
-                                      self.maximum())
-            self.__min_position = max(self.__min_position + offset,
-                                      self.minimum())
+            if offset >= 0:
+                self.__max_position = min(self.maximum(),
+                                          self.__max_position + offset)
+                self.__min_position = max(self.minimum(),
+                                          min(self.__min_position + offset,
+                                              self.__max_position - width))
+            else:
+                self.__min_position = max(self.minimum(),
+                                          self.__min_position + offset)
+                self.__max_position = min(self.maximum(),
+                                          max(self.__max_position + offset,
+                                              self.__min_position + width))
             self.__click_offset = pos
         else:
             # Moving a handle
