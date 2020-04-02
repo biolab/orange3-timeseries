@@ -465,18 +465,19 @@ class ViolinSlider(RangeSlider):
         painter.setOpacity(1)
 
         if self._show_text:
-            painter.setFont(QFont('sans-serif', 7, QFont.Bold))
+            painter.setFont(QFont('Monospace', 7, QFont.Bold))
             strMin, strMax = self.formatValues(minpos, maxpos)
             widthMin = painter.fontMetrics().width(strMin)
             widthMax = painter.fontMetrics().width(strMax)
             height = painter.fontMetrics().height()
-            is_enough_space = x2 - x1 > 2 + (max(widthMax, widthMin)
+            is_enough_space = x2 - x1 > 3 + (max(widthMax, widthMin)
                                              if is_horizontal else
                                              (2 * height + self._HANDLE_WIDTH))
             if is_enough_space:
                 if is_horizontal:
-                    painter.drawText(x1 + 3, rect.y() + height - 2, strMin)
-                    painter.drawText(x2 - widthMax - 1, rect.y() + rect.height() - 2, strMax)
+                    painter.drawText(x1 + 3, rect.y() + height, strMin)
+                    painter.drawText(x2 - widthMax - 2,
+                                     rect.y() + rect.height() - 3, strMax)
                 else:
                     painter.drawText(rect.x() + 1, x1 + height, strMin)
                     painter.drawText(rect.x() + rect.width() - widthMax - 1, x2 - 2, strMax)
