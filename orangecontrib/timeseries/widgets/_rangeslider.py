@@ -1,11 +1,15 @@
+import sys
+
 import numpy as np
 from scipy.stats import gaussian_kde
 
 # from PyQt5.QtCore import *
 # from PyQt5.QtGui import *
 # from PyQt5.QtWidgets import *
-from AnyQt.QtWidgets import QSlider, QStyle, QStylePainter, QStyleOptionSlider
-from AnyQt.QtGui import QPixmap, QPen, QPainter, QTransform, QBrush, QFont
+from AnyQt.QtWidgets import QSlider, QStyle, QStylePainter, \
+    QStyleOptionSlider
+from AnyQt.QtGui import QPixmap, QPen, QPainter, QTransform, QBrush, QFont, \
+    QColor
 from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize
 
 
@@ -41,6 +45,8 @@ class RangeSlider(QSlider):
         self.__active_slider = -1
         self.__click_offset = 0
         self.__new_selection_drawing_origin = None  # type: (int, int)
+
+        self._showControlTooltip = False
 
     def paintEvent(self, event):
         # based on
@@ -106,11 +112,13 @@ class RangeSlider(QSlider):
             QStyle.CC_Slider, option, position, self) == QStyle.SC_SliderHandle
 
     def mouseReleaseEvent(self, event):
+        self._showControlTooltip = False
         if self.__new_selection_drawing_origin:
             self.__new_selection_drawing_origin = None
         self.__pressed_control = QStyle.SC_None
         if not self.hasTracking():
             self.setValues(self.__min_position, self.__max_position)
+        self.update()
 
     def mousePressEvent(self, event):
         if not event.button():
@@ -121,23 +129,32 @@ class RangeSlider(QSlider):
         opt = QStyleOptionSlider()
         self.initStyleOption(opt)
 
+        self.triggerAction(self.SliderMove)
+        self.setRepeatAction(self.SliderNoAction)
+
+        # Is Ctrl/Cmd held?
+        if event.modifiers() & Qt.ControlModifier:
+            # Then move the whole interval
+            self.__active_slider = -1
+            self.__pressed_control = QStyle.SC_SliderGroove
+            self.__click_offset = self._pixelPosToRangeValue(self._pick(event.pos()))
+            return
+
+        # Is a handle being pressed?
         for i, value in enumerate((self.__min_position, self.__max_position)):
             opt.sliderPosition = value
             if self._hitTestHandle(opt, event.pos()):
                 # Then move the handle
                 self.__active_slider = i
                 self.__pressed_control = QStyle.SC_SliderHandle
-
-                self.triggerAction(self.SliderMove)
-                self.setRepeatAction(self.SliderNoAction)
                 self.setSliderDown(True)
+                self._showControlTooltip = True
+                self.update()
                 break
         else:
             self.__pressed_control = QStyle.SC_SliderGroove
             self.__click_offset = self._pixelPosToRangeValue(
                 self._pick(event.pos()))
-            self.triggerAction(self.SliderMove)
-            self.setRepeatAction(self.SliderNoAction)
 
             # Did the user click between the handles?
             if self.__min_position < self.__click_offset < self.__max_position:
@@ -463,6 +480,28 @@ class ViolinSlider(RangeSlider):
                 else:
                     painter.drawText(rect.x() + 1, x1 + height, strMin)
                     painter.drawText(rect.x() + rect.width() - widthMax - 1, x2 - 2, strMax)
+
+        # Tooltip
+        if self._showControlTooltip\
+                and (not self._show_text or not is_enough_space):
+            # (show control-drag tooltip)
+            painter.setFont(QFont('Monospace', 10, QFont.Normal))
+
+            text = "Hold {} to move time interval" \
+                   .format("Cmd" if sys.platform == "darwin"
+                           else "Ctrl")
+            w = painter.fontMetrics().width(text)
+            h = painter.fontMetrics().height()
+
+            brush = QColor(224, 224, 224, 212)
+            pen = QPen(Qt.NoPen)
+            rect = QRect(4, 4, w + 8, h + 4)
+            painter.setBrush(brush)
+            painter.setPen(pen)
+            painter.drawRect(rect)
+
+            painter.setPen(Qt.black)
+            painter.drawText(8, 4 + h, text)
 
     def formatValues(self, valueMin, valueMax):
         """Format the int values into strings that are shown if showText is True."""
