@@ -1,7 +1,9 @@
+import datetime
 from contextlib import contextmanager
 
 import operator
 from collections import OrderedDict
+from numbers import Number
 
 from AnyQt.QtWidgets import QLabel, QDateTimeEdit
 from AnyQt.QtCore import QDateTime, Qt, QSize, QTimer
@@ -11,38 +13,78 @@ from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries.util import add_time
 from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
 
 
-class _DoubleSlider:
-    _scale_minimum = 0
-    _scale_maximum = 0
-    _formatter = str
+class _TimeSliderMixin:
+    DEFAULT_SCALE_LENGTH = 500
 
-    def setScale(self, minimum, maximum):
-        self._scale_minimum = minimum
-        self._scale_maximum = maximum
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__scale_minimum = None
+        self.__scale_maximum = None
+        self.__time_delta = 0
+        self.__formatter = str
+
+    def setScale(self, minimum, maximum, time_delta):
+        self.__scale_minimum = datetime.datetime.fromtimestamp(
+            round(minimum),
+            tz=datetime.timezone.utc
+        )
+        self.__scale_maximum = datetime.datetime.fromtimestamp(
+            round(maximum),
+            tz=datetime.timezone.utc
+        )
+        self.__time_delta = time_delta
 
     def scale(self, value):
-        return (self._scale_minimum +
-                (self._scale_maximum - self._scale_minimum) *
-                (value - self.minimum()) / (self.maximum() - self.minimum()))
+        quantity = round(value - self.minimum())
+        delta = self.__time_delta
+        if delta is None:
+            return (self.__scale_minimum +
+                    (self.__scale_maximum - self.__scale_minimum) *
+                    (value - self.minimum()) /
+                    (self.maximum() - self.minimum())).timestamp()
+        scaled_dt = add_time(self.__scale_minimum, delta, quantity)
+        return scaled_dt.timestamp()
 
     def unscale(self, value):
         # Unscale e.g. absolute time to slider value
-        return ((value - self._scale_minimum) *
-                (self.maximum() - self.minimum()) /
-                (self._scale_maximum - self._scale_minimum) + self.minimum())
+        dt_val = datetime.datetime.fromtimestamp(round(value), tz=datetime.timezone.utc)
+        delta = self.__time_delta
+        if isinstance(delta, Number):
+            diff = dt_val - self.__scale_minimum
+            return round(diff / datetime.timedelta(milliseconds=1000 * delta))
+        elif delta:
+            if delta[1] == 'day':
+                diff = dt_val - self.__scale_minimum
+                return self.minimum() + delta[0] \
+                       * diff.days
+            elif delta[1] == 'month':
+                return self.minimum() + delta[0] \
+                       * ((dt_val.year - self.__scale_minimum.year) * 12
+                          + max(dt_val.month - self.__scale_minimum.month,
+                                0))
+            else:  # elif delta[1] == 'year':
+                return self.minimum() + delta[0] \
+                       * (dt_val.year - self.__scale_minimum.year)
+
+        return self.minimum() + ((dt_val - self.__scale_minimum) *
+                                 (self.maximum() - self.minimum()) /
+                                 (self.__scale_maximum - self.__scale_minimum) + self.minimum())
 
     def setFormatter(self, formatter):
-        self._formatter = formatter
+        self.__formatter = formatter
 
     def formatValues(self, minValue, maxValue):
-        return (self._formatter(int(self.scale(minValue))),
-                self._formatter(int(self.scale(maxValue))))
+        if None in [self.__scale_minimum, self.__scale_maximum]:
+            return '0', '0'
+        return (self.__formatter(int(self.scale(minValue))),
+                self.__formatter(int(self.scale(maxValue))))
 
 
-class Slider(_DoubleSlider, ViolinSlider):
+class Slider(_TimeSliderMixin, ViolinSlider):
     def sizeHint(self):
         return QSize(200, 100)
 
@@ -74,7 +116,7 @@ class OWTimeSlice(widget.OWWidget):
         no_time_variable = widget.Msg('Data contains no time variable')
 
     MAX_SLIDER_VALUE = 500
-    DATE_FORMATS = ('yyyy-MM-dd', 'HH:mm:ss.zzz')
+    DATE_FORMATS = ('yyyy', '-MM', '-dd', '  HH:mm:ss.zzz')
     OVERLAP_AMOUNTS = OrderedDict((
         ('all but one (= shift by one slider value)', 0),
         ('6/7 of interval', 6/7),
@@ -196,7 +238,7 @@ class OWTimeSlice(widget.OWWidget):
             time_values = self.data.time_values
         except AttributeError:
             return
-        indices = (minTime <= time_values) & (time_values <= maxTime)
+        indices = (minTime <= time_values) & (time_values < maxTime)
         self.Outputs.subset.send(self.data[indices] if indices.any() else None)
 
     def playthrough(self):
@@ -263,7 +305,7 @@ class OWTimeSlice(widget.OWWidget):
         def disabled():
             slider.setFormatter(str)
             slider.setHistogram(None)
-            slider.setScale(0, 0)
+            slider.setScale(0, 0, None)
             slider.setValues(0, 0)
             self._set_disabled(True)
             self.Outputs.subset.send(None)
@@ -281,19 +323,77 @@ class OWTimeSlice(widget.OWWidget):
 
         time_values = data.time_values
 
+        min_dt = datetime.datetime.fromtimestamp(round(time_values.min()), tz=datetime.timezone.utc)
+        max_dt = datetime.datetime.fromtimestamp(round(time_values.max()), tz=datetime.timezone.utc)
+
+        # Depending on time delta:
+        #   - set slider maximum (granularity)
+        #   - set date format
+        delta = data.time_delta
+        if isinstance(delta, Number):
+            range = max_dt - min_dt
+            maximum = round(range / delta)
+            timedelta = datetime.timedelta(milliseconds=delta * 1000)
+            max_dt += timedelta
+            date_format = ''.join(self.DATE_FORMATS)
+        elif delta:
+            if delta[1] == 'day':
+                range = max_dt - min_dt
+                maximum = range.days / delta[0]
+                timedelta = datetime.timedelta(days=delta[0])
+                max_dt2 = max_dt + timedelta
+                min_dt2 = min_dt + timedelta
+                date_format = ''.join(self.DATE_FORMATS[0:3])
+            elif delta[1] == 'month':
+                months = (max_dt.year - min_dt.year) * 12 + \
+                         (max_dt.month - min_dt.month)
+                maximum = months / delta[0]
+                if min_dt.month < 12 - delta[0]:
+                    min_dt2 = min_dt.replace(
+                        month=min_dt.month + delta[0]
+                    )
+                else:
+                    min_dt2 = min_dt.replace(
+                        year=min_dt.year + 1,
+                        month=12 - min_dt.month + delta[0]
+                    )
+                if max_dt.month < 12 - delta[0]:
+                    max_dt2 = max_dt.replace(
+                        month=max_dt.month + delta[0]
+                    )
+                else:
+                    max_dt = max_dt.replace(
+                        year=max_dt.year + 1,
+                        month=12 - min_dt.month + delta[0]
+                    )
+                date_format = ''.join(self.DATE_FORMATS[0:2])
+            else:  # elif delta[1] == 'year':
+                years = max_dt.year - min_dt.year
+                maximum = years / delta[0]
+                min_dt2 = min_dt.replace(
+                    year=min_dt.year + delta[0],
+                )
+                max_dt2 = max_dt.replace(
+                    year=max_dt.year + delta[0],
+                )
+                date_format = self.DATE_FORMATS[0]
+        else:
+            maximum = _TimeSliderMixin.DEFAULT_SCALE_LENGTH
+            date_format = ''.join(self.DATE_FORMATS)
+            max_dt2 = max_dt
+            min_dt2 = min_dt
+
+        slider.setMinimum(0)
+        slider.setMaximum(maximum + 1)
+
         self._set_disabled(False)
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
-        slider.setScale(time_values.min(), time_values.max())
+        slider.setScale(time_values.min(), time_values.max(), data.time_delta)
         self.sliderValuesChanged(slider.minimumValue(), slider.maximumValue())
 
-        # Update datetime edit fields
-        min_dt = QDateTime.fromMSecsSinceEpoch(time_values[0] * 1000).toUTC()
-        max_dt = QDateTime.fromMSecsSinceEpoch(time_values[-1] * 1000).toUTC()
         self.date_from.setDateTimeRange(min_dt, max_dt)
         self.date_to.setDateTimeRange(min_dt, max_dt)
-        date_format = '   '.join((self.DATE_FORMATS[0] if var.have_date else '',
-                                  self.DATE_FORMATS[1] if var.have_time else '')).strip()
         self.date_from.setDisplayFormat(date_format)
         self.date_to.setDisplayFormat(date_format)
 
