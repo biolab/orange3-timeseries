@@ -169,6 +169,14 @@ class OWTimeSlice(widget.OWWidget):
         date_from.dateTimeChanged.connect(lambda: datetime_edited(date_from))
         date_to.dateTimeChanged.connect(lambda: datetime_edited(date_to))
 
+        # hotfix, does not repaint on click of arrow
+        date_from.calendarWidget().currentPageChanged.connect(
+            lambda: date_from.calendarWidget().repaint()
+        )
+        date_to.calendarWidget().currentPageChanged.connect(
+            lambda: date_to.calendarWidget().repaint()
+        )
+
         hbox.layout().addStretch(100)
         hbox.layout().addWidget(date_from)
         hbox.layout().addWidget(QLabel(' – '))
@@ -260,6 +268,9 @@ class OWTimeSlice(widget.OWWidget):
             self.play_timer.stop()
             self.play_button.setText('▶')
 
+        # hotfix
+        self.repaint()
+
     def play_single_step(self, backward=False):
         op = operator.sub if backward else operator.add
         minValue, maxValue = self.slider.values()
@@ -293,6 +304,9 @@ class OWTimeSlice(widget.OWWidget):
             self.slider.setValues(minValue, maxValue)
         self.sliderValuesChanged(self.slider.minimumValue(), self.slider.maximumValue())
         self._delta = orig_delta  # Override valuesChanged handler
+
+        # hotfix
+        self.slider.repaint()
 
     def _set_disabled(self, is_disabled):
         for func in [self.date_from, self.date_to, self.step_backward, self.play_button,
