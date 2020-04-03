@@ -249,6 +249,10 @@ class OWTimeSlice(widget.OWWidget):
                        self.step_backward):
             widget.setDisabled(playing)
 
+        for widget in (self.date_from,
+                       self.date_to):
+            widget.setReadOnly(playing)
+
         if playing:
             self.play_timer.start()
             self.play_button.setText('▮▮')
