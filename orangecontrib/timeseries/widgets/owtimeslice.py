@@ -397,6 +397,12 @@ class OWTimeSlice(widget.OWWidget):
         self.date_from.setDisplayFormat(date_format)
         self.date_to.setDisplayFormat(date_format)
 
+        def format_time(i):
+            dt = QDateTime.fromMSecsSinceEpoch(i * 1000).toUTC()
+            return dt.toString(date_format)
+
+        self.slider.setFormatter(format_time)
+
 
 if __name__ == '__main__':
     from AnyQt.QtWidgets import QApplication
