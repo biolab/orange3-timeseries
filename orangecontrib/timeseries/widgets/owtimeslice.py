@@ -232,6 +232,14 @@ class OWTimeSlice(widget.OWWidget):
     def dteditValuesChanged(self, minTime, maxTime):
         minValue = self.slider.unscale(minTime)
         maxValue = self.slider.unscale(maxTime)
+        if minValue == maxValue:
+            # maxValue's range is minValue's range shifted by one
+            maxValue += 1
+            maxTime = self.slider.scale(maxValue)
+            to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
+            with blockSignals(self.date_to):
+                self.date_to.setDateTime(to_dt)
+
         self._delta = max(1, (maxValue - minValue))
 
         if self.slider_values != (minValue, maxValue):
@@ -352,15 +360,16 @@ class OWTimeSlice(widget.OWWidget):
             range = max_dt - min_dt
             maximum = round(range / delta)
             timedelta = datetime.timedelta(milliseconds=delta * 1000)
-            max_dt += timedelta
+            min_dt2 = min_dt + timedelta
+            max_dt2 = max_dt + timedelta
             date_format = ''.join(self.DATE_FORMATS)
         elif delta:
             if delta[1] == 'day':
                 range = max_dt - min_dt
                 maximum = range.days / delta[0]
                 timedelta = datetime.timedelta(days=delta[0])
-                max_dt2 = max_dt + timedelta
                 min_dt2 = min_dt + timedelta
+                max_dt2 = max_dt + timedelta
                 date_format = ''.join(self.DATE_FORMATS[0:3])
             elif delta[1] == 'month':
                 months = (max_dt.year - min_dt.year) * 12 + \
@@ -380,7 +389,7 @@ class OWTimeSlice(widget.OWWidget):
                         month=max_dt.month + delta[0]
                     )
                 else:
-                    max_dt = max_dt.replace(
+                    max_dt2 = max_dt.replace(
                         year=max_dt.year + 1,
                         month=12 - min_dt.month + delta[0]
                     )
@@ -411,7 +420,7 @@ class OWTimeSlice(widget.OWWidget):
         self.sliderValuesChanged(slider.minimumValue(), slider.maximumValue())
 
         self.date_from.setDateTimeRange(min_dt, max_dt)
-        self.date_to.setDateTimeRange(min_dt, max_dt)
+        self.date_to.setDateTimeRange(min_dt2, max_dt2)
         self.date_from.setDisplayFormat(date_format)
         self.date_to.setDisplayFormat(date_format)
 
