@@ -10,7 +10,7 @@ from AnyQt.QtWidgets import QSlider, QStyle, QStylePainter, \
     QStyleOptionSlider
 from AnyQt.QtGui import QPixmap, QPen, QPainter, QTransform, QBrush, QFont, \
     QColor
-from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize
+from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize, QTimer
 
 
 def _INVALID(*args):
@@ -32,6 +32,7 @@ class RangeSlider(QSlider):
         maximum = kwargs.get('maximum', 0)
         self.__min_value = self._min_position = kwargs.pop('minimumValue', minimum)
         self.__max_value = self._max_position = kwargs.pop('maximumValue', maximum)
+        playback_interval = kwargs.pop('playbackInterval', 1000)
         self._min_position = kwargs.pop('minimumPosition', self._min_position)
         self._max_position = kwargs.pop('maximumPosition', self._max_position)
 
@@ -39,6 +40,11 @@ class RangeSlider(QSlider):
         kwargs.setdefault('tickPosition', self.TicksBelow)
 
         super().__init__(*args, **kwargs)
+
+        self.tracking_timer = QTimer(self,
+                                     interval=playback_interval,
+                                     timeout=self.__send_tracked_selection)
+        self.__tracked_selection = None
 
         self.__pressed_control = QStyle.SC_None
         self.__hovered_control = QStyle.SC_None
@@ -123,7 +129,10 @@ class RangeSlider(QSlider):
         if self.__new_selection_drawing_origin:
             self.__new_selection_drawing_origin = None
         self.__pressed_control = QStyle.SC_None
-        if not self.hasTracking():
+        if self.hasTracking():
+            self.tracking_timer.stop()
+            self.__send_tracked_selection()
+        else:
             self.setValues(self._min_position, self._max_position)
         self.update()
 
@@ -138,6 +147,9 @@ class RangeSlider(QSlider):
 
         self.triggerAction(self.SliderMove)
         self.setRepeatAction(self.SliderNoAction)
+
+        if self.hasTracking():
+            self.tracking_timer.start()
 
         # Is Ctrl/Cmd held?
         if event.modifiers() & Qt.ControlModifier:
@@ -248,7 +260,12 @@ class RangeSlider(QSlider):
         # insider triggerAction() which would be called here instead.
         # But I don't want to override that as well, so simply:
         if self.hasTracking():
-            self.setValues(self._min_position, self._max_position)
+            self.__tracked_selection = (self._min_position, self._max_position)
+
+    def __send_tracked_selection(self):
+        if self.__tracked_selection:
+            self.setValues(*self.__tracked_selection)
+            self.__tracked_selection = None
 
     def _pick(self, pt):
         return pt.x() if self.orientation() == Qt.Horizontal else pt.y()

@@ -139,7 +139,8 @@ class OWTimeSlice(widget.OWWidget):
                                  timeout=self.play_single_step)
         slider = self.slider = Slider(Qt.Horizontal, self,
                                       minimum=0, maximum=self.MAX_SLIDER_VALUE,
-                                      tracking=False,
+                                      tracking=True,
+                                      playbackInterval=self.playback_interval,
                                       valuesChanged=self.sliderValuesChanged,
                                       minimumValue=self.slider_values[0],
                                       maximumValue=self.slider_values[1])
@@ -197,7 +198,8 @@ class OWTimeSlice(widget.OWWidget):
         gui.spin(vbox, self, 'playback_interval',
                  label='Playback delay (msec):',
                  minv=100, maxv=30000, step=200,
-                 callback=lambda: self.play_timer.setInterval(self.playback_interval))
+                 callback=lambda: (self.play_timer.setInterval(self.playback_interval),
+                                   self.slider.tracking_timer.setInterval(self.playback_interval)))
 
         hbox = gui.hBox(vbox)
         self.step_backward = gui.button(hbox, self, '⏮',
