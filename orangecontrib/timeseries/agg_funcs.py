@@ -1,3 +1,5 @@
+from typing import NamedTuple, Union, Callable
+
 import numpy as np
 from scipy.stats import mode, hmean, gmean
 
@@ -105,20 +107,25 @@ class Concatenate(_AggFunc):
         return ' ; '.join(map(str, arr))
 
 
-AGG_FUNCTIONS = [
-    Mean,
-    Sum,
-    Max,
-    Min,
-    Median,
-    Mode,
-    Std_deviation,
-    Variance,
-    Product,
-    Weighted_MA,
-    Exponential_MA,
-    Harmonic_mean,
-    Geometric_mean,
-    Count_nonzero,
-    Count_defined,
-]
+AggDesc = NamedTuple("AggDesc", [("transform", Callable),
+                                 ("disc", bool), ("time", bool)])
+
+AGG_OPTIONS = {
+    'Mean': AggDesc(Mean, False, True),
+    'Sum': AggDesc(Sum, False, False),
+    'Max': AggDesc(Max, False, True),
+    'Min': AggDesc(Min, False, True),
+    'Median': AggDesc(Median, False, True),
+    'Mode': AggDesc(Mode, True, True),
+    'Std.': AggDesc(Std_deviation, False, False),
+    'Variance': AggDesc(Variance, False, False),
+    'Product': AggDesc(Product, False, False),
+    'Weighted MA': AggDesc(Weighted_MA, False, False),
+    'Exponential MA': AggDesc(Exponential_MA, False, False),
+    'Harmonic Mean': AggDesc(Harmonic_mean, False, False),
+    'Geometric Mean': AggDesc(Geometric_mean, False, False),
+    'Count nonzero': AggDesc(Count_nonzero, True, True),
+    'Count defined': AggDesc(Count_defined, True, True)
+}
+
+AGG_FUNCTIONS = [func.transform for func in AGG_OPTIONS.values()]

@@ -11,19 +11,15 @@ from Orange.util import color_to_hex
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.colorpalettes import ContinuousPalette
 from Orange.widgets.utils.itemmodels import VariableListModel
+from orangewidget.utils.widgetpreview import WidgetPreview
 from Orange.widgets.widget import Input, Output
-from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries, fromtimestamp
-from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mode
+from orangecontrib.timeseries.agg_funcs import AGG_OPTIONS, Mode
 from orangecontrib.timeseries.widgets.highcharts import Highchart
 
-from AnyQt.QtWidgets import QListView
-from AnyQt.QtCore import QItemSelectionModel
-
-
 red_palette = ContinuousPalette('Linear Red', 'linear_red',
-                               [[204, 0, 0], [204, 1, 0], [204, 1, 1], [204, 2, 2], [204, 3, 3], [205, 4, 4], [205, 5, 4], [205, 5, 5], [205, 6, 6], [205, 7, 7], [206, 8, 8], [206, 9, 8], [206, 9, 9], [206, 10, 10], [206, 11, 11], [207, 12, 12], [207, 13, 12], [207, 13, 13], [207, 14, 14], [207, 15, 15], [208, 16, 16], [208, 17, 16], [208, 17, 17], [208, 18, 18], [208, 19, 19], [209, 20, 20], [209, 21, 20], [209, 21, 21], [209, 22, 22], [209, 23, 23], [210, 24, 24], [210, 25, 24], [210, 25, 25], [210, 26, 26], [210, 27, 27], [211, 28, 28], [211, 29, 28], [211, 29, 29], [211, 30, 30], [211, 31, 31], [212, 32, 32], [212, 33, 32], [212, 33, 33], [212, 34, 34], [212, 35, 35], [213, 36, 36], [213, 37, 36], [213, 37, 37], [213, 38, 38], [213, 39, 39], [214, 40, 40], [214, 41, 40], [214, 41, 41], [214, 42, 42], [214, 43, 43], [215, 44, 44], [215, 45, 44], [215, 45, 45], [215, 46, 46], [215, 47, 47], [216, 48, 48], [216, 49, 48], [216, 49, 49], [216, 50, 50], [216, 51, 51], [217, 52, 52], [217, 53, 52], [217, 53, 53], [217, 54, 54], [217, 55, 55], [218, 56, 56], [218, 57, 56], [218, 57, 57], [218, 58, 58], [218, 59, 59], [219, 60, 60], [219, 61, 60], [219, 61, 61], [219, 62, 62], [219, 63, 63], [220, 64, 64], [220, 65, 64], [220, 65, 65], [220, 66, 66], [220, 67, 67], [221, 68, 68], [221, 69, 68], [221, 69, 69], [221, 70, 70], [221, 71, 71], [222, 72, 72], [222, 73, 72], [222, 73, 73], [222, 74, 74], [222, 75, 75], [223, 76, 76], [223, 77, 76], [223, 77, 77], [223, 78, 78], [223, 79, 79], [224, 80, 80], [224, 81, 80], [224, 81, 81], [224, 82, 82], [224, 83, 83], [225, 84, 84], [225, 85, 84], [225, 85, 85], [225, 86, 86], [225, 87, 87], [226, 88, 88], [226, 89, 88], [226, 89, 89], [226, 90, 90], [226, 91, 91], [227, 92, 92], [227, 93, 92], [227, 93, 93], [227, 94, 94], [227, 95, 95], [228, 96, 96], [228, 97, 96], [228, 97, 97], [228, 98, 98], [228, 99, 99], [229, 100, 100], [229, 101, 100], [229, 101, 101], [229, 102, 102], [229, 103, 103], [230, 104, 104], [230, 105, 104], [230, 105, 105], [230, 106, 106], [230, 107, 107], [231, 108, 108], [231, 109, 108], [231, 109, 109], [231, 110, 110], [231, 111, 111], [232, 112, 112], [232, 113, 112], [232, 113, 113], [232, 114, 114], [232, 115, 115], [233, 116, 116], [233, 117, 116], [233, 117, 117], [233, 118, 118], [233, 119, 119], [234, 120, 120], [234, 121, 120], [234, 121, 121], [234, 122, 122], [234, 123, 123], [235, 124, 124], [235, 125, 124], [235, 125, 125], [235, 126, 126], [235, 127, 127], [236, 128, 128], [236, 129, 128], [236, 129, 129], [236, 130, 130], [236, 131, 131], [237, 132, 132], [237, 133, 132], [237, 133, 133], [237, 134, 134], [237, 135, 135], [238, 136, 136], [238, 137, 136], [238, 137, 137], [238, 138, 138], [238, 139, 139], [239, 140, 140], [239, 141, 140], [239, 141, 141], [239, 142, 142], [239, 143, 143], [240, 144, 144], [240, 145, 144], [240, 145, 145], [240, 146, 146], [240, 147, 147], [241, 148, 148], [241, 149, 148], [241, 149, 149], [241, 150, 150], [241, 151, 151], [242, 152, 152], [242, 153, 152], [242, 153, 153], [242, 154, 154], [242, 155, 155], [243, 156, 156], [243, 157, 156], [243, 157, 157], [243, 158, 158], [243, 159, 159], [244, 160, 160], [244, 161, 160], [244, 161, 161], [244, 162, 162], [244, 163, 163], [245, 164, 164], [245, 165, 164], [245, 165, 165], [245, 166, 166], [245, 167, 167], [246, 168, 168], [246, 169, 168], [246, 169, 169], [246, 170, 170], [246, 171, 171], [247, 172, 172], [247, 173, 172], [247, 173, 173], [247, 174, 174], [247, 175, 175], [248, 176, 176], [248, 177, 176], [248, 177, 177], [248, 178, 178], [248, 179, 179], [249, 180, 180], [249, 181, 180], [249, 181, 181], [249, 182, 182], [249, 183, 183], [250, 184, 184], [250, 185, 184], [250, 185, 185], [250, 186, 186], [250, 187, 187], [251, 188, 188], [251, 189, 188], [251, 189, 189], [251, 190, 190], [251, 191, 191], [252, 192, 192], [252, 193, 192], [252, 193, 193], [252, 194, 194], [252, 195, 195], [253, 196, 196], [253, 197, 196], [253, 197, 197], [253, 198, 198], [253, 199, 199], [254, 200, 200], [254, 201, 200], [254, 201, 201], [254, 202, 202], [254, 203, 203], [255, 204, 204]]
-                               )
+                                [[204, 0, 0], [204, 1, 0], [204, 1, 1], [204, 2, 2], [204, 3, 3], [205, 4, 4], [205, 5, 4], [205, 5, 5], [205, 6, 6], [205, 7, 7], [206, 8, 8], [206, 9, 8], [206, 9, 9], [206, 10, 10], [206, 11, 11], [207, 12, 12], [207, 13, 12], [207, 13, 13], [207, 14, 14], [207, 15, 15], [208, 16, 16], [208, 17, 16], [208, 17, 17], [208, 18, 18], [208, 19, 19], [209, 20, 20], [209, 21, 20], [209, 21, 21], [209, 22, 22], [209, 23, 23], [210, 24, 24], [210, 25, 24], [210, 25, 25], [210, 26, 26], [210, 27, 27], [211, 28, 28], [211, 29, 28], [211, 29, 29], [211, 30, 30], [211, 31, 31], [212, 32, 32], [212, 33, 32], [212, 33, 33], [212, 34, 34], [212, 35, 35], [213, 36, 36], [213, 37, 36], [213, 37, 37], [213, 38, 38], [213, 39, 39], [214, 40, 40], [214, 41, 40], [214, 41, 41], [214, 42, 42], [214, 43, 43], [215, 44, 44], [215, 45, 44], [215, 45, 45], [215, 46, 46], [215, 47, 47], [216, 48, 48], [216, 49, 48], [216, 49, 49], [216, 50, 50], [216, 51, 51], [217, 52, 52], [217, 53, 52], [217, 53, 53], [217, 54, 54], [217, 55, 55], [218, 56, 56], [218, 57, 56], [218, 57, 57], [218, 58, 58], [218, 59, 59], [219, 60, 60], [219, 61, 60], [219, 61, 61], [219, 62, 62], [219, 63, 63], [220, 64, 64], [220, 65, 64], [220, 65, 65], [220, 66, 66], [220, 67, 67], [221, 68, 68], [221, 69, 68], [221, 69, 69], [221, 70, 70], [221, 71, 71], [222, 72, 72], [222, 73, 72], [222, 73, 73], [222, 74, 74], [222, 75, 75], [223, 76, 76], [223, 77, 76], [223, 77, 77], [223, 78, 78], [223, 79, 79], [224, 80, 80], [224, 81, 80], [224, 81, 81], [224, 82, 82], [224, 83, 83], [225, 84, 84], [225, 85, 84], [225, 85, 85], [225, 86, 86], [225, 87, 87], [226, 88, 88], [226, 89, 88], [226, 89, 89], [226, 90, 90], [226, 91, 91], [227, 92, 92], [227, 93, 92], [227, 93, 93], [227, 94, 94], [227, 95, 95], [228, 96, 96], [228, 97, 96], [228, 97, 97], [228, 98, 98], [228, 99, 99], [229, 100, 100], [229, 101, 100], [229, 101, 101], [229, 102, 102], [229, 103, 103], [230, 104, 104], [230, 105, 104], [230, 105, 105], [230, 106, 106], [230, 107, 107], [231, 108, 108], [231, 109, 108], [231, 109, 109], [231, 110, 110], [231, 111, 111], [232, 112, 112], [232, 113, 112], [232, 113, 113], [232, 114, 114], [232, 115, 115], [233, 116, 116], [233, 117, 116], [233, 117, 117], [233, 118, 118], [233, 119, 119], [234, 120, 120], [234, 121, 120], [234, 121, 121], [234, 122, 122], [234, 123, 123], [235, 124, 124], [235, 125, 124], [235, 125, 125], [235, 126, 126], [235, 127, 127], [236, 128, 128], [236, 129, 128], [236, 129, 129], [236, 130, 130], [236, 131, 131], [237, 132, 132], [237, 133, 132], [237, 133, 133], [237, 134, 134], [237, 135, 135], [238, 136, 136], [238, 137, 136], [238, 137, 137], [238, 138, 138], [238, 139, 139], [239, 140, 140], [239, 141, 140], [239, 141, 141], [239, 142, 142], [239, 143, 143], [240, 144, 144], [240, 145, 144], [240, 145, 145], [240, 146, 146], [240, 147, 147], [241, 148, 148], [241, 149, 148], [241, 149, 149], [241, 150, 150], [241, 151, 151], [242, 152, 152], [242, 153, 152], [242, 153, 153], [242, 154, 154], [242, 155, 155], [243, 156, 156], [243, 157, 156], [243, 157, 157], [243, 158, 158], [243, 159, 159], [244, 160, 160], [244, 161, 160], [244, 161, 161], [244, 162, 162], [244, 163, 163], [245, 164, 164], [245, 165, 164], [245, 165, 165], [245, 166, 166], [245, 167, 167], [246, 168, 168], [246, 169, 168], [246, 169, 169], [246, 170, 170], [246, 171, 171], [247, 172, 172], [247, 173, 172], [247, 173, 173], [247, 174, 174], [247, 175, 175], [248, 176, 176], [248, 177, 176], [248, 177, 177], [248, 178, 178], [248, 179, 179], [249, 180, 180], [249, 181, 180], [249, 181, 181], [249, 182, 182], [249, 183, 183], [250, 184, 184], [250, 185, 184], [250, 185, 185], [250, 186, 186], [250, 187, 187], [251, 188, 188], [251, 189, 188], [251, 189, 189], [251, 190, 190], [251, 191, 191], [252, 192, 192], [252, 193, 192], [252, 193, 193], [252, 194, 194], [252, 195, 195], [253, 196, 196], [253, 197, 196], [253, 197, 197], [253, 198, 198], [253, 199, 199], [254, 200, 200], [254, 201, 200], [254, 201, 201], [254, 202, 202], [254, 203, 203], [255, 204, 204]]
+                                )
 
 
 class Spiralogram(Highchart):
@@ -35,26 +31,31 @@ class Spiralogram(Highchart):
     """
 
     class AxesCategories(Enum):
-        YEARS =  ('', lambda _, d: d.year)
+        YEARS = ('', lambda _, d: d.year)
         MONTHS = ('', lambda _, d: d.month)
-        DAYS =   ('', lambda _, d: d.day)
-        MONTHS_OF_YEAR =  (tuple(range(1, 13)),  lambda _, d: d.month)
-        DAYS_OF_WEEK =    (tuple(range(0, 7)),   lambda _, d: d.weekday())
-        DAYS_OF_MONTH =   (tuple(range(1, 32)),  lambda _, d: d.day)
-        DAYS_OF_YEAR =    (tuple(range(1, 367)), lambda _, d: d.timetuple().tm_yday)
-        WEEKS_OF_YEAR =   (tuple(range(1, 54)),  lambda _, d: d.isocalendar()[1])
-        WEEKS_OF_MONTH =  (tuple(range(1, 6)),   lambda _, d: int(np.ceil((d.day + d.replace(day=1).weekday()) / 7)))
-        HOURS_OF_DAY =    (tuple(range(24)),     lambda _, d: d.hour)
-        MINUTES_OF_HOUR = (tuple(range(60)),     lambda _, d: d.minute)
+        DAYS = ('', lambda _, d: d.day)
+        MONTHS_OF_YEAR = (tuple(range(1, 13)), lambda _, d: d.month)
+        DAYS_OF_WEEK = (tuple(range(0, 7)), lambda _, d: d.weekday())
+        DAYS_OF_MONTH = (tuple(range(1, 32)), lambda _, d: d.day)
+        DAYS_OF_YEAR = (
+        tuple(range(1, 367)), lambda _, d: d.timetuple().tm_yday)
+        WEEKS_OF_YEAR = (tuple(range(1, 54)), lambda _, d: d.isocalendar()[1])
+        WEEKS_OF_MONTH = (tuple(range(1, 6)), lambda _, d: int(
+            np.ceil((d.day + d.replace(day=1).weekday()) / 7)))
+        HOURS_OF_DAY = (tuple(range(24)), lambda _, d: d.hour)
+        MINUTES_OF_HOUR = (tuple(range(60)), lambda _, d: d.minute)
 
         @staticmethod
         def month_name(month):
             return ('January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December')[month - 1]
+                    'July', 'August', 'September', 'October', 'November',
+                    'December')[month - 1]
 
         @staticmethod
         def weekday_name(weekday):
-            return ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')[weekday]
+            return (
+            'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+            'Sunday')[weekday]
 
         @classmethod
         def name_it(cls, dim):
@@ -84,15 +85,16 @@ class Spiralogram(Highchart):
         else:
             yvals, yfunc = ydim.value
 
-        attr = attr[0]
         values = timeseries.get_column_view(attr)[0]
         time_values = [fromtimestamp(i, tz=timeseries.time_variable.timezone)
                        for i in timeseries.time_values]
 
         if not yvals:
-            yvals = sorted(set(yfunc(i, v) for i, v in enumerate(time_values) if v is not None))
+            yvals = sorted(set(yfunc(i, v) for i, v in enumerate(time_values) if
+                               v is not None))
         if not xvals:
-            xvals = sorted(set(xfunc(i, v) for i, v in enumerate(time_values) if v is not None))
+            xvals = sorted(set(xfunc(i, v) for i, v in enumerate(time_values) if
+                               v is not None))
 
         indices = defaultdict(list)
         for i, tval in enumerate(time_values):
@@ -145,13 +147,13 @@ class Spiralogram(Highchart):
                 if isinstance(n, Number):
                     val = (n - minval) / ptpval
 
-                    if attr.is_discrete:
+                    if attr.is_discrete and fagg == Mode:
                         point['n'] = attr.repr_val(n)
                     elif isinstance(attr, TimeVariable):
                         point['n'] = attr.repr_val(n)
 
-                    point['color'] = color_to_hex(attr.colors[int(n)]) if\
-                            attr.is_discrete else color[val]
+                    point['color'] = color_to_hex(attr.colors[int(n)]) if \
+                        attr.is_discrete else color[val]
                     point['states'] = dict(select=dict(borderColor="black"))
 
         # TODO: make a white hole in the middle. Center w/o data.
@@ -176,11 +178,12 @@ class Spiralogram(Highchart):
         chart=dict(
             type='column',
             polar=True,
-            panning=False,  # Fixes: https://github.com/highcharts/highcharts/issues/5240
+            panning=False, # Fixes: https://github.com/highcharts/highcharts/issues/5240
             events=dict(
                 selection='/**/ zoomSelection',  # from _spiralogram.js
             ),
-            zoomType='xy',  # polar=True disabled this, but is again reenabled in JS after chart init
+            zoomType='xy',
+            # polar=True disabled this, but is again reenabled in JS after chart init
         ),
         legend=dict(
             enabled=False,  # FIXME: Have a heatmap-style legend
@@ -261,6 +264,9 @@ def _enum_str(enum_value, inverse=False):
     return enum_value.name.replace('_', ' ').lower()
 
 
+DEFAULT_AGG_FUNC = next(iter(AGG_OPTIONS.keys()))
+
+
 class OWSpiralogram(widget.OWWidget):
     name = 'Spiralogram'
     description = "Visualize time series' periodicity in a spiral heatmap."
@@ -278,8 +284,8 @@ class OWSpiralogram(widget.OWWidget):
     ax1 = settings.ContextSetting('months of year')
     ax2 = settings.ContextSetting('years')
 
-    agg_attr = settings.ContextSetting([])
-    agg_func = settings.ContextSetting(0)
+    agg_attr = settings.ContextSetting(None)
+    agg_func = settings.ContextSetting(DEFAULT_AGG_FUNC)
 
     invert_date_order = settings.Setting(False)
 
@@ -309,18 +315,18 @@ class OWSpiralogram(widget.OWWidget):
                      callback=self.replot)
 
         box = gui.vBox(self.controlArea, 'Aggregation')
-        self.combo_func = gui.comboBox(
-            box, self, 'agg_func', label='Function:', orientation='horizontal',
-            callback=self.replot)
-        func_model = ListModel(AGG_FUNCTIONS, parent=self)
-        self.combo_func.setModel(func_model)
 
-        self.attrlist_model = VariableListModel(parent=self)
-        self.attrlist = QListView(selectionMode=QListView.SingleSelection)
-        self.attrlist.setModel(self.attrlist_model)
-        self.attrlist.selectionModel().selectionChanged.connect(
-            self.attrlist_selectionChanged)
-        box.layout().addWidget(self.attrlist)
+        self.attrs_model = VariableListModel()
+        self.attr_cb = gui.comboBox(box, self, 'agg_attr',
+                                    sendSelectedValue=True,
+                                    model=self.attrs_model,
+                                    callback=self.update_agg_combo)
+
+        self.combo_func = gui.comboBox(
+            box, self, 'agg_func', label='Function:',
+            items=[DEFAULT_AGG_FUNC], orientation='horizontal',
+            sendSelectedValue=True,
+            callback=self.replot)
 
         gui.rubber(self.controlArea)
 
@@ -328,16 +334,11 @@ class OWSpiralogram(widget.OWWidget):
                                          selection_callback=self.on_selection)
         self.mainArea.layout().addWidget(chart)
 
-    def attrlist_selectionChanged(self):
-        self.agg_attr = [self.attrlist_model[i.row()]
-                         for i in self.attrlist.selectionModel().selectedIndexes()]
-        self.replot()
-
     @Inputs.time_series
     def set_data(self, data):
         self.Error.clear()
         self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data, detect_time_variable=True)
+            Timeseries.from_data_table(data, detect_time_variable=True)
 
         if data is None:
             self.commit()
@@ -352,19 +353,22 @@ class OWSpiralogram(widget.OWWidget):
         def init_combos():
             for model in (self.combo_ax1_model, self.combo_ax2_model):
                 model.clear()
-            newmodel = []
+            variables = []
             if data is not None and data.time_variable is not None:
                 for model in (self.combo_ax1_model, self.combo_ax2_model):
-                    model[:] = [_enum_str(i) for i in Spiralogram.AxesCategories]
+                    model[:] = [_enum_str(i) for i in
+                                Spiralogram.AxesCategories]
             for var in data.domain.variables if data is not None else []:
                 if (var.is_primitive() and
                         (var is not data.time_variable or
-                         data.time_delta.backwards_compatible_delta is None)):
-                    newmodel.append(var)
+                         isinstance(var, TimeVariable)
+                         and data.time_delta.backwards_compatible_delta is None)):
+                    variables.append(var)
+
                 if var.is_discrete:
                     for model in (self.combo_ax1_model, self.combo_ax2_model):
                         model.append(var)
-            self.attrlist_model.wrap(newmodel)
+            self.attrs_model[:] = variables
 
         init_combos()
         self.chart.clear()
@@ -374,35 +378,35 @@ class OWSpiralogram(widget.OWWidget):
                          for i in range(self.combo_ax2.count())), '')
         self.ax1 = next((self.combo_ax1.itemText(i)
                          for i in range(1, self.combo_ax1.count())), self.ax2)
-        self.agg_attr = [data.domain.variables[0]] if len(data.domain.variables) else []
-        self.agg_func = 0
+        self.agg_attr = data.domain[self.attrs_model[0]] if len(
+            data.domain.variables) else None
+        self.agg_func = DEFAULT_AGG_FUNC
+
         if getattr(data, 'time_variable', None) is not None:
             self.openContext(data.domain)
 
-        if self.agg_attr:
-            self.attrlist.blockSignals(True)
-            self.attrlist.selectionModel().clear()
-            for attr in self.agg_attr:
-                try:
-                    row = self.attrlist_model.indexOf(attr)
-                except ValueError:
-                    continue
-                self.attrlist.selectionModel().select(
-                    self.attrlist_model.index(row),
-                    QItemSelectionModel.SelectCurrent)
-            self.attrlist.blockSignals(False)
+        self.update_agg_combo()
+        self.replot()
 
+    def update_agg_combo(self):
+        self.combo_func.clear()
+        new_aggs = AGG_OPTIONS
+
+        if self.agg_attr is not None:
+            if self.agg_attr.is_discrete:
+                new_aggs = [agg for agg in AGG_OPTIONS if AGG_OPTIONS[agg].disc]
+            elif self.agg_attr.is_time:
+                new_aggs = [agg for agg in AGG_OPTIONS if AGG_OPTIONS[agg].time]
+        self.combo_func.addItems(new_aggs)
+
+        self.agg_func = next(iter(new_aggs))
         self.replot()
 
     def replot(self):
         if not self.combo_ax1.count() or not self.agg_attr:
             return self.chart.clear()
 
-        vars = self.agg_attr
-        func = AGG_FUNCTIONS[self.agg_func]
-        if any(var.is_discrete for var in vars) and func != Mode:
-            self.combo_func.setCurrentIndex(AGG_FUNCTIONS.index(Mode))
-            func = Mode
+        func = AGG_OPTIONS[self.agg_func].transform
         try:
             ax1 = Spiralogram.AxesCategories[_enum_str(self.ax1, True)]
         except KeyError:
@@ -412,22 +416,16 @@ class OWSpiralogram(widget.OWWidget):
             ax2 = Spiralogram.AxesCategories[_enum_str(self.ax2, True)]
         except KeyError:
             ax2 = self.data.domain[self.ax2]
-        self.chart.setSeries(self.data, vars, ax1, ax2, func)
+        self.chart.setSeries(self.data, self.agg_attr, ax1, ax2, func)
 
     def on_selection(self, indices):
         self.indices = self.chart.selection_indices(indices)
         self.commit()
 
     def commit(self):
-        self.Outputs.time_series.send(self.data[self.indices] if self.data else None)
+        self.Outputs.time_series.send(
+            self.data[self.indices] if self.data else None)
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication([])
-    ow = OWSpiralogram()
-    ow.set_data(Table.from_file('airpassengers'))
-
-    ow.show()
-    a.exec()
+    WidgetPreview(OWSpiralogram).run(Table.from_file('airpassengers'))

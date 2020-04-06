@@ -66,6 +66,15 @@ class TestOWSpiralogram(WidgetTest):
         # test all possibilites for radial
         simulate.combobox_run_through_all(w.combo_ax1)
 
+    def test_time_variable(self):
+        """ Spiralogram should work with TimeVariable. """
+        w = self.widget
+        self.send_signal(w.Inputs.time_series, self.philadelphia)
+        # select time variable
+        simulate.combobox_activate_item(w.attr_cb, 'Datetime')
+        # test all possibilities for aggregations
+        simulate.combobox_run_through_all(w.combo_func)
+
 
 if __name__ == "__main__":
     unittest.main()
