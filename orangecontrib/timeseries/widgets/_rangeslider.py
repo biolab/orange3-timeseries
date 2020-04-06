@@ -135,6 +135,7 @@ class RangeSlider(QSlider):
         else:
             self.setValues(self._min_position, self._max_position)
         self.update()
+        self.slidersMoved.emit(self._min_position, self._max_position)
 
     def mousePressEvent(self, event):
         if not event.button():
@@ -184,6 +185,8 @@ class RangeSlider(QSlider):
                 self._min_position = low_v
                 self._max_position = hi_v
                 self.update()
+                self.setValues(self._min_position,
+                               self._max_position)
                 self.slidersMoved.emit(self._min_position,
                                        self._max_position)
 
