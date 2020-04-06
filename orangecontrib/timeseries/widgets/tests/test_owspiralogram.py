@@ -11,6 +11,8 @@ from Orange.widgets.tests.utils import simulate
 class TestOWSpiralogram(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWSpiralogram)  # type: OWSpiralogram
+        self.passengers = Timeseries.from_file("airpassengers")
+        self.philadelphia = Timeseries.from_url('http://datasets.orange.biolab.si/core/philadelphia-crime.csv.xz')
 
     @staticmethod
     def select_item(widget, index):
@@ -23,10 +25,9 @@ class TestOWSpiralogram(WidgetTest):
         GH-50
         """
         w = self.widget
-        time_series1 = Timeseries.from_file("airpassengers")
         url = "http://file.biolab.si/datasets/cyber-security-breaches.tab"
         time_series2 = Timeseries.from_url(url)
-        self.send_signal(w.Inputs.time_series, time_series1)
+        self.send_signal(w.Inputs.time_series, self.passengers)
         self.select_item(w, 0)
         output1 = self.get_output(w.Outputs.time_series)
         self.send_signal(w.Inputs.time_series, time_series2)
@@ -37,19 +38,18 @@ class TestOWSpiralogram(WidgetTest):
     def test_no_datetime(self):
         """ Raise error if no data with TimeVariable """
         w = self.widget
-        time_series = Timeseries.from_file("airpassengers")
         table = Table.from_file('iris')
-        self.send_signal(w.Inputs.time_series, time_series)
+        self.send_signal(w.Inputs.time_series, self.passengers)
         self.assertFalse(w.Error.no_time_variable.is_shown())
         self.send_signal(w.Inputs.time_series, table)
         self.assertTrue(w.Error.no_time_variable.is_shown())
-        self.send_signal(w.Inputs.time_series, time_series)
+        self.send_signal(w.Inputs.time_series, self.passengers)
         self.assertFalse(w.Error.no_time_variable.is_shown())
 
     def test_tz_aggregation(self):
         """ Aggregation should consider timezone """
         w = self.widget
-        data = Timeseries.from_file('airpassengers')[:20]
+        data = self.passengers[:20]
         self.send_signal(w.Inputs.time_series, data)
         # select the first item
         self.select_item(w, 0)
@@ -59,11 +59,10 @@ class TestOWSpiralogram(WidgetTest):
     def test_cb_axes(self):
         """ Test that all possible axes work, including discrete variables. """
         w = self.widget
-        data = Timeseries.from_url('http://datasets.orange.biolab.si/core/philadelphia-crime.csv.xz')
-        self.send_signal(w.Inputs.time_series, data)
+        self.send_signal(w.Inputs.time_series, self.philadelphia)
         # test all possibilities for Y axis
         simulate.combobox_run_through_all(w.combo_ax2)
-        # test all possibilites for radial
+        # test all possibilities for radial
         simulate.combobox_run_through_all(w.combo_ax1)
 
     def test_time_variable(self):
