@@ -22,10 +22,10 @@ class _TimeSliderMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__scale_minimum = None
-        self.__scale_maximum = None
-        self.__time_delta = 0
-        self.__formatter = str
+        self.__scale_minimum = None  # type: datetime.date
+        self.__scale_maximum = None  # type: datetime.date
+        self.__time_delta = None  # type: Optional[Union[Number, tuple]]
+        self.__formatter = str  # type: Callable
 
     def setScale(self, minimum, maximum, time_delta):
         self.__scale_minimum = datetime.datetime.fromtimestamp(
@@ -117,17 +117,41 @@ class OWTimeSlice(widget.OWWidget):
 
     MAX_SLIDER_VALUE = 500
     DATE_FORMATS = ('yyyy', '-MM', '-dd', '  HH:mm:ss.zzz')
-    OVERLAP_AMOUNTS = OrderedDict((
-        ('all but one (= shift by one slider value)', 0),
-        ('6/7 of interval', 6/7),
-        ('3/4 of interval', 3/4),
-        ('1/2 of interval', 1/2),
-        ('1/3 of interval', 1/3),
-        ('1/5 of interval', 1/5)))
+    # only appropriate overlap amounts are shown, but these are all the options
+    STEP_SIZES = OrderedDict((
+        ('1 second', 1),
+        ('5 seconds', 5),
+        ('10 seconds', 10),
+        ('15 seconds', 15),
+        ('30 seconds', 30),
+        ('1 minute', 60),
+        ('5 minutes', 300),
+        ('10 minutes', 600),
+        ('15 minutes', 900),
+        ('30 minutes', 1800),
+        ('1 hour', 3600),
+        ('2 hours', 7200),
+        ('3 hours', 10800),
+        ('6 hours', 21600),
+        ('12 hours', 43200),
+        ('1 day', (1, 'day')),
+        ('1 week', (7, 'day')),
+        ('2 weeks', (14, 'day')),
+        ('1 month', (1, 'month')),
+        ('2 months', (2, 'month')),
+        ('3 months', (3, 'month')),
+        ('6 months', (6, 'month')),
+        ('1 year', (1, 'year')),
+        ('2 years', (2, 'year')),
+        ('5 years', (5, 'year')),
+        ('10 years', (10, 'year')),
+        ('25 years', (25, 'year')),
+        ('50 years', (50, 'year')),
+        ('100 years', (100, 'year'))))
 
     loop_playback = settings.Setting(True)
-    steps_overlap = settings.Setting(True)
-    overlap_amount = settings.Setting(next(iter(OVERLAP_AMOUNTS)))
+    custom_step_size = settings.Setting(False)
+    step_size = settings.Setting(next(iter(STEP_SIZES)))
     playback_interval = settings.Setting(1000)
     slider_values = settings.Setting((0, .2 * MAX_SLIDER_VALUE))
 
@@ -188,19 +212,13 @@ class OWTimeSlice(widget.OWWidget):
         gui.checkBox(vbox, self, 'loop_playback',
                      label='Loop playback')
         hbox = gui.hBox(vbox)
-        gui.checkBox(hbox, self, 'steps_overlap',
-                     label='Stepping overlaps by:',
-                     toolTip='If enabled, the active interval moves forward '
-                             '(backward) by half of the interval at each step.')
-        gui.comboBox(hbox, self, 'overlap_amount',
-                     items=tuple(self.OVERLAP_AMOUNTS.keys()),
-                     sendSelectedValue=True)
-        gui.spin(vbox, self, 'playback_interval',
-                 label='Playback delay (msec):',
-                 minv=100, maxv=30000, step=200,
-                 callback=lambda: (self.play_timer.setInterval(self.playback_interval),
-                                   self.slider.tracking_timer.setInterval(self.playback_interval)))
-
+        gui.checkBox(hbox, self, 'custom_step_size',
+                     label='Custom step size:',
+                     toolTip='If not chosen, the active interval moves forward '
+                             '(backward), stepping in increments of its own size.')
+        self.stepsize_combobox = gui.comboBox(hbox, self, 'step_size',
+                                              items=tuple(self.STEP_SIZES.keys()),
+                                              sendSelectedValue=True)
         hbox = gui.hBox(vbox)
         self.step_backward = gui.button(hbox, self, '⏮',
                                         callback=lambda: self.play_single_step(backward=True),
@@ -211,6 +229,18 @@ class OWTimeSlice(widget.OWWidget):
         self.step_forward = gui.button(hbox, self, '⏭',
                                        callback=self.play_single_step,
                                        autoDefault=False)
+
+        vbox = gui.vBox(self.controlArea, 'Playback/Tracking interval')
+        vbox.setToolTip('In milliseconds, set the delay for playback and '
+                        'for sending data upon manually moving the interval.')
+
+        def set_intervals():
+            self.play_timer.setInterval(1000 * self.playback_interval)
+            self.slider.tracking_timer.setInterval(1000 * self.playback_interval)
+        gui.valueSlider(vbox, self, 'playback_interval',
+                        label='Delay:', labelFormat='%.2g sec',
+                        values=(0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30),
+                        callback=set_intervals)
 
         gui.rubber(self.controlArea)
         self._set_disabled(True)
@@ -282,20 +312,21 @@ class OWTimeSlice(widget.OWWidget):
         self.repaint()
 
     def play_single_step(self, backward=False):
-        op = operator.sub if backward else operator.add
         minValue, maxValue = self.slider.values()
         orig_delta = delta = self._delta
 
-        if self.steps_overlap:
-            overlap_amount = self.OVERLAP_AMOUNTS[self.overlap_amount]
-            if overlap_amount:
-                delta = max(1, int(round(delta * (1 - overlap_amount))))
-            else:
-                delta = 1  # single slider step (== 1/self.MAX_SLIDER_VALUE)
+        def new_value(value):
+            if self.custom_step_size:
+                step_amount = self.STEP_SIZES[self.step_size]
+                time = datetime.datetime.fromtimestamp(self.slider.scale(value),
+                                                       tz=datetime.timezone.utc)
+                newTime = add_time(time, step_amount, -1 if backward else 1)
+                return self.slider.unscale(newTime.timestamp())
+            return value + (-delta if backward else delta)
 
         if maxValue == self.slider.maximum() and not backward:
             minValue = self.slider.minimum()
-            maxValue = minValue + orig_delta
+            maxValue = self.slider.minimum() + delta
 
             if not self.loop_playback:
                 self.play_button.click()
@@ -304,10 +335,10 @@ class OWTimeSlice(widget.OWWidget):
 
         elif minValue == self.slider.minimum() and backward:
             maxValue = self.slider.maximum()
-            minValue = maxValue - orig_delta
+            minValue = min(self.slider.maximum(), new_value(maxValue))
         else:
-            minValue = op(minValue, delta)
-            maxValue = op(maxValue, delta)
+            minValue = min(new_value(minValue), self.slider.maximum())
+            maxValue = min(new_value(maxValue), self.slider.maximum())
         # Blocking signals because we want this to be synchronous to avoid
         # re-setting self._delta
         with blockSignals(self.slider):
@@ -319,9 +350,9 @@ class OWTimeSlice(widget.OWWidget):
         self.slider.repaint()
 
     def _set_disabled(self, is_disabled):
-        for func in [self.date_from, self.date_to, self.step_backward, self.play_button,
-                     self.step_forward, self.controls.loop_playback,
-                     self.controls.steps_overlap, self.controls.overlap_amount,
+        for func in [self.date_from, self.date_to, self.step_backward,
+                     self.play_button, self.step_forward,
+                     self.controls.loop_playback, self.controls.step_size,
                      self.controls.playback_interval, self.slider]:
             func.setDisabled(is_disabled)
 
@@ -356,27 +387,49 @@ class OWTimeSlice(widget.OWWidget):
 
         # Depending on time delta:
         #   - set slider maximum (granularity)
+        #   - set range for end dt (+ 1 timedelta)
         #   - set date format
+        #   - set time overlap options
         delta = data.time_delta
+        range = max_dt - min_dt
         if isinstance(delta, Number):
-            range = max_dt - min_dt
             maximum = round(range / delta)
+
             timedelta = datetime.timedelta(milliseconds=delta * 1000)
             min_dt2 = min_dt + timedelta
             max_dt2 = max_dt + timedelta
+
             date_format = ''.join(self.DATE_FORMATS)
+
+            for k, n in [n for n in self.STEP_SIZES.items()
+                         if isinstance(n, Number)]:
+                if delta <= n:
+                    min_overlap = k
+                    break
+            else:
+                min_overlap = '1 day'
         elif delta:
             if delta[1] == 'day':
-                range = max_dt - min_dt
                 maximum = range.days / delta[0]
+
                 timedelta = datetime.timedelta(days=delta[0])
                 min_dt2 = min_dt + timedelta
                 max_dt2 = max_dt + timedelta
+
                 date_format = ''.join(self.DATE_FORMATS[0:3])
+
+                for k, (i, u) in [(k, v) for k, v in self.STEP_SIZES.items()
+                                  if isinstance(v, tuple) and v[1] == 'day']:
+                    if delta[0] <= i:
+                        min_overlap = k
+                        break
+                else:
+                    min_overlap = '1 month'
             elif delta[1] == 'month':
                 months = (max_dt.year - min_dt.year) * 12 + \
                          (max_dt.month - min_dt.month)
                 maximum = months / delta[0]
+
                 if min_dt.month < 12 - delta[0]:
                     min_dt2 = min_dt.replace(
                         month=min_dt.month + delta[0]
@@ -395,22 +448,84 @@ class OWTimeSlice(widget.OWWidget):
                         year=max_dt.year + 1,
                         month=12 - min_dt.month + delta[0]
                     )
+
                 date_format = ''.join(self.DATE_FORMATS[0:2])
+
+                for k, (i, u) in [(k, v) for k, v in self.STEP_SIZES.items()
+                                  if isinstance(v, tuple) and v[1] == 'month']:
+                    if delta[0] <= i:
+                        min_overlap = k
+                        break
+                else:
+                    min_overlap = '1 year'
             else:  # elif delta[1] == 'year':
                 years = max_dt.year - min_dt.year
                 maximum = years / delta[0]
+
                 min_dt2 = min_dt.replace(
                     year=min_dt.year + delta[0],
                 )
                 max_dt2 = max_dt.replace(
                     year=max_dt.year + delta[0],
                 )
+
                 date_format = self.DATE_FORMATS[0]
+
+                for k, (i, u) in [(k, v) for k, v in self.STEP_SIZES.items()
+                                  if isinstance(v, tuple) and v[1] == 'year']:
+                    if delta[0] <= i:
+                        min_overlap = k
+                        break
+                else:
+                    raise Exception('Timedelta larger than 100 years')
         else:
             maximum = _TimeSliderMixin.DEFAULT_SCALE_LENGTH
-            date_format = ''.join(self.DATE_FORMATS)
+
             max_dt2 = max_dt
             min_dt2 = min_dt
+
+            date_format = ''.join(self.DATE_FORMATS)
+
+            min_overlap = next(iter(self.STEP_SIZES.keys()))
+
+        # find max sensible time overlap
+        upper_overlap_limit = range / 2
+        for k, overlap in self.STEP_SIZES.items():
+            if isinstance(overlap, Number):
+                if upper_overlap_limit.total_seconds() <= overlap:
+                    max_overlap = k
+                    break
+            else:
+                i, u = overlap
+                if u == 'day':
+                    if upper_overlap_limit <= datetime.timedelta(days=overlap[0]):
+                        max_overlap = k
+                        break
+                elif u == 'month':
+                    month_diff = (max_dt.year - min_dt.year) * 12 \
+                                 + max(0, max_dt.month - min_dt.month)
+                    if month_diff / 2 <= i:
+                        max_overlap = k
+                        break
+                else:  # if u == 'year':
+                    year_diff = max_dt.year - min_dt.year
+                    if year_diff / 2 <= i:
+                        max_overlap = k
+                        break
+        else:
+            # last item in step sizes
+            *_, max_overlap = self.STEP_SIZES.keys()
+
+        self.stepsize_combobox.clear()
+        dict_iter = iter(self.STEP_SIZES.keys())
+        next_item = next(dict_iter)
+        while next_item != min_overlap:
+            next_item = next(dict_iter)
+        self.stepsize_combobox.addItem(next_item)
+        self.step_size = next_item
+        while next_item != max_overlap:
+            next_item = next(dict_iter)
+            self.stepsize_combobox.addItem(next_item)
 
         slider.setMinimum(0)
         slider.setMaximum(maximum + 1)
