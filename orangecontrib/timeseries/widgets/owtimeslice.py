@@ -350,6 +350,11 @@ class OWTimeSlice(widget.OWWidget):
         self.slider.repaint()
 
     def _set_disabled(self, is_disabled):
+        if is_disabled and self.play_timer.isActive():
+            self.play_button.click()
+            assert not self.play_timer.isActive()
+            assert not self.play_button.isChecked()
+
         for func in [self.date_from, self.date_to, self.step_backward,
                      self.play_button, self.step_forward,
                      self.controls.loop_playback, self.controls.step_size,
