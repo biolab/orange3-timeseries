@@ -21,7 +21,7 @@ class Timeseries(Table):
         self._time_delta = None
         # Set default time variable to first TimeVariable
         try:
-            self.time_variable = next(var for var in self.domain.attributes
+            self.time_variable = next(var for var in self.domain.attributes + self.domain.metas
                                       if isinstance(var, TimeVariable))
         except (StopIteration, AttributeError):
             pass
