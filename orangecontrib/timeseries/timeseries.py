@@ -33,6 +33,7 @@ class TimeDelta:
         self._deltas = deltas
 
         self.is_equispaced = len(deltas) == 1
+        self.min = deltas[0]
 
     def _get_backwards_compatible_delta(self):
         """
