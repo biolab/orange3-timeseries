@@ -21,6 +21,9 @@ class TimeDelta:
         self.time_values = time_values
         self.backwards_compatible_delta = self._get_backwards_compatible_delta()
 
+        self._deltas = deltas = np.sort(np.unique(np.diff(self.time_values)))
+        self.is_equispaced = len(deltas) == 1
+
     def _get_backwards_compatible_delta(self):
         """
         Old definition of time delta, for backwards compatibility
