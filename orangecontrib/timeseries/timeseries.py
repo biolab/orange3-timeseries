@@ -21,7 +21,17 @@ class TimeDelta:
         self.time_values = time_values
         self.backwards_compatible_delta = self._get_backwards_compatible_delta()
 
-        self._deltas = deltas = np.sort(np.unique(np.diff(self.time_values)))
+        deltas = list(np.sort(np.unique(np.diff(self.time_values))))
+        # TODO detect multiple days/months/years
+        for i, d in enumerate(deltas[:]):
+            if d in self._SPAN_DAY:
+                deltas[i] = (1, 'day')
+            elif d in self._SPAN_MONTH:
+                deltas[i] = (1, 'month')
+            elif d in self._SPAN_YEAR:
+                deltas[i] = (1, 'year')
+        self._deltas = deltas
+
         self.is_equispaced = len(deltas) == 1
 
     def _get_backwards_compatible_delta(self):
