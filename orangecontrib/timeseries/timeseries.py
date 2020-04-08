@@ -8,6 +8,39 @@ from os.path import join, dirname
 Orange.data.table.dataset_dirs.insert(0, join(dirname(__file__), 'datasets'))
 
 
+class TimeDelta:
+    _SPAN_DAY = {86400}
+    _SPAN_MONTH = {2678400,  # 31 days
+                   2592000,  # 30 days
+                   2419200,  # 28 days
+                   2505600}  # 29 days
+    _SPAN_YEAR = {31536000,  # normal year
+                  31622400}  # leap year
+
+    def __init__(self, time_values):
+        self.time_values = time_values
+        self.backwards_compatible_delta = self._get_backwards_compatible_delta()
+
+    def _get_backwards_compatible_delta(self):
+        """
+        Old definition of time delta, for backwards compatibility
+
+        Return time delta (float) between measurements if uniform. Return None
+        if not uniform. Return tuple (N, unit) where N is int > 0 and
+        unit one of 'day', 'month', 'year'.
+        """
+        delta = np.unique(np.diff(self.time_values))
+        if delta.size <= len(self._SPAN_MONTH):
+            deltas = set(delta)
+            if not (deltas - self._SPAN_YEAR):
+                delta = ((1, 'year'),)
+            elif not (deltas - self._SPAN_MONTH):
+                delta = ((1, 'month'),)
+            elif not (deltas - self._SPAN_DAY):
+                delta = ((1, 'day'),)
+        return delta[0] if len(delta) == 1 else None
+
+
 class Timeseries(Table):
 
     from os.path import join, dirname
@@ -18,7 +51,7 @@ class Timeseries(Table):
         super().__init__(*args, **kwargs)
         self._interp_method = 'linear'
         self._interp_multivariate = False
-        self._time_delta = None
+        self.time_delta = None
 
     @classmethod
     def from_data_table(cls, table, detect_time_variable=False):
@@ -157,33 +190,7 @@ class Timeseries(Table):
         self.attributes = self.attributes.copy()
         self.attributes['time_variable'] = var
 
-        # Set detected time delta
-        delta = np.unique(np.diff(self.time_values))
-        if delta.size <= len(self._SPAN_MONTH):
-            deltas = set(delta)
-            if not (deltas - self._SPAN_YEAR):
-                delta = ((1, 'year'),)
-            elif not (deltas - self._SPAN_MONTH):
-                delta = ((1, 'month'),)
-            elif not (deltas - self._SPAN_DAY):
-                delta = ((1, 'day'),)
-        self._time_delta = delta[0] if len(delta) == 1 else None
-
-    _SPAN_DAY = {86400}
-    _SPAN_MONTH = {2678400,  # 31 days
-                   2592000,  # 30 days
-                   2419200,  # 28 days
-                   2505600}  # 29 days
-    _SPAN_YEAR = {31536000,  # normal year
-                  31622400}  # leap year
-
-    @property
-    def time_delta(self):
-        """Return time delta (float) between measurements if uniform. Return None
-        if not uniform. Return tuple (N, unit) where N is int > 0 and
-        unit one of 'day', 'month', 'year'.
-        """
-        return self._time_delta
+        self.time_delta = TimeDelta(self.time_values)
 
     def set_interpolation(self, method='linear', multivariate=False):
         self._interp_method = method

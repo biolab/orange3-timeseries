@@ -195,7 +195,7 @@ class Highstock(Highchart):
                     break
 
             if isinstance(data.time_variable, TimeVariable):
-                delta = data.time_delta
+                delta = data.time_delta.backwards_compatible_delta
                 tvals = data.time_values
 
                 if isinstance(delta, Number):

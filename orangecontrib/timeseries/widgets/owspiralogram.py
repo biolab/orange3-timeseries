@@ -359,7 +359,7 @@ class OWSpiralogram(widget.OWWidget):
             for var in data.domain.variables if data is not None else []:
                 if (var.is_primitive() and
                         (var is not data.time_variable or
-                         isinstance(var, TimeVariable) and data.time_delta is None)):
+                         data.time_delta.backwards_compatible_delta is None)):
                     newmodel.append(var)
                 if var.is_discrete:
                     for model in (self.combo_ax1_model, self.combo_ax2_model):
