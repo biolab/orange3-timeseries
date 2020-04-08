@@ -10,6 +10,62 @@ from Orange.widgets.widget import Input, Output, Msg, OWWidget
 from orangecontrib.timeseries.widgets.utils import ListModel
 from orangecontrib.timeseries import Timeseries, moving_transform
 from orangecontrib.timeseries.agg_funcs import AGG_FUNCTIONS, Mean, Cumulative_sum, Cumulative_product
+from orangewidget.settings import _apply_setting
+from orangewidget.utils.widgetpreview import WidgetPreview
+
+
+class MovingTransformContextHandler(settings.ContextHandler):
+    rev_agg_functions = {func.__name__: func for func in AGG_FUNCTIONS}
+
+    def new_context(self, variables, encoded_vars):
+        context = super().new_context()
+        context.encoded_vars = vars
+        return context
+
+    def open_context(self, widget, variables):
+        encoded_vars = settings.DomainContextHandler.encode_variables(
+            variables, False)
+        super().open_context(widget, variables, encoded_vars)
+
+    def settings_to_widget(self, widget, variables, encoded_vars, *args):
+        # TODO: If https://github.com/biolab/orange-widget-base/pull/56 is:
+        #  - merged, remove this method.
+        #  - rejected, remove this comment.
+        context = widget.current_context
+        if context is None:
+            return
+
+        widget.retrieveSpecificSettings()
+
+        for setting, data, instance in \
+                self.provider.traverse_settings(data=context.values, instance=widget):
+            if not isinstance(setting, settings.ContextSetting) \
+                    or setting.name not in data:
+                continue
+
+            value = self.decode_setting(setting, data[setting.name],
+                                        variables, encoded_vars)
+            _apply_setting(setting, instance, value)
+
+    def encode_setting(self, context, setting, value):
+        encode_variable = settings.DomainContextHandler.encode_variable
+        return [[encode_variable(var), w_size, agg.__name__]
+                for var, w_size, agg in value]
+
+    def decode_setting(self, setting, value, variables, encoded_vars):
+        if setting.name == "transformations":
+            var_dict = {var.name: var for var in variables}
+            return [[var_dict[name], w_size, self.rev_agg_functions[func]]
+                    for (name, _), w_size, func in value]
+        else:
+            return super().decode_setting(self, setting, value)
+
+    def match(self, context, variables, encoded_vars):
+        transformations = context.values["transformations"]
+        if transformations and all(encoded_vars.get(name) == tpe - 100
+                                   for (name, tpe), *_ in transformations):
+            return self.PERFECT_MATCH
+        return self.NO_MATCH
 
 
 class OWMovingTransform(widget.OWWidget):
@@ -26,9 +82,10 @@ class OWMovingTransform(widget.OWWidget):
 
     want_main_area = False
 
+    settingsHandler = MovingTransformContextHandler()
     non_overlapping = settings.Setting(False)
     fixed_wlen = settings.Setting(5)
-    transformations = settings.Setting([])
+    transformations = settings.ContextSetting([])
     autocommit = settings.Setting(False)
     last_win_width = settings.Setting(5)
 
@@ -137,8 +194,7 @@ class OWMovingTransform(widget.OWWidget):
 
         self.var_model = VariableListModel(parent=self)
 
-        self.table_model = model = PyTableModel(self.transformations,
-                                                parent=self, editable=True)
+        self.table_model = model = PyTableModel(parent=self, editable=True)
         model.setHorizontalHeaderLabels(['Series', 'Window width', 'Aggregation function'])
         model.dataChanged.connect(self.on_changed)
 
@@ -161,6 +217,8 @@ class OWMovingTransform(widget.OWWidget):
 
         gui.auto_commit(box, self, 'autocommit', '&Apply')
 
+        self.settingsAboutToBePacked.connect(self.store_transformations)
+
     def sizeHint(self):
         return QSize(450, 600)
 
@@ -179,15 +237,26 @@ class OWMovingTransform(widget.OWWidget):
                                    selection_model.Select | selection_model.Rows)
         self.commit()
 
+    def store_transformations(self):
+        self.transformations = list(self.table_model)
+
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data, detect_time_variable=True)
-        self.add_button.setDisabled(not len(getattr(data, 'domain', ())))
-        self.table_model.clear()
-        if data is not None:
-            self.var_model.wrap([var for var in data.domain.variables
-                                 if var.is_continuous and var is not data.time_variable])
+        self.store_transformations()
+        self.closeContext()
+        self.transformations = []
+        if data is None:
+            self.data = None
+            self.var_model.clear()
+        else:
+            self.data = Timeseries.from_data_table(data, detect_time_variable=True)
+            self.var_model[:] = [
+                var for var in self.data.domain.variables
+                if var.is_continuous and var is not self.data.time_variable]
+
+        self.add_button.setDisabled(not self.var_model)
+        self.openContext(self.var_model)
+        self.table_model[:] = self.transformations
         self.on_changed()
 
     def on_changed(self):
@@ -210,21 +279,12 @@ class OWMovingTransform(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication([])
-    ow = OWMovingTransform()
-
     data = Timeseries.from_file('airpassengers')
     attrs = [var.name for var in data.domain.attributes]
     if 'Adj Close' in attrs:
         # Make Adjusted Close a class variable
         attrs.remove('Adj Close')
-        data = Timeseries.from_table(Domain(attrs, [data.domain['Adj Close']], None,
-                                            source=data.domain),
-                                     data)
-
-    ow.set_data(data)
-
-    ow.show()
-    a.exec()
+        data = Timeseries.from_table(
+            Domain(attrs, [data.domain['Adj Close']], None, source=data.domain),
+            data)
+    WidgetPreview(OWMovingTransform).run(data)
