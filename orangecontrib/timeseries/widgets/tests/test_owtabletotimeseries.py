@@ -35,13 +35,13 @@ class TestAsTimeSeriesWidget(WidgetTest):
         """
         w = self.widget
         data = Table("iris")[:2]
-        self.assertFalse(w.Error.nan_times.is_shown())
+        self.assertFalse(w.Information.nan_times.is_shown())
         self.send_signal(w.Inputs.data, data)
-        self.assertFalse(w.Error.nan_times.is_shown())
+        self.assertFalse(w.Information.nan_times.is_shown())
         self.assertIsInstance(self.get_output(w.Outputs.time_series), Timeseries)
         data.X[:, 0] = np.nan
         self.send_signal(w.Inputs.data, data)
-        self.assertTrue(w.Error.nan_times.is_shown())
+        self.assertTrue(w.Information.nan_times.is_shown())
         self.assertIsNone(self.get_output(w.Outputs.time_series))
 
     def test_non_cont_sequental(self):

@@ -1,7 +1,7 @@
-
+import itertools
 import numpy as np
 
-from Orange.data import Table, Domain, TimeVariable
+from Orange.data import Table, Domain, TimeVariable, ContinuousVariable
 
 import Orange.data
 from os.path import join, dirname
@@ -21,14 +21,80 @@ class Timeseries(Table):
         self._time_delta = None
         # Set default time variable to first TimeVariable
         try:
-            self.time_variable = next(var for var in self.domain.attributes + self.domain.metas
+            self.time_variable = next(var for var in self.domain.attributes
                                       if isinstance(var, TimeVariable))
         except (StopIteration, AttributeError):
             pass
 
     @classmethod
     def from_data_table(cls, table):
-        return table if isinstance(table, Timeseries) else Timeseries(table)
+        if isinstance(table, Timeseries):
+            return table
+
+        # Set default time variable to first TimeVariable in:
+        search = table.domain.attributes + table.domain.metas
+
+        # Is there a time variable we can use?
+        try:
+            time_variable = next(var for var in search
+                                 if var.is_time)
+            return Timeseries(table.domain, table)
+        except (StopIteration, AttributeError):
+            pass
+        # Is there a continuous variable we can use?
+        try:
+            continuous_variable = next(var for var in search
+                                       if var.is_continuous)
+            return Timeseries.make_timeseries_from_continuous_var(table, continuous_variable)
+        except (StopIteration, AttributeError):
+            pass
+        # Fallback to sequential
+        return Timeseries.make_timeseries_from_sequence(table)
+
+    @classmethod
+    def make_timeseries_from_sequence(cls, table):
+        attrs = table.domain.attributes
+        cvars = table.domain.class_vars
+        metas = table.domain.metas
+        X = table.X
+        Y = np.column_stack((table.Y,))  # make 2d
+        M = table.metas
+
+        # Uniqueify seq name
+        for i in itertools.chain(('',), range(10)):
+            name = '__seq__' + str(i)
+            if name not in table.domain:
+                break
+        # Create new time variable, values 1 to len(data + 1)
+        time_var = ContinuousVariable(name)
+        attrs = attrs.__class__((time_var,)) + attrs
+        X = np.column_stack((np.arange(1, len(table) + 1), X))
+        table = Table(Domain(attrs, cvars, metas), X, Y, M)
+
+        ts = super(Timeseries, cls).from_table(table.domain, table)
+        ts.time_variable = time_var
+        return ts
+
+    @classmethod
+    def make_timeseries_from_continuous_var(cls, table, attr_name):
+        # Make a sequence attribute from one of the existing attributes,
+        # and sort all values according to it
+        time_var = table.domain[attr_name]
+        values = table.get_column_view(time_var)[0]
+        # Filter out NaNs
+        nans = np.isnan(values)
+        if nans.any():
+            values = values[~nans]
+            table = table[~nans]
+            return
+        # Sort!
+        ordered = np.argsort(values)
+        if (ordered != np.arange(len(ordered))).any():
+            table = table[ordered]
+
+        ts = super(Timeseries, cls).from_table(table.domain, table)
+        ts.time_variable = time_var
+        return ts
 
     @property
     def time_values(self):
