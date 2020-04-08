@@ -44,11 +44,12 @@ class TestOWDifference(WidgetTest):
         w.chosen_operation = w.Operation.DIFF
         w.diff_order = 1
         w.shift_period = 1
+        w.invert_direction = False
         self.send_signal(w.Inputs.time_series, self.simple_data[:6])
         w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
-        true_out = np.asarray([np.nan, 0, 0, 0, 0, -0.2])
+        true_out = np.asarray([np.nan, 0, 0, 0, 0, 0.2])
         np.testing.assert_array_equal(out, true_out)
 
         # test order always one, if shift > 1
@@ -58,7 +59,7 @@ class TestOWDifference(WidgetTest):
         w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
-        true_out = np.asarray([np.nan, np.nan, 0, 0, 0, -0.2])
+        true_out = np.asarray([np.nan, np.nan, 0, 0, 0, 0.2])
         np.testing.assert_array_equal(out, true_out)
 
     def test_quotient(self):
@@ -70,7 +71,7 @@ class TestOWDifference(WidgetTest):
         w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
-        true_out = np.asarray([1, 1, 1, 1, 2, np.nan])
+        true_out = np.asarray([np.nan, 1, 1, 1, 1, 2])
         np.testing.assert_array_equal(out, true_out)
 
     def test_percent(self):
@@ -82,7 +83,7 @@ class TestOWDifference(WidgetTest):
         w.selected = self.selected
         w.commit()
         out = self.get_output(w.Outputs.time_series).X[:, -1]
-        true_out = np.asarray([0, 0, 0, 0, 100, np.nan])
+        true_out = np.asarray([np.nan, 0, 0, 0, 0, 100])
         np.testing.assert_array_equal(out, true_out)
 
     def test_order_spin(self):

@@ -44,7 +44,7 @@ class OWDifference(widget.OWWidget):
     chosen_operation = settings.Setting(Operation.DIFF)
     diff_order = settings.Setting(1)
     shift_period = settings.Setting(1)
-    invert_direction = settings.Setting(True)
+    invert_direction = settings.Setting(False)
     autocommit = settings.Setting(True)
 
     UserAdviceMessages = [
@@ -158,16 +158,16 @@ class OWDifference(widget.OWWidget):
 
             out = np.empty(len(col))
             if op == self.Operation.DIFF and shift == 1:
-                out[:-order] = np.diff(col, order)
-                out[-order:] = np.nan
+                out[order:] = np.diff(col, order)
+                out[:order] = np.nan
             else:
                 if op == self.Operation.DIFF:
-                    out[:-shift] = col[shift:] - col[:-shift]
+                    out[shift:] = col[shift:] - col[:-shift]
                 else:
-                    out[:-shift] = np.divide(col[shift:], col[:-shift])
+                    out[shift:] = np.divide(col[shift:], col[:-shift])
                     if op == self.Operation.PERC:
                         out = (out - 1) * 100
-                out[-shift:] = np.nan
+                out[:shift] = np.nan
 
             if invert:
                 out = out[::-1]
