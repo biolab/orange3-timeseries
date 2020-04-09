@@ -18,13 +18,12 @@ class TestOWSeasonalAdjustment(WidgetTest):
         GH-35
         """
         w = self.widget
-        table = Table.from_file("iris")
-        table.X[1, 0] = -1
-        time_series = Timeseries.from_data_table(table)
+        table = Timeseries.from_file("iris")
+        table.X[1, 1] = -1
         w.decomposition = 1
         w.autocommit = True
         self.assertFalse(w.Error.seasonal_decompose_fail.is_shown())
-        self.send_signal(w.Inputs.time_series, time_series)
+        self.send_signal(w.Inputs.time_series, table)
         self.widget.view.selectAll()
         self.assertTrue(w.Error.seasonal_decompose_fail.is_shown())
         self.send_signal(w.Inputs.time_series, None)
