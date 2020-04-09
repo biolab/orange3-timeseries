@@ -336,7 +336,8 @@ class OWSpiralogram(widget.OWWidget):
     @Inputs.time_series
     def set_data(self, data):
         self.Error.clear()
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
 
         if data is None:
             self.commit()

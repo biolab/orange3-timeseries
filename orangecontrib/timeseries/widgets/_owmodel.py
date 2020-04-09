@@ -52,7 +52,8 @@ class OWBaseModel(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
         self.update_model()
 
     def apply(self):

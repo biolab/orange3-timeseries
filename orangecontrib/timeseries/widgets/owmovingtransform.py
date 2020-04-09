@@ -181,7 +181,8 @@ class OWMovingTransform(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
         self.add_button.setDisabled(not len(getattr(data, 'domain', ())))
         self.table_model.clear()
         if data is not None:

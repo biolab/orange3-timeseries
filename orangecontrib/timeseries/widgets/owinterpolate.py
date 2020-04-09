@@ -53,7 +53,8 @@ class OWInterpolate(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = None if data is None else Timeseries.from_data_table(data)
+        self.data = None if data is None else \
+                    Timeseries.from_data_table(data, detect_time_variable=True)
         self.on_changed()
 
     def on_changed(self):
