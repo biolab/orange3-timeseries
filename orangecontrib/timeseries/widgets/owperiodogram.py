@@ -117,7 +117,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWPeriodogram()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     ow.set_data(data)
 
     ow.show()

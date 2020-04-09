@@ -190,7 +190,7 @@ class OWAggregate(widget.OWWidget):
             Y.append(ys)
             M.append(ms)
 
-        ts = Timeseries(
+        ts = Timeseries.from_numpy(
             Domain([data.time_variable] + attrs, cvars, metas),
             np.column_stack((times, np.row_stack(X))),
             np.array(Y),

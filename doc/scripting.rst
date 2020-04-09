@@ -7,7 +7,7 @@ Start by importing the relevant objects:
 
 Let's load new :class:`Timeseries`, for example:
 
->>> data = Timeseries('airpassengers')
+>>> data = Timeseries.from_file('airpassengers')
 >>> np.set_printoptions(precision=1)
 
 :class:`Timeseries` object is just an :class:`Orange.data.Table` object with some
@@ -76,7 +76,7 @@ To decompose the time series into trend, seasonal and residual components,
 use :func:`seasonal_decompose` function:
 
 >>> from Orange.data import Domain
->>> passengers = Timeseries(Domain(['Air passengers'], source=data.domain), data)
+>>> passengers = Timeseries.from_table(Domain(['Air passengers'], source=data.domain), data)
 >>> decomposed = seasonal_decompose(passengers, model='multiplicative', period=12)
 >>> decomposed.domain
 [Air passengers (season. adj.), Air passengers (seasonal), Air passengers (trend), Air passengers (residual)]
@@ -84,7 +84,7 @@ use :func:`seasonal_decompose` function:
 To use this decomposed time series effectively, we just have to add back the
 time variable that was stripped in the first step above:
 
->>> ts = Timeseries(Timeseries.concatenate((data, decomposed)))
+>>> ts = Timeseries.concatenate((data, decomposed))
 >>> ts.time_variable = data.time_variable
 
 Just kidding. Use :func:`statsmodels.seasonal.seasonal_decompose` instead.
@@ -121,7 +121,7 @@ There are, as of yet, two models available: ARIMA and VAR. Both models have a
 common interface, so the usage of one is similar to the other. Let's look at an
 example. The data we model must have defined a class variable:
 
->>> data = Timeseries('airpassengers')
+>>> data = Timeseries.from_file('airpassengers')
 >>> data.domain
 [Month | Air passengers]
 >>> data.domain.class_var
@@ -195,7 +195,7 @@ example:
 
 >>> series = np.arange(100)
 >>> X = np.column_stack((series, np.roll(series, 1), np.roll(series, 3)))
->>> threecol = Timeseries(Domain.from_numpy(X), X)
+>>> threecol = Timeseries.from_numpy(Domain.from_numpy(X), X)
 >>> for lag, ante, cons in granger_causality(threecol, 10):
 ...     if lag > 1:
 ...         print('Series {cons} lags by {ante} by {lag} lags.'.format(**locals()))

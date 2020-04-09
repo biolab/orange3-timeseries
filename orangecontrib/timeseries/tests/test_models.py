@@ -4,7 +4,7 @@ import numpy as np
 from orangecontrib.timeseries import Timeseries, ARIMA, VAR, model_evaluation
 
 
-data = Timeseries('airpassengers')
+data = Timeseries.from_file('airpassengers')
 
 
 class TestARIMA(unittest.TestCase):

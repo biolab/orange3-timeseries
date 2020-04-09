@@ -16,7 +16,7 @@ class TestOWLineChart(WidgetTest):
         GH-46
         """
         w = self.widget
-        time_series = Timeseries("airpassengers")
+        time_series = Timeseries.from_file("airpassengers")
         self.send_signal(w.Inputs.time_series, time_series)
         self.send_signal(w.Inputs.time_series, None)
         self.send_signal(w.Inputs.forecast, time_series, 1)

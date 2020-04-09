@@ -442,7 +442,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWLineChart()
 
-    airpassengers = Timeseries('airpassengers')
+    airpassengers = Timeseries.from_file('airpassengers')
     ow.set_data(airpassengers),
 
     msft = airpassengers.interp()

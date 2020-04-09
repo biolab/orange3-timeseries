@@ -20,15 +20,6 @@ class Timeseries(Table):
         self._interp_multivariate = False
         self._time_delta = None
 
-        # TODO replace all Timeseries constructor calls, remove this:
-        # Set default time variable to first TimeVariable
-        search = self.domain.attributes + self.domain.metas
-        try:
-            self.time_variable = next(var for var in search
-                                      if isinstance(var, TimeVariable))
-        except (StopIteration, AttributeError):
-            pass
-
     @classmethod
     def from_data_table(cls, table, detect_time_variable=False):
         if isinstance(table, Timeseries) \

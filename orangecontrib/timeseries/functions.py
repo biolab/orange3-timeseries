@@ -335,7 +335,7 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
             col[:first] = col[first]
             col[last:] = col[last]
 
-    ts = Timeseries(Domain(attrs, cvars, metas), X, Y, M)
+    ts = Timeseries.from_numpy(Domain(attrs, cvars, metas), X, Y, M)
     return ts
 
 
@@ -420,7 +420,7 @@ def seasonal_decompose(data, model='multiplicative', period=12, *, callback=None
         if callback:
             callback()
 
-    ts = Timeseries(Domain(attrs), np.column_stack(X))
+    ts = Timeseries.from_numpy(Domain(attrs), np.column_stack(X))
     return ts
 
 
@@ -533,12 +533,12 @@ def moving_transform(data, spec, fixed_wlen=0):
         dataY = dataY[::-1][::fixed_wlen][:n][::-1]
         dataM = dataM[::-1][::fixed_wlen][:n][::-1]
 
-    ts = Timeseries(Domain(data.domain.attributes + tuple(attrs),
-                           data.domain.class_vars,
-                           data.domain.metas),
-                    np.column_stack(
-                        (dataX, np.column_stack(X))) if X else dataX,
-                    dataY, dataM)
+    ts = Timeseries.from_numpy(Domain(data.domain.attributes + tuple(attrs),
+                                      data.domain.class_vars,
+                                      data.domain.metas),
+                               np.column_stack(
+                                   (dataX, np.column_stack(X))) if X else dataX,
+                               dataY, dataM)
     ts.time_variable = data.time_variable
     return ts
 

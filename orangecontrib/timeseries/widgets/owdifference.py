@@ -183,11 +183,11 @@ class OWDifference(widget.OWWidget):
             name = available_name(data.domain, template)
             attrs.append(ContinuousVariable(name))
 
-        ts = Timeseries(Domain(data.domain.attributes + tuple(attrs),
-                               data.domain.class_vars,
-                               data.domain.metas),
-                        np.column_stack((data.X, np.column_stack(X))),
-                        data.Y, data.metas)
+        ts = Timeseries.from_numpy(Domain(data.domain.attributes + tuple(attrs),
+                                          data.domain.class_vars,
+                                          data.domain.metas),
+                                   np.column_stack((data.X, np.column_stack(X))),
+                                   data.Y, data.metas)
         ts.time_variable = data.time_variable
         self.Outputs.time_series.send(ts)
 
@@ -198,16 +198,16 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWDifference()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
     if 'Adj Close' in attrs:
         attrs.remove('Adj Close')
-        data = Timeseries(Domain(attrs,
-                                 [data.domain['Adj Close']],
-                                 None,
-                                 source=data.domain),
-                          data)
+        data = Timeseries.from_table(Domain(attrs,
+                                            [data.domain['Adj Close']],
+                                            None,
+                                            source=data.domain),
+                                     data)
 
     ow.set_data(data)
 
