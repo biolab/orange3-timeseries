@@ -110,6 +110,8 @@ class OWTimeSlice(widget.OWWidget):
     class Outputs:
         subset = Output("Subset", Table)
 
+    settings_version = 2
+
     want_main_area = False
 
     class Error(widget.OWWidget.Error):
@@ -152,19 +154,19 @@ class OWTimeSlice(widget.OWWidget):
     loop_playback = settings.Setting(True)
     custom_step_size = settings.Setting(False)
     step_size = settings.Setting(next(iter(STEP_SIZES)))
-    playback_interval = settings.Setting(1000)
+    playback_interval = settings.Setting(1)
     slider_values = settings.Setting((0, .2 * MAX_SLIDER_VALUE))
 
     def __init__(self):
         super().__init__()
         self._delta = 0
         self.play_timer = QTimer(self,
-                                 interval=self.playback_interval,
+                                 interval=1000*self.playback_interval,
                                  timeout=self.play_single_step)
         slider = self.slider = Slider(Qt.Horizontal, self,
                                       minimum=0, maximum=self.MAX_SLIDER_VALUE,
                                       tracking=True,
-                                      playbackInterval=self.playback_interval,
+                                      playbackInterval=1000*self.playback_interval,
                                       valuesChanged=self.sliderValuesChanged,
                                       minimumValue=self.slider_values[0],
                                       maximumValue=self.slider_values[1])
@@ -551,6 +553,11 @@ class OWTimeSlice(widget.OWWidget):
             return dt.toString(date_format)
 
         self.slider.setFormatter(format_time)
+
+    @classmethod
+    def migrate_settings(cls, settings_, version):
+        if version < 2:
+            settings_["playback_interval"] /= 1000
 
 
 if __name__ == '__main__':
