@@ -1,6 +1,9 @@
+from enum import Enum
+
 import numpy as np
 
-from AnyQt.QtWidgets import QListView
+from AnyQt.QtCore import Qt
+from AnyQt.QtWidgets import QListView, QButtonGroup, QRadioButton
 
 from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets import widget, gui, settings
@@ -19,6 +22,7 @@ class OWDifference(widget.OWWidget):
                   '1st or 2nd order discrete difference along its values. '
     icon = 'icons/Difference.svg'
     priority = 570
+    keywords = ['difference', 'derivative', 'quotient', 'percent change']
 
     class Inputs:
         time_series = Input("Time series", Table)
@@ -29,18 +33,24 @@ class OWDifference(widget.OWWidget):
     settingsHandler = DomainContextHandler()
     selected = ContextSetting([], schema_only=True)
 
+    class Operation(str, Enum):
+        DIFF = 'Difference'
+        QUOT = 'Quotient'
+        PERC = 'Percentage change'
+
     want_main_area = False
     resizing_enabled = False
 
+    chosen_operation = settings.Setting(Operation.DIFF)
     diff_order = settings.Setting(1)
     shift_period = settings.Setting(1)
-    invert_direction = settings.Setting(True)
+    invert_direction = settings.Setting(False)
     autocommit = settings.Setting(True)
 
     UserAdviceMessages = [
-        widget.Message('You can difference the series up to the 2nd order. '
-                       'However, if you shift the series by other than 1 step, '
-                       'a differencing order of 1 is always assumed.',
+        widget.Message('Series can be differentiated up to the 2nd order. '
+                       'However, if the series is shifted by other than 1 '
+                       'step, a differencing order of 1 is always assumed.',
                        'diff-shift')
     ]
 
@@ -48,6 +58,14 @@ class OWDifference(widget.OWWidget):
         self.data = None
 
         box = gui.vBox(self.controlArea, 'Differencing')
+
+        gui.comboBox(box, self, 'chosen_operation',
+                     orientation=Qt.Horizontal,
+                     items=[el.value for el in self.Operation],
+                     label='Compute:',
+                     callback=self.on_changed,
+                     sendSelectedValue=True)
+
         self.order_spin = gui.spin(
             box, self, 'diff_order', 1, 2,
             label='Differencing order:',
@@ -111,9 +129,11 @@ class OWDifference(widget.OWWidget):
         self.model.wrap([])
 
     def on_changed(self):
-        self.order_spin.setDisabled(self.shift_period != 1)
         var_names = [i.row()
                      for i in self.view.selectionModel().selectedRows()]
+        self.order_spin.setEnabled(
+            self.shift_period == 1
+            and self.chosen_operation == self.Operation.DIFF)
         self.selected = [self.model[v] for v in var_names]
         self.commit()
 
@@ -128,6 +148,8 @@ class OWDifference(widget.OWWidget):
         invert = self.invert_direction
         shift = self.shift_period
         order = self.diff_order
+        op = self.chosen_operation
+
         for var in self.selected:
             col = np.ravel(data[:, var])
 
@@ -135,21 +157,29 @@ class OWDifference(widget.OWWidget):
                 col = col[::-1]
 
             out = np.empty(len(col))
-            if shift == 1:
-                out[:-order] = np.diff(col, order)
-                out[-order:] = np.nan
+            if op == self.Operation.DIFF and shift == 1:
+                out[order:] = np.diff(col, order)
+                out[:order] = np.nan
             else:
-                out[:-shift] = col[shift:] - col[:-shift]
-                out[-shift:] = np.nan
+                if op == self.Operation.DIFF:
+                    out[shift:] = col[shift:] - col[:-shift]
+                else:
+                    out[shift:] = np.divide(col[shift:], col[:-shift])
+                    if op == self.Operation.PERC:
+                        out = (out - 1) * 100
+                out[:shift] = np.nan
 
             if invert:
                 out = out[::-1]
 
             X.append(out)
 
-            template = '{} (diff; {})'.format(var.name,
-                                              'order={}'.format(order) if shift == 1 else
-                                              'shift={}'.format(shift))
+            if op == self.Operation.DIFF and shift == 1:
+                details = f'order={order}'
+            else:
+                details = f'shift={shift}'
+
+            template = f'{var} ({op[:4].lower()}; {details})'
             name = available_name(data.domain, template)
             attrs.append(ContinuousVariable(name))
 
@@ -173,7 +203,11 @@ if __name__ == "__main__":
     attrs = [var.name for var in data.domain.attributes]
     if 'Adj Close' in attrs:
         attrs.remove('Adj Close')
-        data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+        data = Timeseries(Domain(attrs,
+                                 [data.domain['Adj Close']],
+                                 None,
+                                 source=data.domain),
+                          data)
 
     ow.set_data(data)
 
