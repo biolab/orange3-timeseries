@@ -116,6 +116,7 @@ class OWTimeSlice(widget.OWWidget):
 
     class Error(widget.OWWidget.Error):
         no_time_variable = widget.Msg('Data contains no time variable')
+        no_time_delta = widget.Msg('Data contains only 1 row')
 
     MAX_SLIDER_VALUE = 500
     DATE_FORMATS = ('yyyy', '-MM', '-dd', '  HH:mm:ss.zzz')
@@ -384,6 +385,10 @@ class OWTimeSlice(widget.OWWidget):
             self.Error.no_time_variable()
             disabled()
             return
+        if not data.time_delta.deltas:
+            self.Error.no_time_delta()
+            disabled()
+            return
         self.Error.clear()
         var = data.time_variable
 
@@ -415,7 +420,7 @@ class OWTimeSlice(widget.OWWidget):
                     break
             else:
                 min_overlap = '1 day'
-        elif delta:
+        else:  # isinstance(delta, tuple)
             if delta[1] == 'day':
                 maximum = range.days / delta[0]
 
@@ -485,15 +490,6 @@ class OWTimeSlice(widget.OWWidget):
                         break
                 else:
                     raise Exception('Timedelta larger than 100 years')
-        else:
-            maximum = _TimeSliderMixin.DEFAULT_SCALE_LENGTH
-
-            max_dt2 = max_dt
-            min_dt2 = min_dt
-
-            date_format = ''.join(self.DATE_FORMATS)
-
-            min_overlap = next(iter(self.STEP_SIZES.keys()))
 
         # find max sensible time overlap
         upper_overlap_limit = range / 2
