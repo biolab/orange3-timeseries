@@ -18,7 +18,7 @@ class TestOWModelEvaluation(WidgetTest):
         """
         w = self.widget
         table = Table("housing")
-        time_series = Timeseries(table)
+        time_series = Timeseries.from_data_table(table)
         model = ARIMA((2, 5, 1), 0)
         self.assertFalse(w.Warning.model_not_appropriate.is_shown())
         self.send_signal(w.Inputs.time_series, time_series)

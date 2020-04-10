@@ -18,13 +18,12 @@ class TestOWSeasonalAdjustment(WidgetTest):
         GH-35
         """
         w = self.widget
-        table = Table("iris")
-        table.X[1, 0] = -1
-        time_series = Timeseries(table)
+        table = Timeseries.from_file("iris")
+        table.X[1, 1] = -1
         w.decomposition = 1
         w.autocommit = True
         self.assertFalse(w.Error.seasonal_decompose_fail.is_shown())
-        self.send_signal(w.Inputs.time_series, time_series)
+        self.send_signal(w.Inputs.time_series, table)
         self.widget.view.selectAll()
         self.assertTrue(w.Error.seasonal_decompose_fail.is_shown())
         self.send_signal(w.Inputs.time_series, None)
@@ -36,7 +35,7 @@ class TestOWSeasonalAdjustment(WidgetTest):
         GH-38
         """
         w = self.widget
-        time_series = Timeseries(Table("iris")[::30])
+        time_series = Timeseries.from_data_table(Table("iris")[::30])
         self.assertEqual(w.n_periods, 12)
         self.send_signal(w.Inputs.time_series, time_series)
         self.assertEqual(w.n_periods, 4)
@@ -47,7 +46,7 @@ class TestOWSeasonalAdjustment(WidgetTest):
         GH-38
         """
         w = self.widget
-        time_series = Timeseries(Table("iris")[:2])
+        time_series = Timeseries.from_data_table(Table("iris")[:2])
         self.assertFalse(w.Error.not_enough_instances.is_shown())
         self.send_signal(w.Inputs.time_series, time_series)
         self.assertTrue(w.Error.not_enough_instances.is_shown())
@@ -60,7 +59,7 @@ class TestOWSeasonalAdjustment(WidgetTest):
         """
         w = self.widget
         w.autocommit = True
-        time_series = Timeseries(Table("iris"))
+        time_series = Timeseries.from_data_table(Table("iris"))
         self.send_signal(w.Inputs.time_series, time_series)
         selmodel = w.view.selectionModel()
         selmodel.select(w.model.index(0), selmodel.Select)

@@ -29,10 +29,9 @@ class OWTableToTimeseries(widget.OWWidget):
     selected_attr = settings.Setting('')
     autocommit = settings.Setting(True)
 
-    class Error(widget.OWWidget.Error):
+    class Information(widget.OWWidget.Information):
         nan_times = widget.Msg('Some values of chosen sequential attribute '
-                               '"{}" are NaN, which makes the values '
-                               'impossible to sort')
+                               '"{}" are NaN, and have been omitted')
 
     def __init__(self):
         self.data = None
@@ -63,6 +62,7 @@ class OWTableToTimeseries(widget.OWWidget):
         if self.data is None:
             self.commit()
             return
+
         if data.domain.has_continuous_attributes():
             vars = [var for var in data.domain.variables if var.is_time] + \
                    [var for var in data.domain.metas if var.is_time] + \
@@ -79,45 +79,23 @@ class OWTableToTimeseries(widget.OWWidget):
 
     def commit(self):
         data = self.data
-        self.Error.clear()
+        self.Information.clear()
         if data is None or (self.selected_attr not in data.domain and not self.radio_sequential):
             self.Outputs.time_series.send(None)
             return
 
-        attrs = data.domain.attributes
-        cvars = data.domain.class_vars
-        metas = data.domain.metas
-        X = data.X
-        Y = np.column_stack((data.Y,))  # make 2d
-        M = data.metas
-
-        # Set sequence attribute
         if self.radio_sequential:
-            for i in chain(('',), range(10)):
-                name = '__seq__' + str(i)
-                if name not in data.domain:
-                    break
-            time_var = ContinuousVariable(name)
-            attrs = attrs.__class__((time_var,)) + attrs
-            X = np.column_stack((np.arange(1, len(data) + 1), X))
-            data = Table(Domain(attrs, cvars, metas), X, Y, M)
+            ts = Timeseries.make_timeseries_from_sequence(data)
         else:
-            # Or make a sequence attribute one of the existing attributes
-            # and sort all values according to it
+            ts = Timeseries.make_timeseries_from_continuous_var(data,
+                                                                self.selected_attr)
+            # Check if NaNs were present in data
             time_var = data.domain[self.selected_attr]
             values = Table.from_table(Domain([], [], [time_var]),
                                       source=data).metas.ravel()
             if np.isnan(values).any():
-                self.Error.nan_times(time_var.name)
-                self.Outputs.time_series.send(None)
-                return
-            ordered = np.argsort(values)
-            if (ordered != np.arange(len(ordered))).any():
-                data = data[ordered]
+                self.Information.nan_times(time_var.name)
 
-        ts = Timeseries(data.domain, data)
-        # TODO: ensure equidistant
-        ts.time_variable = time_var
         self.Outputs.time_series.send(ts)
 
 
@@ -127,7 +105,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWTableToTimeseries()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     ow.set_data(data)
 
     ow.show()

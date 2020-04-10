@@ -84,7 +84,8 @@ class OWSeasonalAdjustment(widget.OWWidget):
         self.Error.not_enough_instances.clear()
         self.data = None
         self.model.clear()
-        data = None if data is None else Timeseries.from_data_table(data)
+        data = None if data is None else \
+               Timeseries.from_data_table(data, detect_time_variable=True)
         if data is None:
             pass
         elif len(data) > 2:
@@ -144,12 +145,14 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWSeasonalAdjustment()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     if not data.domain.class_var and 'Adj Close' in data.domain:
         # Make Adjusted Close a class variable
         attrs = [var.name for var in data.domain.attributes]
         attrs.remove('Adj Close')
-        data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+        data = Timeseries.from_table(Domain(attrs, [data.domain['Adj Close']], None,
+                                            source=data.domain),
+                                     data)
 
     ow.set_data(data)
 

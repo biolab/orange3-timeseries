@@ -6,7 +6,7 @@ from orangecontrib.timeseries import Timeseries, interpolate_timeseries
 
 class TestInterpolation(unittest.TestCase):
     def setUp(self):
-        data = Timeseries('airpassengers')
+        data = Timeseries.from_file('airpassengers')
         data.Y[:2] = np.nan
         data.Y[10:15] = np.nan
         data.Y[-2:] = np.nan

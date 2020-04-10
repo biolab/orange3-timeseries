@@ -4,7 +4,7 @@ import numpy as np
 from orangecontrib.timeseries import Timeseries, seasonal_decompose
 
 
-data = Timeseries('airpassengers')
+data = Timeseries.from_file('airpassengers')
 
 
 class TestSeasonalDecompose(unittest.TestCase):

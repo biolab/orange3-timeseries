@@ -396,13 +396,17 @@ class OWLineChart(widget.OWWidget):
 
         # If the same data is updated, short circuit to just updating the chart,
         # retaining all panels and list view selections ...
-        if data is not None and self.data is not None and data.domain == self.data.domain:
-            self.data = Timeseries.from_data_table(data)
+        new_data = None if data is None else \
+                   Timeseries.from_data_table(data, detect_time_variable=True)
+        if new_data is not None and self.data is not None \
+                and new_data.domain == self.data.domain:
+            self.data = new_data
             for config in self.configs:
                 config.selection_changed()
             return
 
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
         if data is None:
             self.varmodel.clear()
             self.chart.clear()
@@ -438,7 +442,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWLineChart()
 
-    airpassengers = Timeseries('airpassengers')
+    airpassengers = Timeseries.from_file('airpassengers')
     ow.set_data(airpassengers),
 
     msft = airpassengers.interp()

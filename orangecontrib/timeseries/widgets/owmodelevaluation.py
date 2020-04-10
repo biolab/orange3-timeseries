@@ -72,7 +72,8 @@ class OWModelEvaluation(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
         self.on_changed()
 
     @Inputs.time_series_model
@@ -118,12 +119,14 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWModelEvaluation()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
     if 'Adj Close' in attrs:
         attrs.remove('Adj Close')
-        data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+        data = Timeseries.from_table(Domain(attrs, [data.domain['Adj Close']], None,
+                                            source=data.domain),
+                                     data)
 
     ow.set_data(data)
     ow.set_model(ARIMA((1, 1, 1)), 1)

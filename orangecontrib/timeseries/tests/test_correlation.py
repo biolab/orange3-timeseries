@@ -4,7 +4,7 @@ import numpy as np
 from orangecontrib.timeseries import Timeseries, autocorrelation, partial_autocorrelation
 
 
-data = Timeseries('airpassengers')
+data = Timeseries.from_file('airpassengers')
 
 
 class TestAutocorrelation(unittest.TestCase):

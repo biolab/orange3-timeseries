@@ -59,7 +59,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWVARModel()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     ow.set_data(data)
 
     ow.show()

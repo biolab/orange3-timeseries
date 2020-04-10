@@ -4,7 +4,7 @@ import numpy as np
 from orangecontrib.timeseries import Timeseries, periodogram, periodogram_nonequispaced
 
 
-data = Timeseries('airpassengers')
+data = Timeseries.from_file('airpassengers')
 
 
 class TestPeriodogram(unittest.TestCase):

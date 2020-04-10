@@ -1,7 +1,7 @@
-
+import itertools
 import numpy as np
 
-from Orange.data import Table, Domain, TimeVariable
+from Orange.data import Table, Domain, TimeVariable, ContinuousVariable
 
 import Orange.data
 from os.path import join, dirname
@@ -19,16 +19,117 @@ class Timeseries(Table):
         self._interp_method = 'linear'
         self._interp_multivariate = False
         self._time_delta = None
-        # Set default time variable to first TimeVariable
+
+    @classmethod
+    def from_data_table(cls, table, detect_time_variable=False):
+        if isinstance(table, Timeseries) \
+                and table.time_variable is not None \
+                and table.time_delta is not None:
+            return table
+
+        # Set default time variable to first TimeVariable in:
+        search = table.domain.attributes + table.domain.metas
+
+        # Is there a time variable we can use?
         try:
-            self.time_variable = next(var for var in self.domain.attributes + self.domain.metas
-                                      if isinstance(var, TimeVariable))
+            time_variable = next(var for var in search
+                                 if var.is_time)
+            ts = super(Timeseries, cls).from_table(table.domain, table)
+            ts.time_variable = time_variable
+            return ts
         except (StopIteration, AttributeError):
             pass
 
+        if not detect_time_variable:
+            ts = super(Timeseries, cls).from_table(table.domain, table)
+            return ts
+
+        # Is there a continuous variable we can use?
+        try:
+            continuous_variable = next(var for var in search
+                                       if var.is_continuous)
+            return cls.make_timeseries_from_continuous_var(table, continuous_variable)
+        except (StopIteration, AttributeError):
+            pass
+        # Fallback to sequential
+        return cls.make_timeseries_from_sequence(table)
+
     @classmethod
-    def from_data_table(cls, table):
-        return table if isinstance(table, Timeseries) else Timeseries(table)
+    def from_domain(cls, *args, detect_time_variable=False, **kwargs):
+        table = Table.from_domain(*args, **kwargs)
+        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+
+    @classmethod
+    def from_table(cls, domain, source, *args, detect_time_variable=False, **kwargs):
+        if not isinstance(source, Timeseries):
+            table = Table.from_table(domain, source, *args, **kwargs)
+            return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+        return super().from_table(domain, source, *args, **kwargs)
+
+    @classmethod
+    def from_numpy(cls, *args, detect_time_variable=False, **kwargs):
+        table = Table.from_numpy(*args, **kwargs)
+        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+
+    @classmethod
+    def from_list(cls, *args, detect_time_variable=False, **kwargs):
+        table = Table.from_list(*args, **kwargs)
+        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+
+    @classmethod
+    def from_file(cls, *args, detect_time_variable=False, **kwargs):
+        table = Table.from_file(*args, **kwargs)
+        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+
+    @classmethod
+    def from_url(cls, *args, detect_time_variable=False, **kwargs):
+        table = Table.from_url(*args, **kwargs)
+        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+
+    @classmethod
+    def make_timeseries_from_sequence(cls, table):
+        attrs = table.domain.attributes
+        cvars = table.domain.class_vars
+        metas = table.domain.metas
+        X = table.X
+        Y = np.column_stack((table.Y,))  # make 2d
+        M = table.metas
+
+        # Uniqueify seq name
+        for i in itertools.chain(('',), range(10)):
+            name = '__seq__' + str(i)
+            if name not in table.domain:
+                break
+        # Create new time variable, values 1 to len(data + 1)
+        time_var = ContinuousVariable(name)
+        attrs = attrs.__class__((time_var,)) + attrs
+        X = np.column_stack((np.arange(1, len(table) + 1), X))
+        table = Table(Domain(attrs, cvars, metas), X, Y, M)
+
+        ts = super(Timeseries, cls).from_table(table.domain, table)
+        ts.time_variable = time_var
+        return ts
+
+    @classmethod
+    def make_timeseries_from_continuous_var(cls, table, attr_name):
+        # Make a sequence attribute from one of the existing attributes,
+        # and sort all values according to it
+        time_var = table.domain[attr_name]
+        values = table.get_column_view(time_var)[0]
+        # Filter out NaNs
+        nans = np.isnan(values)
+        if nans.any():
+            values = values[~nans]
+            table = table[~nans]
+            return
+        # Sort!
+        ordered = np.argsort(values)
+        if (ordered != np.arange(len(ordered))).any():
+            table = table[ordered]
+
+        ts = super(Timeseries, cls).from_table(table.domain, table)
+        ts.time_variable = time_var
+        return ts
 
     @property
     def time_values(self):

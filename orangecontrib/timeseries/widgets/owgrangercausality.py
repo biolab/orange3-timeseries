@@ -69,7 +69,8 @@ class OWGrangerCausality(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
         self.on_changed()
 
     def commit(self):
@@ -100,7 +101,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWGrangerCausality()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     ow.set_data(data)
 
     ow.show()

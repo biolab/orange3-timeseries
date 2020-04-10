@@ -80,12 +80,14 @@ def finance_data(symbol,
         until = date.today()
 
     f = web.DataReader(symbol, 'yahoo', since, until)
-    data = Timeseries(table_from_frame(f))
+    data = Timeseries.from_data_table(table_from_frame(f))
 
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
     attrs.remove('Adj Close')
-    data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+    data = Timeseries.from_table(Domain(attrs, [data.domain['Adj Close']],
+                                        None, source=data.domain),
+                                 data)
 
     data.name = symbol
     data.time_variable = data.domain['Date']

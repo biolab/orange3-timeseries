@@ -181,7 +181,8 @@ class OWMovingTransform(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
         self.add_button.setDisabled(not len(getattr(data, 'domain', ())))
         self.table_model.clear()
         if data is not None:
@@ -214,12 +215,14 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWMovingTransform()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     attrs = [var.name for var in data.domain.attributes]
     if 'Adj Close' in attrs:
         # Make Adjusted Close a class variable
         attrs.remove('Adj Close')
-        data = Timeseries(Domain(attrs, [data.domain['Adj Close']], None, source=data.domain), data)
+        data = Timeseries.from_table(Domain(attrs, [data.domain['Adj Close']], None,
+                                            source=data.domain),
+                                     data)
 
     ow.set_data(data)
 

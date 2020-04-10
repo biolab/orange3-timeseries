@@ -82,7 +82,8 @@ class OWPeriodogram(widget.OWWidget):
     @cache_clears(periodogram)
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else Timeseries.from_data_table(data)
+        self.data = data = None if data is None else \
+                           Timeseries.from_data_table(data, detect_time_variable=True)
         self.all_attrs = []
         if data is None:
             self.plot.clear()
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     a = QApplication([])
     ow = OWPeriodogram()
 
-    data = Timeseries('airpassengers')
+    data = Timeseries.from_file('airpassengers')
     ow.set_data(data)
 
     ow.show()
