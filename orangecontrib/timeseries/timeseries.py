@@ -1,4 +1,5 @@
 import itertools
+from more_itertools import unique_everseen
 import numpy as np
 
 from Orange.data import Table, Domain, TimeVariable, ContinuousVariable
@@ -21,6 +22,12 @@ class TimeDelta:
         self.time_values = time_values
         self.backwards_compatible_delta = self._get_backwards_compatible_delta()
 
+        if len(time_values) <= 1:
+            self.deltas = []
+            self.is_equispaced = True
+            self.min = None
+            return
+
         deltas = list(np.sort(np.unique(np.diff(self.time_values))))
         # TODO detect multiple days/months/years
         for i, d in enumerate(deltas[:]):
@@ -30,7 +37,10 @@ class TimeDelta:
                 deltas[i] = (1, 'month')
             elif d in self._SPAN_YEAR:
                 deltas[i] = (1, 'year')
-        self._deltas = deltas
+        # in case several months or years of different length were matched,
+        # run it through another unique check
+        deltas = list(unique_everseen(deltas))
+        self.deltas = deltas
 
         self.is_equispaced = len(deltas) == 1
         self.min = deltas[0]
