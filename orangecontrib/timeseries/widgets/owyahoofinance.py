@@ -102,8 +102,6 @@ class OWYahooFinance(widget.OWWidget):
                 progress.advance()
                 self.button.setDisabled(True)
                 data = finance_data(symbol, date_from, date_to)
-                # Treat finance data as equispaced
-                data.is_equispaced = True
 
                 self.Outputs.time_series.send(data)
             except Exception as e:

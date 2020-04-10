@@ -60,8 +60,7 @@ class OWPeriodogram(widget.OWWidget):
 
     @lru_cache(20)
     def periodogram(self, attr):
-        is_equispaced = self.data.time_delta is not None
-        if is_equispaced:
+        if self.data.time_delta.is_equispaced:
             x = np.ravel(self.data.interp(attr))
             periods, pgram = periodogram_equispaced(x)
             # TODO: convert periods into time_values-relative values, i.e.
