@@ -91,6 +91,12 @@ class Timeseries(Table):
         try:
             time_variable = next(var for var in search
                                  if var.is_time)
+            values = table.get_column_view(time_variable)[0]
+            if np.issubdtype(values.dtype, np.number):
+                # Filter out NaNs
+                nans = np.isnan(values)
+                if nans.any():
+                    table = table[~nans]
             ts = super(Timeseries, cls).from_table(table.domain, table)
             ts.time_variable = time_variable
             return ts
