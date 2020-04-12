@@ -175,10 +175,11 @@ class Timeseries(Table):
         values = table.get_column_view(time_var)[0]
         # Filter out NaNs
         nans = np.isnan(values)
+        if nans.all():
+            return None
         if nans.any():
             values = values[~nans]
             table = table[~nans]
-            return
         # Sort!
         ordered = np.argsort(values)
         if (ordered != np.arange(len(ordered))).any():
