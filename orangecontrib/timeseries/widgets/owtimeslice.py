@@ -121,6 +121,7 @@ class OWTimeSlice(widget.OWWidget):
     MAX_SLIDER_VALUE = 500
     DATE_FORMATS = ('yyyy', '-MM', '-dd', '  HH:mm:ss.zzz')
     # only appropriate overlap amounts are shown, but these are all the options
+    DELAY_VALUES = (0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30)
     STEP_SIZES = OrderedDict((
         ('1 second', 1),
         ('5 seconds', 5),
@@ -242,7 +243,7 @@ class OWTimeSlice(widget.OWWidget):
             self.slider.tracking_timer.setInterval(1000 * self.playback_interval)
         gui.valueSlider(vbox, self, 'playback_interval',
                         label='Delay:', labelFormat='%.2g sec',
-                        values=(0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30),
+                        values=self.DELAY_VALUES,
                         callback=set_intervals)
 
         gui.rubber(self.controlArea)
@@ -553,7 +554,11 @@ class OWTimeSlice(widget.OWWidget):
     @classmethod
     def migrate_settings(cls, settings_, version):
         if version < 2:
-            settings_["playback_interval"] /= 1000
+            interval = settings_["playback_interval"] / 1000
+            if interval in cls.DELAY_VALUES:
+                settings_["playback_interval"] = interval
+            else:
+                settings_["playback_interval"] = 1
 
 
 if __name__ == '__main__':
