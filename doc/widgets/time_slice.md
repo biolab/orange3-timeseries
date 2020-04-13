@@ -17,7 +17,7 @@ Time slice is a subset selection widget designed specifically for time series an
 
 1. Visual representation of time series with the selected time slice. Click and drag the red lines to adjust the time window, or click and drag the yellow frame to move it around. Alternatively, set the to and from dates below to output the desired subset.
 2. If *Loop playback* is selected the data will 'replay' continuously. *Custom step size* defines how the time slice move. If it is set to, say, *1 day*, the window will output n + 1 day once it moves. Without the custom step size defined, the slice will move to the next frame of the same size without any overlap.
-Press play to being the sliding window and stop to stop it. Backwards and forwards buttons move the slice by the specified step size.
+   Press play to being the sliding window and stop to stop it. Backwards and forwards buttons move the slice by the specified step size.
 3. Set the speed of the sliding window.
 
 Example
