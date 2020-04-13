@@ -70,6 +70,7 @@ if __name__ == '__main__':
             'pandas_datareader',
             'numpy',
             'scipy>=0.17',
+            'more-itertools',
         ],
         entry_points=ENTRY_POINTS,
         test_suite='orangecontrib.timeseries.tests.suite',
