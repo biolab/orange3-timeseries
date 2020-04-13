@@ -10,18 +10,19 @@ Widgets
    widgets/yahoo_finance
    widgets/as_timeseries
    widgets/interpolate
-   widgets/aggregate
-   widgets/difference
-   widgets/seasonal_adjustment
    widgets/moving_transform
-   widgets/correlogram
-   widgets/periodogram
    widgets/line_chart
+   widgets/periodogram
+   widgets/correlogram
    widgets/spiralogram
+   widgets/granger_causality
    widgets/arima
    widgets/var
    widgets/model_evaluation
-   widgets/granger_causality
+   widgets/time_slice
+   widgets/aggregate
+   widgets/difference
+   widgets/seasonal_adjustment
 
 .. alternative ordering:
    :glob:
