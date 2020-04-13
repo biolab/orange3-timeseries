@@ -1,4 +1,5 @@
 import itertools
+from more_itertools import unique_everseen
 import numpy as np
 
 from Orange.data import Table, Domain, TimeVariable, ContinuousVariable
@@ -21,8 +22,28 @@ class TimeDelta:
         self.time_values = time_values
         self.backwards_compatible_delta = self._get_backwards_compatible_delta()
 
-        self._deltas = deltas = np.sort(np.unique(np.diff(self.time_values)))
+        if len(time_values) <= 1:
+            self.deltas = []
+            self.is_equispaced = True
+            self.min = None
+            return
+
+        deltas = list(np.sort(np.unique(np.diff(self.time_values))))
+        # TODO detect multiple days/months/years
+        for i, d in enumerate(deltas[:]):
+            if d in self._SPAN_DAY:
+                deltas[i] = (1, 'day')
+            elif d in self._SPAN_MONTH:
+                deltas[i] = (1, 'month')
+            elif d in self._SPAN_YEAR:
+                deltas[i] = (1, 'year')
+        # in case several months or years of different length were matched,
+        # run it through another unique check
+        deltas = list(unique_everseen(deltas))
+        self.deltas = deltas
+
         self.is_equispaced = len(deltas) == 1
+        self.min = deltas[0]
 
     def _get_backwards_compatible_delta(self):
         """
@@ -70,6 +91,12 @@ class Timeseries(Table):
         try:
             time_variable = next(var for var in search
                                  if var.is_time)
+            values = table.get_column_view(time_variable)[0]
+            if np.issubdtype(values.dtype, np.number):
+                # Filter out NaNs
+                nans = np.isnan(values)
+                if nans.any():
+                    table = table[~nans]
             ts = super(Timeseries, cls).from_table(table.domain, table)
             ts.time_variable = time_variable
             return ts
@@ -154,10 +181,11 @@ class Timeseries(Table):
         values = table.get_column_view(time_var)[0]
         # Filter out NaNs
         nans = np.isnan(values)
+        if nans.all():
+            return None
         if nans.any():
             values = values[~nans]
             table = table[~nans]
-            return
         # Sort!
         ordered = np.argsort(values)
         if (ordered != np.arange(len(ordered))).any():

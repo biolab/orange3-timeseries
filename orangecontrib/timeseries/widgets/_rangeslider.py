@@ -1,12 +1,16 @@
+import sys
+
 import numpy as np
 from scipy.stats import gaussian_kde
 
 # from PyQt5.QtCore import *
 # from PyQt5.QtGui import *
 # from PyQt5.QtWidgets import *
-from AnyQt.QtWidgets import QSlider, QStyle, QStylePainter, QStyleOptionSlider
-from AnyQt.QtGui import QPixmap, QPen, QPainter, QTransform, QBrush, QFont
-from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize
+from AnyQt.QtWidgets import QSlider, QStyle, QStylePainter, \
+    QStyleOptionSlider
+from AnyQt.QtGui import QPixmap, QPen, QPainter, QTransform, QBrush, QFont, \
+    QColor
+from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize, QTimer
 
 
 def _INVALID(*args):
@@ -26,28 +30,37 @@ class RangeSlider(QSlider):
     def __init__(self, *args, **kwargs):
         minimum = kwargs.get('minimum', 0)
         maximum = kwargs.get('maximum', 0)
-        self.__min_value = self.__min_position = kwargs.pop('minimumValue', minimum)
-        self.__max_value = self.__max_position = kwargs.pop('maximumValue', maximum)
-        self.__min_position = kwargs.pop('minimumPosition', self.__min_position)
-        self.__max_position = kwargs.pop('maximumPosition', self.__max_position)
+        self.__min_value = self._min_position = kwargs.pop('minimumValue', minimum)
+        self.__max_value = self._max_position = kwargs.pop('maximumValue', maximum)
+        playback_interval = kwargs.pop('playbackInterval', 1000)
+        self._min_position = kwargs.pop('minimumPosition', self._min_position)
+        self._max_position = kwargs.pop('maximumPosition', self._max_position)
 
         kwargs.setdefault('orientation', Qt.Horizontal)
         kwargs.setdefault('tickPosition', self.TicksBelow)
 
         super().__init__(*args, **kwargs)
 
+        self.tracking_timer = QTimer(self,
+                                     interval=playback_interval,
+                                     timeout=self.__send_tracked_selection)
+        self.__tracked_selection = None
+
         self.__pressed_control = QStyle.SC_None
         self.__hovered_control = QStyle.SC_None
         self.__active_slider = -1
         self.__click_offset = 0
+        self.__new_selection_drawing_origin = None  # type: (int, int)
+
+        self._showControlTooltip = False
 
     def paintEvent(self, event):
         # based on
         # https://github.com/qt/qtbase/blob/f40dbe0d0b54ce83d2168e82905cf4f75059a841/src/widgets/widgets/qslider.cpp#L315
         # https://github.com/enthought/traitsui/blob/master/traitsui/qt4/extra/range_slider.py
         painter = QStylePainter(self)
-        minpos = self.__min_position
-        maxpos = self.__max_position
+        minpos = self._min_position
+        maxpos = self._max_position
 
         # Draw the groove
         opt = QStyleOptionSlider()
@@ -93,7 +106,7 @@ class RangeSlider(QSlider):
             opt.sliderValue = position
             painter.drawComplexControl(QStyle.CC_Slider, opt)
 
-    def _hitTestHandle(self, option, position):
+    def _testHandleCollision(self, position):
         """Replaces QStyle.hitTestComplexControl in mousePressEvent().
 
         Return True if handle was pressed.
@@ -101,13 +114,28 @@ class RangeSlider(QSlider):
 
         This is used because PyQt<5.5 doesn't expose QProxyStyle.
         """
-        return self.style().hitTestComplexControl(
-            QStyle.CC_Slider, option, position, self) == QStyle.SC_SliderHandle
+        for i, h in enumerate([self._min_position, self._max_position]):
+            opt = QStyleOptionSlider()
+            self.initStyleOption(opt)
+            opt.sliderPosition = position
+
+            if self.style().hitTestComplexControl(
+                QStyle.CC_Slider, opt, position, self) == QStyle.SC_SliderHandle:
+                return i
+        return -1
 
     def mouseReleaseEvent(self, event):
+        self._showControlTooltip = False
+        if self.__new_selection_drawing_origin:
+            self.__new_selection_drawing_origin = None
         self.__pressed_control = QStyle.SC_None
-        if not self.hasTracking():
-            self.setValues(self.__min_position, self.__max_position)
+        if self.hasTracking():
+            self.tracking_timer.stop()
+            self.__send_tracked_selection()
+        else:
+            self.setValues(self._min_position, self._max_position)
+        self.update()
+        self.slidersMoved.emit(self._min_position, self._max_position)
 
     def mousePressEvent(self, event):
         if not event.button():
@@ -117,25 +145,50 @@ class RangeSlider(QSlider):
         event.accept()
         opt = QStyleOptionSlider()
         self.initStyleOption(opt)
-        self.__active_slider = -1
 
-        for i, value in enumerate((self.__min_position, self.__max_position)):
-            opt.sliderPosition = value
-            if self._hitTestHandle(opt, event.pos()):
-                self.__active_slider = i
-                self.__pressed_control = QStyle.SC_SliderHandle
+        self.triggerAction(self.SliderMove)
+        self.setRepeatAction(self.SliderNoAction)
 
-                self.triggerAction(self.SliderMove)
-                self.setRepeatAction(self.SliderNoAction)
-                self.setSliderDown(True)
-                break
-        else:
-            # If the user clicks the groove between the handles, the whole
-            # interval is moved
+        if self.hasTracking():
+            self.tracking_timer.start()
+
+        # Is Ctrl/Cmd held?
+        if event.modifiers() & Qt.ControlModifier:
+            # Then move the whole interval
+            self.__active_slider = -1
             self.__pressed_control = QStyle.SC_SliderGroove
             self.__click_offset = self._pixelPosToRangeValue(self._pick(event.pos()))
-            self.triggerAction(self.SliderMove)
-            self.setRepeatAction(self.SliderNoAction)
+            return
+
+        # Is a handle being pressed?
+        pressed_handle = self._testHandleCollision(event.pos())
+        if pressed_handle >= 0:
+            # Then move the handle
+            self.__active_slider = pressed_handle
+            self.__pressed_control = QStyle.SC_SliderHandle
+            self.setSliderDown(True)
+            self._showControlTooltip = True
+            self.update()
+        else:
+            self.__pressed_control = QStyle.SC_SliderGroove
+            self.__click_offset = self._pixelPosToRangeValue(
+                self._pick(event.pos()))
+
+            # Did the user click between the handles?
+            if self._min_position < self.__click_offset < self._max_position:
+                # Then move the whole interval
+                self.__active_slider = -1
+            else:
+                # Else draw a new interval
+                self.__new_selection_drawing_origin = low_v, hi_v = \
+                    self._pixelPosToSurroundingRangeValues(self._pick(event.pos()))
+                self._min_position = low_v
+                self._max_position = hi_v
+                self.update()
+                self.setValues(self._min_position,
+                               self._max_position)
+                self.slidersMoved.emit(self._min_position,
+                                       self._max_position)
 
     def mouseMoveEvent(self, event):
         if self.__pressed_control not in (QStyle.SC_SliderGroove,
@@ -148,26 +201,74 @@ class RangeSlider(QSlider):
         self.initStyleOption(opt)
         pos = self._pixelPosToRangeValue(self._pick(event.pos()))
 
+        if self.__new_selection_drawing_origin:
+            # Drawing new time window
+            if pos <= self.__click_offset and self.__active_slider != 0:
+                self.__active_slider = 0
+                self._max_position = self.__new_selection_drawing_origin[1]
+            elif pos > self.__click_offset and self.__active_slider != 1:
+                self.__active_slider = 1
+                self._min_position = self.__new_selection_drawing_origin[0]
+
         if self.__active_slider < 0:
+            # Moving the time window
+            width = self._max_position - self._min_position
             offset = pos - self.__click_offset
-            self.__max_position = min(self.__max_position + offset, self.maximum())
-            self.__min_position = max(self.__min_position + offset, self.minimum())
+            if offset >= 0:
+                self._max_position = min(self.maximum(),
+                                         self._max_position + offset)
+                self._min_position = max(self.minimum(),
+                                         min(self._min_position + offset,
+                                             self._max_position - width))
+            else:
+                self._min_position = max(self.minimum(),
+                                         self._min_position + offset)
+                self._max_position = min(self.maximum(),
+                                         max(self._max_position + offset,
+                                             self._min_position + width))
             self.__click_offset = pos
         else:
+            # Moving a handle
             if self.__active_slider == 0:
-                self.__min_position = max(self.minimum(), pos)
-                self.__max_position = min(self.maximum(), max(self.__max_position, self.__min_position + 1))
+                if not self.__new_selection_drawing_origin \
+                        and self._max_position <= pos < self.maximum():
+                    # Flip to other slider
+                    self.__active_slider = 1
+                    self._min_position = self._max_position
+                    self._max_position = min(self.maximum(),
+                                             max(pos,
+                                                  self._min_position + 1))
+                else:
+                    self._min_position = max(self.minimum(),
+                                             min(pos,
+                                                 self._max_position - 1))
+
             else:
-                self.__max_position = min(self.maximum(), pos)
-                self.__min_position = max(self.minimum(), min(self.__min_position, self.__max_position - 1))
+                if not self.__new_selection_drawing_origin \
+                        and self.minimum() < pos <= self._min_position:
+                    # Flip to other slider
+                    self.__active_slider = 0
+                    self._max_position = self._min_position
+                    self._min_position = max(self.minimum(),
+                                             min(pos,
+                                                 self._max_position - 1))
+                else:
+                    self._max_position = min(self.maximum(),
+                                             max(pos,
+                                                  self._min_position + 1))
 
         self.update()
-        self.slidersMoved.emit(self.__min_position, self.__max_position)
+        self.slidersMoved.emit(self._min_position, self._max_position)
         # This is different from QAbstractSlider, which sets the value
         # insider triggerAction() which would be called here instead.
         # But I don't want to override that as well, so simply:
         if self.hasTracking():
-            self.setValues(self.__min_position, self.__max_position)
+            self.__tracked_selection = (self._min_position, self._max_position)
+
+    def __send_tracked_selection(self):
+        if self.__tracked_selection:
+            self.setValues(*self.__tracked_selection)
+            self.__tracked_selection = None
 
     def _pick(self, pt):
         return pt.x() if self.orientation() == Qt.Horizontal else pt.y()
@@ -202,12 +303,42 @@ class RangeSlider(QSlider):
             self.minimum(), self.maximum(), pos - slider_min,
             slider_max - slider_min, self.invertedAppearance())
 
+    def _pixelPosToSurroundingRangeValues(self, pos):
+        groove = self._subControlRect(QStyle.SC_SliderGroove)
+        handle = self._subControlRect(QStyle.SC_SliderHandle)
+
+        if self.orientation() == Qt.Horizontal:
+            slider_length = handle.width()
+            slider_min = groove.x()
+            slider_max = groove.right() - slider_length + 1
+        else:
+            slider_length = handle.height()
+            slider_min = groove.y()
+            slider_max = groove.bottom() - slider_length + 1
+
+        val = QStyle.sliderValueFromPosition(
+            self.minimum(), self.maximum(),
+            pos - slider_min, slider_max - slider_min,
+            self.invertedAppearance()
+        )
+
+        val_to_pixel = QStyle.sliderPositionFromValue(
+            self.minimum(), self.maximum(),
+            val, slider_max - slider_min,
+            self.invertedAppearance()
+        )
+
+        if val == self.maximum() or val_to_pixel > pos:
+            return val - 1, val
+        else:
+            return val, val + 1
+
     def values(self):
         return self.__min_value, self.__max_value
 
     def setValues(self, minValue, maxValue):
-        self.__min_position = self.__min_value = max(minValue, self.minimum())
-        self.__max_position = self.__max_value = min(maxValue, self.maximum())
+        self._min_position = self.__min_value = max(minValue, self.minimum())
+        self._max_position = self.__max_value = min(maxValue, self.maximum())
         self.valuesChanged.emit(self.__min_value, self.__max_value)
         self.update()
 
@@ -226,19 +357,19 @@ class RangeSlider(QSlider):
         self.update()
 
     def minimumPosition(self):
-        return self.__min_position
+        return self._min_position
 
     def setMinimumPosition(self, minPosition):
-        self.__min_position = minPosition
-        self.slidersMoved(self.__min_position, self.__max_position)
+        self._min_position = minPosition
+        self.slidersMoved(self._min_position, self._max_position)
         self.update()
 
     def maximumPosition(self):
-        return self.__max_position
+        return self._max_position
 
     def setMaximumPosition(self, maxPosition):
-        self.__max_position = maxPosition
-        self.slidersMoved(self.__min_position, self.__max_position)
+        self._max_position = maxPosition
+        self.slidersMoved(self._min_position, self._max_position)
         self.update()
 
 
@@ -309,10 +440,23 @@ class ViolinSlider(RangeSlider):
              is_horizontal and event.size().width() > event.oldSize().width())):
             self.setHistogram(histogram=self._histogram)
 
-    def _hitTestHandle(self, option, position):
+    def _testHandleCollision(self, position):
         pos = self._pixelPosToRangeValue(self._pick(position))
         delta = min(10, max(5, (self.maximum() - self.minimum()) // 25))
-        return option.sliderPosition in range(pos - delta, pos + delta + 1)
+        diffs = []
+        for h in [self._min_position, self._max_position]:
+            if h in range(pos - delta, pos + delta + 1):
+                diffs += [abs(pos - h)]
+            else:
+                diffs += [-1]
+        if not any(d != -1 for d in diffs):
+            # none in sight
+            return -1
+        if all(d != -1 for d in diffs):
+            # return closest
+            return min(range(2), key=lambda i: diffs[i])  # min index
+        # return the one that's hit
+        return max(range(2), key=lambda i: diffs[i])  # max index
 
     def _subControlRect(self, subcontrol):
         if subcontrol == QStyle.SC_SliderGroove:
@@ -366,21 +510,44 @@ class ViolinSlider(RangeSlider):
         painter.setOpacity(1)
 
         if self._show_text:
-            painter.setFont(QFont('sans-serif', 7, QFont.Bold))
+            painter.setFont(QFont('Monospace', 7, QFont.Bold))
             strMin, strMax = self.formatValues(minpos, maxpos)
             widthMin = painter.fontMetrics().width(strMin)
             widthMax = painter.fontMetrics().width(strMax)
             height = painter.fontMetrics().height()
-            is_enough_space = x2 - x1 > 2 + (max(widthMax, widthMin)
+            is_enough_space = x2 - x1 > 3 + (max(widthMax, widthMin)
                                              if is_horizontal else
                                              (2 * height + self._HANDLE_WIDTH))
             if is_enough_space:
                 if is_horizontal:
-                    painter.drawText(x1 + 3, rect.y() + height - 2, strMin)
-                    painter.drawText(x2 - widthMax - 1, rect.y() + rect.height() - 2, strMax)
+                    painter.drawText(x1 + 3, rect.y() + height, strMin)
+                    painter.drawText(x2 - widthMax - 2,
+                                     rect.y() + rect.height() - 3, strMax)
                 else:
                     painter.drawText(rect.x() + 1, x1 + height, strMin)
                     painter.drawText(rect.x() + rect.width() - widthMax - 1, x2 - 2, strMax)
+
+        # Tooltip
+        if self._showControlTooltip\
+                and (not self._show_text or not is_enough_space):
+            # (show control-drag tooltip)
+            painter.setFont(QFont('Monospace', 10, QFont.Normal))
+
+            text = "Hold {} to move time interval" \
+                   .format("Cmd" if sys.platform == "darwin"
+                           else "Ctrl")
+            w = painter.fontMetrics().width(text)
+            h = painter.fontMetrics().height()
+
+            brush = QColor(224, 224, 224, 212)
+            pen = QPen(Qt.NoPen)
+            rect = QRect(4, 4, w + 8, h + 4)
+            painter.setBrush(brush)
+            painter.setPen(pen)
+            painter.drawRect(rect)
+
+            painter.setPen(Qt.black)
+            painter.drawText(8, 4 + h, text)
 
     def formatValues(self, valueMin, valueMax):
         """Format the int values into strings that are shown if showText is True."""
