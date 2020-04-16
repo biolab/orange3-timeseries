@@ -6,6 +6,7 @@ from Orange.widgets.tests.base import WidgetTest
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets.owspiralogram import OWSpiralogram
 from Orange.widgets.tests.utils import simulate
+from Orange.widgets.settings import Context
 
 
 class TestOWSpiralogram(WidgetTest):
@@ -73,6 +74,40 @@ class TestOWSpiralogram(WidgetTest):
         simulate.combobox_activate_item(w.attr_cb, 'Datetime')
         # test all possibilities for aggregations
         simulate.combobox_run_through_all(w.combo_func)
+
+    def test_migrate_settings_from_version_1_disc(self):
+        settings = {
+            '__version__': 1,
+            'context_settings': [
+                Context(values={'agg_attr': ([('Type', 101)], -3),
+                                'agg_func': (0, -2),
+                                'ax1': ('months', -2),
+                                'ax2': ('years', -2)})],
+            'controlAreaVisible': True,
+            'invert_date_order': False,
+            'savedWidgetGeometry': None
+        }
+        w = self.create_widget(OWSpiralogram, stored_settings=settings)
+        self.send_signal(w.Inputs.time_series, self.philadelphia, widget=w)
+        self.assertEqual(w.agg_attr.name, 'Type')
+        self.assertEqual(w.agg_func, 'Mode')
+
+    def test_migrate_settings_from_version_1_time(self):
+        settings = {
+            '__version__': 1,
+            'context_settings': [
+                Context(values={'agg_attr': ([('Datetime', 104)], -3),
+                                'agg_func': (12, -2),
+                                'ax1': ('months', -2),
+                                'ax2': ('years', -2)})],
+            'controlAreaVisible': True,
+            'invert_date_order': False,
+            'savedWidgetGeometry': None
+        }
+        w = self.create_widget(OWSpiralogram, stored_settings=settings)
+        self.send_signal(w.Inputs.time_series, self.philadelphia, widget=w)
+        self.assertEqual(w.agg_attr.name, 'Datetime')
+        self.assertEqual(w.agg_func, 'Mean')
 
 
 if __name__ == "__main__":
