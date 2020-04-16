@@ -400,7 +400,9 @@ class OWSpiralogram(widget.OWWidget):
                 new_aggs = [agg for agg in AGG_OPTIONS if AGG_OPTIONS[agg].time]
         self.combo_func.addItems(new_aggs)
 
-        self.agg_func = next(iter(new_aggs))
+        if self.agg_func not in new_aggs:
+            self.agg_func = next(iter(new_aggs))
+
         self.replot()
 
     def replot(self):
