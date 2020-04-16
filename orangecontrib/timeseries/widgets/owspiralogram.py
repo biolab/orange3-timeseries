@@ -279,6 +279,7 @@ class OWSpiralogram(widget.OWWidget):
     class Outputs:
         time_series = Output("Time series", Timeseries)
 
+    settings_version = 2
     settingsHandler = settings.DomainContextHandler()
 
     ax1 = settings.ContextSetting('months of year')
@@ -425,6 +426,18 @@ class OWSpiralogram(widget.OWWidget):
     def commit(self):
         self.Outputs.time_series.send(
             self.data[self.indices] if self.data else None)
+
+    @classmethod
+    def migrate_context(cls, context, version):
+        if version < 2:
+            values = context.values
+            context.values["agg_attr"] = values["agg_attr"][0][0]
+            _, type = values["agg_attr"]
+            ind, pos = values["agg_func"]
+            if type == 101: # discrete variable is always Mode in old settings
+                context.values["agg_func"] = ('Mode', pos)
+            else:
+                context.values["agg_func"] = (list(AGG_OPTIONS)[ind], pos)
 
 
 if __name__ == "__main__":
