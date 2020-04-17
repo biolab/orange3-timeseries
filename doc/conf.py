@@ -15,8 +15,6 @@
 
 import sys
 from os.path import join, dirname
-import os
-import shlex
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -36,6 +34,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.napoleon',
+    'recommonmark'
 ]
 
 autodoc_member_order = 'bysource'
