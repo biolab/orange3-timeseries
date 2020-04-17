@@ -1,7 +1,7 @@
 As Timeseries
 =============
 
-Reinterpret a **Table** object as a [Timeseries]() object.
+Reinterpret a **Table** object as a Timeseries object.
 
 **Inputs**
 

@@ -18,4 +18,4 @@ In this widget, you can visualize the autocorrelation coefficients for the selec
 
 #### See also
 
-[Periodogram](periodogram.md)
+[Periodogram](periodogram_w.md)

@@ -10,15 +10,15 @@ Widgets
    widgets/yahoo_finance
    widgets/as_timeseries
    widgets/interpolate
-   widgets/moving_transform
+   widgets/moving_transform_w
    widgets/line_chart
-   widgets/periodogram
+   widgets/periodogram_w
    widgets/correlogram
    widgets/spiralogram
    widgets/granger_causality
    widgets/arima
    widgets/var
-   widgets/model_evaluation
+   widgets/model_evaluation_w
    widgets/time_slice
    widgets/aggregate
    widgets/difference
