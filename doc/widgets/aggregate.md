@@ -20,4 +20,4 @@ Aggregate data by second, minute, hour, day, week, month, or year.
 
 #### See also
 
-[Moving Transform](moving_transform)
+[Moving Transform](moving_transform_w.md)
