@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
+from itertools import product
 import unittest
-from datetime import datetime
 from unittest.mock import patch
 
 from Orange.data import Table
@@ -19,9 +20,7 @@ class TestTimeseries(unittest.TestCase):
 
 class TestTimestamp(unittest.TestCase):
     def test_timestamp(self):
-        datum = datetime(1911, 5, 1, 19, 20, 21, 5)
-        expected = datum.timestamp()
-        was_hit = False
+        local = datetime.now().astimezone().tzinfo
 
         class T(datetime):
             def timestamp(self):
@@ -29,10 +28,15 @@ class TestTimestamp(unittest.TestCase):
                 was_hit = True
                 raise OverflowError
 
-        test_datum = T.fromtimestamp(expected)
+        # test different years since 1900 was not a leap year, 2000 was
+        # test different timezones to account for naive and aware datetime
+        for y, tz in product([1890, 1991, 2004], [None, timezone.utc, local]):
+            was_hit = False
+            date = datetime(y, 5, 1, 19, 20, 21, 5, tzinfo=tz)
+            test_date = T(y, 5, 1, 19, 20, 21, 5, tzinfo=tz)
 
-        self.assertEqual(timestamp(test_datum), expected)
-        self.assertTrue(was_hit)
+            self.assertEqual(date.timestamp(), timestamp(test_date))
+            self.assertTrue(was_hit)
 
     def test_fromtimestamp(self):
         TS = -1234567890
