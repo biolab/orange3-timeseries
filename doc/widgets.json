@@ -25,7 +25,7 @@
    },
    {
     "text": "Moving Transform",
-    "doc": "widgets/moving_transform.md",
+    "doc": "widgets/moving_transform_w.md",
     "icon": "../orangecontrib/timeseries/widgets/icons/MovingTransform.svg",
     "background": "#33aaff",
     "keywords": []
@@ -39,7 +39,7 @@
    },
    {
     "text": "Periodogram",
-    "doc": "widgets/periodogram.md",
+    "doc": "widgets/periodogram_w.md",
     "icon": "../orangecontrib/timeseries/widgets/icons/Periodogram.svg",
     "background": "#33aaff",
     "keywords": []
@@ -81,7 +81,7 @@
    },
    {
     "text": "Model Evaluation",
-    "doc": "widgets/model_evaluation.md",
+    "doc": "widgets/model_evaluation_w.md",
     "icon": "../orangecontrib/timeseries/widgets/icons/ModelEvaluation.svg",
     "background": "#33aaff",
     "keywords": []
@@ -105,7 +105,12 @@
     "doc": "widgets/difference.md",
     "icon": "../orangecontrib/timeseries/widgets/icons/Difference.svg",
     "background": "#33aaff",
-    "keywords": []
+    "keywords": [
+     "difference",
+     "derivative",
+     "quotient",
+     "percent change"
+    ]
    },
    {
     "text": "Seasonal Adjustment",
