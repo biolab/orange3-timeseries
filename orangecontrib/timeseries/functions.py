@@ -1,5 +1,5 @@
 import datetime
-from datetime import timedelta
+from datetime import timedelta, timezone
 from numbers import Number
 
 import numpy as np
@@ -641,8 +641,12 @@ def timestamp(dt):
     try:
         ts = dt.timestamp()
     except OverflowError:
-        k = (1970 - dt.year) / 4 + 1
-        ts = (dt + timedelta(days=k * DAYS)).timestamp() - k * SECONDS
+        if not dt.tzinfo:
+            # treat datetime as in local timezone
+            dt = dt.astimezone()
+        # compute timestamp manually
+        ts = (dt - datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)) /\
+             timedelta(seconds=1)
     return ts
 
 
