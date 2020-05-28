@@ -16,6 +16,13 @@ class TestTimeseries(unittest.TestCase):
         time_series.time_variable = time_series.domain.attributes[0]
         self.assertNotEqual(id_1, id(time_series.attributes))
 
+    def test_make_timeseries_from_continuous_var(self):
+        table = Table.from_url("http://file.biolab.si/datasets/slovenian-national-assembly-eng.tab")
+        time_series = Timeseries.make_timeseries_from_continuous_var(table,
+                                                                     'date of birth')
+        self.assertEqual(time_series.time_variable.name, 'date of birth')
+        self.assertTrue(time_series.time_variable in time_series.domain.metas)
+
 
 class TestTimestamp(unittest.TestCase):
     def test_timestamp(self):
