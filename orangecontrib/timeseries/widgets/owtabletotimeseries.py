@@ -63,14 +63,14 @@ class OWTableToTimeseries(widget.OWWidget):
             self.commit()
             return
 
-        if data.domain.has_continuous_attributes():
+        if data.domain.has_continuous_attributes(include_metas=True):
             vars = [var for var in data.domain.variables if var.is_time] + \
                    [var for var in data.domain.metas if var.is_time] + \
                    [var for var in data.domain.variables
                     if var.is_continuous and not var.is_time] + \
                    [var for var in data.domain.metas if var.is_continuous and
                     not var.is_time]
-            self.attrs_model.wrap(vars)
+            self.attrs_model[:] = vars
             self.selected_attr = data.time_variable.name if getattr(data, 'time_variable', False) else vars[0].name
         self.on_changed()
 

@@ -178,7 +178,7 @@ class Timeseries(Table):
         # Make a sequence attribute from one of the existing attributes,
         # and sort all values according to it
         time_var = table.domain[attr_name]
-        values = table.get_column_view(time_var)[0]
+        values = table.get_column_view(time_var)[0].astype(float)
         # Filter out NaNs
         nans = np.isnan(values)
         if nans.all():
