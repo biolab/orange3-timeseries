@@ -4,3 +4,23 @@ Orange3-Timeseries
 Orange add-on for analyzing, visualizing, manipulating, and forecasting time
 series data. The add-on includes ANOVA and VAR models, model evaluation, time
 series preprocessing, seasonal adjustment and a wide array of visualizations.
+See [documentation](http://orange3-timeseries.readthedocs.org/).
+
+Features
+--------
+#### Use time series data
+* reinterpret data as time series
+* induce missing values
+* generate time series from Yahoo Finance stock market data
+
+#### Analysis of time series data
+* aggregate data by a given time interval
+* decompose the time series into seasonal, trend, and residual components
+* apply rolling window functions to the time series
+* make forecasts for the future
+* evaluate models
+
+#### Visualize time series data
+* visualize time series’ sequence and progression 
+* visualize variables’ auto-correlation
+* visualize time series’ cycles, seasonality, periodicity, and most significant periods
