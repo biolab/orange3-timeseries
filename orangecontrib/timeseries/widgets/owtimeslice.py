@@ -212,13 +212,17 @@ class OWTimeSlice(widget.OWWidget):
         dtBox.layout().addWidget(date_to)
         dtBox.layout().addStretch(100)
 
-        stepThroughBox = gui.vBox(self.controlArea, 'Step/Play Through')
+        hCenterBox = gui.hBox(self.controlArea)
+        gui.rubber(hCenterBox)
+        vControlsBox = gui.vBox(hCenterBox)
+
+        stepThroughBox = gui.vBox(vControlsBox, 'Step/Play Through')
         gui.rubber(stepThroughBox)
         gui.checkBox(stepThroughBox, self, 'loop_playback',
                      label='Loop playback')
         customStepBox = gui.hBox(stepThroughBox)
         gui.checkBox(customStepBox, self, 'custom_step_size',
-                     label='Custom step size:',
+                     label='Custom step size: ',
                      toolTip='If not chosen, the active interval moves forward '
                              '(backward), stepping in increments of its own size.')
         self.stepsize_combobox = gui.comboBox(customStepBox, self, 'step_size',
@@ -236,7 +240,7 @@ class OWTimeSlice(widget.OWWidget):
                                        callback=self.play_single_step,
                                        autoDefault=False)
 
-        intervalBox = gui.vBox(self.controlArea, 'Playback/Tracking interval')
+        intervalBox = gui.vBox(vControlsBox, 'Playback/Tracking interval')
         intervalBox.setToolTip('In milliseconds, set the delay for playback and '
                                'for sending data upon manually moving the interval.')
 
@@ -248,6 +252,7 @@ class OWTimeSlice(widget.OWWidget):
                         values=self.DELAY_VALUES,
                         callback=set_intervals)
 
+        gui.rubber(hCenterBox)
         gui.rubber(self.controlArea)
         self._set_disabled(True)
 
