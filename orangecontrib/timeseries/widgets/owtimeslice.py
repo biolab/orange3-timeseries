@@ -173,10 +173,10 @@ class OWTimeSlice(widget.OWWidget):
                                       minimumValue=self.slider_values[0],
                                       maximumValue=self.slider_values[1])
         slider.setShowText(False)
-        box = gui.vBox(self.controlArea, 'Time Slice')
-        box.layout().addWidget(slider)
+        selectBox = gui.vBox(self.controlArea, 'Select a Time Range')
+        selectBox.layout().addWidget(slider)
 
-        hbox = gui.hBox(box)
+        dtBox = gui.hBox(selectBox)
 
         kwargs = dict(calendarPopup=True,
                       displayFormat=' '.join(self.DATE_FORMATS),
@@ -206,42 +206,44 @@ class OWTimeSlice(widget.OWWidget):
             lambda: date_to.calendarWidget().repaint()
         )
 
-        hbox.layout().addStretch(100)
-        hbox.layout().addWidget(date_from)
-        hbox.layout().addWidget(QLabel(' – '))
-        hbox.layout().addWidget(date_to)
-        hbox.layout().addStretch(100)
+        dtBox.layout().addStretch(100)
+        dtBox.layout().addWidget(date_from)
+        dtBox.layout().addWidget(QLabel(' – '))
+        dtBox.layout().addWidget(date_to)
+        dtBox.layout().addStretch(100)
 
-        vbox = gui.vBox(self.controlArea, 'Step / Play Through')
-        gui.checkBox(vbox, self, 'loop_playback',
+        stepThroughBox = gui.vBox(self.controlArea, 'Step/Play Through')
+        gui.rubber(stepThroughBox)
+        gui.checkBox(stepThroughBox, self, 'loop_playback',
                      label='Loop playback')
-        hbox = gui.hBox(vbox)
-        gui.checkBox(hbox, self, 'custom_step_size',
+        customStepBox = gui.hBox(stepThroughBox)
+        gui.checkBox(customStepBox, self, 'custom_step_size',
                      label='Custom step size:',
                      toolTip='If not chosen, the active interval moves forward '
                              '(backward), stepping in increments of its own size.')
-        self.stepsize_combobox = gui.comboBox(hbox, self, 'step_size',
+        self.stepsize_combobox = gui.comboBox(customStepBox, self, 'step_size',
                                               items=tuple(self.STEP_SIZES.keys()),
                                               sendSelectedValue=True)
-        hbox = gui.hBox(vbox)
-        self.step_backward = gui.button(hbox, self, '⏮',
+        playBox = gui.hBox(stepThroughBox)
+        gui.rubber(stepThroughBox)
+        self.step_backward = gui.button(playBox, self, '⏮',
                                         callback=lambda: self.play_single_step(backward=True),
                                         autoDefault=False)
-        self.play_button = gui.button(hbox, self, '▶',
+        self.play_button = gui.button(playBox, self, '▶️',
                                       callback=self.playthrough,
                                       toggleButton=True, default=True)
-        self.step_forward = gui.button(hbox, self, '⏭',
+        self.step_forward = gui.button(playBox, self, '⏭',
                                        callback=self.play_single_step,
                                        autoDefault=False)
 
-        vbox = gui.vBox(self.controlArea, 'Playback/Tracking interval')
-        vbox.setToolTip('In milliseconds, set the delay for playback and '
-                        'for sending data upon manually moving the interval.')
+        intervalBox = gui.vBox(self.controlArea, 'Playback/Tracking interval')
+        intervalBox.setToolTip('In milliseconds, set the delay for playback and '
+                               'for sending data upon manually moving the interval.')
 
         def set_intervals():
             self.play_timer.setInterval(1000 * self.playback_interval)
             self.slider.tracking_timer.setInterval(1000 * self.playback_interval)
-        gui.valueSlider(vbox, self, 'playback_interval',
+        gui.valueSlider(intervalBox, self, 'playback_interval',
                         label='Delay:', labelFormat='%.2g sec',
                         values=self.DELAY_VALUES,
                         callback=set_intervals)
@@ -307,10 +309,10 @@ class OWTimeSlice(widget.OWWidget):
 
         if playing:
             self.play_timer.start()
-            self.play_button.setText('▮▮')
+            self.play_button.setText('⏸')
         else:
             self.play_timer.stop()
-            self.play_button.setText('▶')
+            self.play_button.setText('▶️')
 
         # hotfix
         self.repaint()
