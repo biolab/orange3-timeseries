@@ -39,6 +39,7 @@ if __name__ == '__main__':
         name="Orange3-Timeseries",
         description="Orange3 add-on for exploring time series and sequential data.",
         long_description=LONG_DESCRIPTION,
+        long_description_content_type='text/markdown',
         version=VERSION,
         author='Bioinformatics Laboratory, FRI UL',
         author_email='info@biolab.si',
