@@ -406,7 +406,7 @@ class OWTimeSlice(widget.OWWidget):
         delta = data.time_delta.min
         range = max_dt - min_dt
         if isinstance(delta, Number):
-            maximum = round(range / delta)
+            maximum = round(range.total_seconds() / delta)
 
             timedelta = datetime.timedelta(milliseconds=delta * 1000)
             min_dt2 = min_dt + timedelta
@@ -414,7 +414,7 @@ class OWTimeSlice(widget.OWWidget):
 
             date_format = ''.join(self.DATE_FORMATS)
 
-            for k, n in [n for n in self.STEP_SIZES.items()
+            for k, n in [(k, n) for k, n in self.STEP_SIZES.items()
                          if isinstance(n, Number)]:
                 if delta <= n:
                     min_overlap = k
