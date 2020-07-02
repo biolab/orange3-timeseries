@@ -215,6 +215,7 @@ class Timeseries(Table):
             self.attributes = self.attributes.copy()
             if 'time_variable' in self.attributes:
                 self.attributes.pop('time_variable')
+            self.time_delta = None
             return
 
         assert var in self.domain
