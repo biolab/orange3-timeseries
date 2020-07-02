@@ -71,7 +71,7 @@ class OWCorrelogram(widget.OWWidget):
     def set_data(self, data):
         self.Error.no_instances.clear()
         self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data, detect_time_variable=True)
+                           Timeseries.from_data_table(data, fallback_sequential=True)
         self.all_attrs = []
         if data is None:
             self.plot.clear()

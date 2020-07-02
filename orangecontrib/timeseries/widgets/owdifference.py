@@ -98,7 +98,7 @@ class OWDifference(widget.OWWidget):
     def set_data(self, data):
         self.closeContext()
         self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data, detect_time_variable=True)
+                           Timeseries.from_data_table(data, fallback_sequential=True)
         if data is not None:
             self.model[:] = [var for var in data.domain.variables
                              if var.is_continuous and var is not

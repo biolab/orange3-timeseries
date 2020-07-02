@@ -397,7 +397,7 @@ class OWLineChart(widget.OWWidget):
         # If the same data is updated, short circuit to just updating the chart,
         # retaining all panels and list view selections ...
         new_data = None if data is None else \
-                   Timeseries.from_data_table(data, detect_time_variable=True)
+                   Timeseries.from_data_table(data, fallback_sequential=True)
         if new_data is not None and self.data is not None \
                 and new_data.domain == self.data.domain:
             self.data = new_data
@@ -406,7 +406,7 @@ class OWLineChart(widget.OWWidget):
             return
 
         self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data, detect_time_variable=True)
+                           Timeseries.from_data_table(data, fallback_sequential=True)
         if data is None:
             self.varmodel.clear()
             self.chart.clear()

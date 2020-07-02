@@ -85,7 +85,7 @@ class OWSeasonalAdjustment(widget.OWWidget):
         self.data = None
         self.model.clear()
         data = None if data is None else \
-               Timeseries.from_data_table(data, detect_time_variable=True)
+               Timeseries.from_data_table(data, fallback_sequential=True)
         if data is None:
             pass
         elif len(data) > 2:
