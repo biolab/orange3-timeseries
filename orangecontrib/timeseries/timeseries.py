@@ -29,6 +29,9 @@ class TimeDelta:
             return
 
         deltas = list(np.sort(np.unique(np.diff(self.time_values))))
+        # in case several rows fall on the same datetime, remove the zero
+        if deltas[0] == 0:
+            deltas = deltas[1:]
         # TODO detect multiple days/months/years
         for i, d in enumerate(deltas[:]):
             if d in self._SPAN_DAY:
