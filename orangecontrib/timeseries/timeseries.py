@@ -78,16 +78,30 @@ class Timeseries(Table):
         self.time_delta = None
 
     @classmethod
-    def from_data_table(cls, table):
+    def from_data_table(cls, table, time_attr=None):
         if isinstance(table, Timeseries) \
                 and table.time_variable is not None \
                 and table.time_delta is not None:
             return table
 
-        # Set default time variable to first TimeVariable in:
-        search = table.domain.attributes + table.domain.metas
+        if time_attr is not None:
+            if time_attr not in table.domain:
+                raise Exception(time_attr.name + ' is not in the domain.')
+
+            if isinstance(time_attr, TimeVariable):
+                ts = super(Timeseries, cls).from_table(table.domain, table)
+                ts.time_variable = time_attr
+                return ts
+            elif isinstance(time_attr, ContinuousVariable):
+                return cls.make_timeseries_from_continuous_var(table, time_attr.name)
+            else:
+                raise Exception(time_attr.name + ' cannot be used to create a timeseries,'
+                                                 'it is not continuous.')
+
+        ts = super(Timeseries, cls).from_table(table.domain, table)
 
         # Is there a time variable we can use?
+        search = table.domain.attributes + table.domain.metas
         try:
             time_variable = next(var for var in search
                                  if var.is_time)
@@ -97,7 +111,6 @@ class Timeseries(Table):
                 nans = np.isnan(values)
                 if nans.any():
                     table = table[~nans]
-            ts = super(Timeseries, cls).from_table(table.domain, table)
             ts.time_variable = time_variable
             return ts
         except (StopIteration, AttributeError):
@@ -107,21 +120,21 @@ class Timeseries(Table):
         return cls.make_timeseries_from_sequence(table)
 
     @classmethod
-    def from_domain(cls, *args, **kwargs):
+    def from_domain(cls, *args, time_attr=None, **kwargs):
         table = Table.from_domain(*args, **kwargs)
-        return cls.from_data_table(table)
+        return cls.from_data_table(table, time_attr=time_attr)
 
     @classmethod
-    def from_table(cls, domain, source, *args, **kwargs):
+    def from_table(cls, domain, source, *args, time_attr=None, **kwargs):
         if not isinstance(source, Timeseries):
             table = Table.from_table(domain, source, *args, **kwargs)
-            return cls.from_data_table(table)
+            return cls.from_data_table(table, time_attr=time_attr)
         return super().from_table(domain, source, *args, **kwargs)
 
     @classmethod
-    def from_numpy(cls, *args, **kwargs):
+    def from_numpy(cls, *args, time_attr=None, **kwargs):
         table = Table.from_numpy(*args, **kwargs)
-        return cls.from_data_table(table)
+        return cls.from_data_table(table, time_attr=time_attr)
 
     @classmethod
     def from_list(cls, *args, **kwargs):
