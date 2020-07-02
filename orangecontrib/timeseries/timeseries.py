@@ -103,13 +103,6 @@ class Timeseries(Table):
         except (StopIteration, AttributeError):
             pass
 
-        # Is there a continuous variable we can use?
-        try:
-            continuous_variable = next(var for var in search
-                                       if var.is_continuous)
-            return cls.make_timeseries_from_continuous_var(table, continuous_variable)
-        except (StopIteration, AttributeError):
-            pass
         # Fallback to sequential
         return cls.make_timeseries_from_sequence(table)
 
