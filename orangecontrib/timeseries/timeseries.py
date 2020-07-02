@@ -78,7 +78,7 @@ class Timeseries(Table):
         self.time_delta = None
 
     @classmethod
-    def from_data_table(cls, table, detect_time_variable=False):
+    def from_data_table(cls, table):
         if isinstance(table, Timeseries) \
                 and table.time_variable is not None \
                 and table.time_delta is not None:
@@ -103,10 +103,6 @@ class Timeseries(Table):
         except (StopIteration, AttributeError):
             pass
 
-        if not detect_time_variable:
-            ts = super(Timeseries, cls).from_table(table.domain, table)
-            return ts
-
         # Is there a continuous variable we can use?
         try:
             continuous_variable = next(var for var in search
@@ -118,36 +114,36 @@ class Timeseries(Table):
         return cls.make_timeseries_from_sequence(table)
 
     @classmethod
-    def from_domain(cls, *args, detect_time_variable=False, **kwargs):
+    def from_domain(cls, *args, **kwargs):
         table = Table.from_domain(*args, **kwargs)
-        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+        return cls.from_data_table(table)
 
     @classmethod
-    def from_table(cls, domain, source, *args, detect_time_variable=False, **kwargs):
+    def from_table(cls, domain, source, *args, **kwargs):
         if not isinstance(source, Timeseries):
             table = Table.from_table(domain, source, *args, **kwargs)
-            return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+            return cls.from_data_table(table)
         return super().from_table(domain, source, *args, **kwargs)
 
     @classmethod
-    def from_numpy(cls, *args, detect_time_variable=False, **kwargs):
+    def from_numpy(cls, *args, **kwargs):
         table = Table.from_numpy(*args, **kwargs)
-        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+        return cls.from_data_table(table)
 
     @classmethod
-    def from_list(cls, *args, detect_time_variable=False, **kwargs):
+    def from_list(cls, *args, **kwargs):
         table = Table.from_list(*args, **kwargs)
-        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+        return cls.from_data_table(table)
 
     @classmethod
-    def from_file(cls, *args, detect_time_variable=False, **kwargs):
+    def from_file(cls, *args, **kwargs):
         table = Table.from_file(*args, **kwargs)
-        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+        return cls.from_data_table(table)
 
     @classmethod
-    def from_url(cls, *args, detect_time_variable=False, **kwargs):
+    def from_url(cls, *args, **kwargs):
         table = Table.from_url(*args, **kwargs)
-        return cls.from_data_table(table, detect_time_variable=detect_time_variable)
+        return cls.from_data_table(table)
 
     @classmethod
     def make_timeseries_from_sequence(cls, table):
