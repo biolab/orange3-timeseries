@@ -95,8 +95,7 @@ class Timeseries(Table):
             elif isinstance(time_attr, ContinuousVariable):
                 return cls.make_timeseries_from_continuous_var(table, time_attr.name)
             else:
-                raise Exception(time_attr.name + ' cannot be used to create a timeseries,'
-                                                 'it is not continuous.')
+                raise Exception(time_attr.name + ' must be continuous.')
 
         ts = super(Timeseries, cls).from_table(table.domain, table)
 
@@ -112,12 +111,11 @@ class Timeseries(Table):
                 if nans.any():
                     table = table[~nans]
             ts.time_variable = time_variable
-            return ts
         except (StopIteration, AttributeError):
             pass
 
-        # Fallback to sequential
-        return cls.make_timeseries_from_sequence(table)
+        # Else fallback to default sequential (don't set time_variable)
+        return ts
 
     @classmethod
     def from_domain(cls, *args, time_attr=None, **kwargs):
@@ -153,27 +151,8 @@ class Timeseries(Table):
 
     @classmethod
     def make_timeseries_from_sequence(cls, table):
-        attrs = table.domain.attributes
-        cvars = table.domain.class_vars
-        metas = table.domain.metas
-        X = table.X
-        Y = np.column_stack((table.Y,))  # make 2d
-        M = table.metas
-
-        # Uniqueify seq name
-        for i in itertools.chain(('',), range(10)):
-            name = '__seq__' + str(i)
-            if name not in table.domain:
-                break
-        # Create new time variable, values 1 to len(data + 1)
-        time_var = ContinuousVariable(name)
-        attrs = attrs.__class__((time_var,)) + attrs
-        X = np.column_stack((np.arange(1, len(table) + 1), X))
-        table = Table(Domain(attrs, cvars, metas), X, Y, M)
-
-        ts = super(Timeseries, cls).from_table(table.domain, table)
-        ts.time_variable = time_var
-        return ts
+        # timeseries default to sequential ordering
+        return super(Timeseries, cls).from_table(table.domain, table)
 
     @classmethod
     def make_timeseries_from_continuous_var(cls, table, attr_name):
@@ -200,10 +179,10 @@ class Timeseries(Table):
     @property
     def time_values(self):
         """Time series measurements times"""
-        try:
-            return self.get_column_view(self.time_variable)[0]
-        except Exception:
+        if self.time_variable is None:
             return np.arange(len(self))
+        else:
+            return self.get_column_view(self.time_variable)[0]
 
     @property
     def time_variable(self):
