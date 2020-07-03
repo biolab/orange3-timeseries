@@ -308,7 +308,20 @@ class Highstock(Highchart):
         ''' % dict(ax=ax, type='logarithmic' if is_logarithmic else 'linear',
                    negative='true' if is_logarithmic else 'false',
                    tick=1 if is_logarithmic else 'undefined'))
-
+        if not is_logarithmic:
+            # it is a workaround for Highcharts issue - Highcharts do not
+            # un-mark data as null when changing graph from logarithmic to
+            # linear
+            self.evalJS(
+                '''
+                s = chart.get('%(ax)s').series;
+                s.forEach(function(series) {
+                    series.data.forEach(function(point) {
+                        point.update({'isNull': false});
+                    });
+                });
+                ''' % dict(ax=ax)
+            )
 
     def setType(self, ax, type):
         step, type = ('true', 'line') if type == 'step line' else ('false', type)
