@@ -28,7 +28,7 @@ class TimeDelta:
             self.min = None
             return
 
-        deltas = list(np.sort(np.unique(np.diff(self.time_values))))
+        deltas = list(np.sort(np.unique(np.diff(np.sort(self.time_values)))))
         # in case several rows fall on the same datetime, remove the zero
         if deltas[0] == 0:
             deltas = deltas[1:]
