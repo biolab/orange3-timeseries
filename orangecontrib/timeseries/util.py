@@ -19,7 +19,7 @@ def cache_clears(*caches):
 
 def add_time(start_dt: datetime.date, delta, quantity):
     if isinstance(delta, Number):
-        return start_dt + timedelta(delta * quantity)
+        return start_dt + timedelta(seconds=delta*quantity)
     quantity = delta[0] * quantity
     if delta:
         if delta[1] == 'day':
