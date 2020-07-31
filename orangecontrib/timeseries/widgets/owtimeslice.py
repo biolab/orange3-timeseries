@@ -419,7 +419,7 @@ class OWTimeSlice(widget.OWWidget):
         #   - set range for end dt (+ 1 timedelta)
         #   - set date format
         #   - set time overlap options
-        delta = data.time_delta.min
+        delta = data.time_delta.gcd
         range = max_dt - min_dt
         if isinstance(delta, Number):
             maximum = round(range.total_seconds() / delta)
@@ -536,7 +536,7 @@ class OWTimeSlice(widget.OWWidget):
         self._set_disabled(False)
         slider.setHistogram(time_values)
         slider.setFormatter(var.repr_val)
-        slider.setScale(time_values.min(), time_values.max(), data.time_delta.min)
+        slider.setScale(time_values.min(), time_values.max(), data.time_delta.gcd)
         self.sliderValuesChanged(slider.minimumValue(), slider.maximumValue())
 
         self.date_from.setDateTimeRange(min_dt, max_dt)
