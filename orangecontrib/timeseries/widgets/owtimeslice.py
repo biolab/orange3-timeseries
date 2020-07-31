@@ -59,11 +59,7 @@ class _TimeSliderMixin:
             diff = dt_val - self.__scale_minimum
             return round(diff / datetime.timedelta(milliseconds=1000 * delta))
         elif delta:
-            if delta[1] == 'day':
-                diff = dt_val - self.__scale_minimum
-                return self.minimum() + delta[0] \
-                       * diff.days
-            elif delta[1] == 'month':
+            if delta[1] == 'month':
                 return self.minimum() + delta[0] \
                        * ((dt_val.year - self.__scale_minimum.year) * 12
                           + max(dt_val.month - self.__scale_minimum.month,
@@ -140,9 +136,9 @@ class OWTimeSlice(widget.OWWidget):
         ('3 hours', 10800),
         ('6 hours', 21600),
         ('12 hours', 43200),
-        ('1 day', (1, 'day')),
-        ('1 week', (7, 'day')),
-        ('2 weeks', (14, 'day')),
+        ('1 day', 86400),
+        ('1 week', 604800),
+        ('2 weeks', 1209600),
         ('1 month', (1, 'month')),
         ('2 months', (2, 'month')),
         ('3 months', (3, 'month')),
@@ -432,7 +428,10 @@ class OWTimeSlice(widget.OWWidget):
             min_dt2 = min_dt + timedelta
             max_dt2 = max_dt + timedelta
 
-            date_format = ''.join(self.DATE_FORMATS)
+            if delta >= 86400:  # more than a day
+                date_format = ''.join(self.DATE_FORMATS[0:3])
+            else:
+                date_format = ''.join(self.DATE_FORMATS)
 
             for k, n in [(k, n) for k, n in self.STEP_SIZES.items()
                          if isinstance(n, Number)]:
@@ -442,23 +441,7 @@ class OWTimeSlice(widget.OWWidget):
             else:
                 min_overlap = '1 day'
         else:  # isinstance(delta, tuple)
-            if delta[1] == 'day':
-                maximum = range.days / delta[0]
-
-                timedelta = datetime.timedelta(days=delta[0])
-                min_dt2 = min_dt + timedelta
-                max_dt2 = max_dt + timedelta
-
-                date_format = ''.join(self.DATE_FORMATS[0:3])
-
-                for k, (i, u) in [(k, v) for k, v in self.STEP_SIZES.items()
-                                  if isinstance(v, tuple) and v[1] == 'day']:
-                    if delta[0] <= i:
-                        min_overlap = k
-                        break
-                else:
-                    min_overlap = '1 month'
-            elif delta[1] == 'month':
+            if delta[1] == 'month':
                 months = (max_dt.year - min_dt.year) * 12 + \
                          (max_dt.month - min_dt.month)
                 maximum = months / delta[0]
@@ -521,11 +504,7 @@ class OWTimeSlice(widget.OWWidget):
                     break
             else:
                 i, u = overlap
-                if u == 'day':
-                    if upper_overlap_limit <= datetime.timedelta(days=overlap[0]):
-                        max_overlap = k
-                        break
-                elif u == 'month':
+                if u == 'month':
                     month_diff = (max_dt.year - min_dt.year) * 12 \
                                  + max(0, max_dt.month - min_dt.month)
                     if month_diff / 2 <= i:

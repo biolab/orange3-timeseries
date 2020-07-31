@@ -34,9 +34,7 @@ class TimeDelta:
             deltas = deltas[1:]
         # TODO detect multiple days/months/years
         for i, d in enumerate(deltas[:]):
-            if d in self._SPAN_DAY:
-                deltas[i] = (1, 'day')
-            elif d in self._SPAN_MONTH:
+            if d in self._SPAN_MONTH:
                 deltas[i] = (1, 'month')
             elif d in self._SPAN_YEAR:
                 deltas[i] = (1, 'year')
