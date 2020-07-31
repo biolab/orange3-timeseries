@@ -442,7 +442,7 @@ class ViolinSlider(RangeSlider):
 
     def _testHandleCollision(self, position):
         pos = self._pixelPosToRangeValue(self._pick(position))
-        delta = min(10, max(5, (self.maximum() - self.minimum()) // 25))
+        delta = (self.maximum() - self.minimum()) // 20
         diffs = []
         for h in [self._min_position, self._max_position]:
             if h in range(pos - delta, pos + delta + 1):
