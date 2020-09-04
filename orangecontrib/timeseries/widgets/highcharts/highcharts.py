@@ -12,17 +12,7 @@ import numpy as np
 from AnyQt.QtCore import QObject, pyqtSlot
 from AnyQt.QtWidgets import QApplication
 
-try:
-    from __opyhighcharts_interfaces import WebviewWidget
-except ImportError:
-    try:
-        from Orange.widgets.utils.webview import WebviewWidget
-    except ImportError:
-        # If required interfaces not available, provide some mocks
-        raise ImportError('opyhighcharts requires interface '
-                          'Orange.widgets.utils.webview.WebviewWidget'
-                          'positioned at '
-                          '__opyhighcharts_interfaces.WebviewWidget')
+from Orange.widgets.utils.webview import WebviewWidget
 
 
 def _Autotree():
@@ -156,7 +146,7 @@ class Highchart(WebviewWidget):
                                attrs)
                 bridge = _Bridge()
 
-        super().__init__(parent, bridge, debug=debug)
+        super().__init__(parent, bridge, js_timeout=10000, debug=debug)
 
         self.highchart = highchart
         self.enable_zoom = enable_zoom
