@@ -222,7 +222,7 @@ def partial_autocorrelation(x, *args, nlags=None, method='ldb', **kwargs):
         A 1D signal.
     nlags: int
         The number of lags to calculate the correlation for
-        (default: min(600, len(x)))
+        (default: min(len(x)//2 - 1, len(x) - 1))
     args, kwargs
         As accepted by `statsmodels.tsa.stattools.pacf`.
 
@@ -235,7 +235,7 @@ def partial_autocorrelation(x, *args, nlags=None, method='ldb', **kwargs):
     """
     from statsmodels.tsa.stattools import pacf
     if nlags is None:
-        nlags = min(1000, len(x) - 1)
+        nlags = min(len(x)//2 - 1, len(x) - 1)
     corr = pacf(x, *args, nlags=nlags, method=method, **kwargs)
     return _significant_acf(corr, kwargs.get('alpha'))
 
