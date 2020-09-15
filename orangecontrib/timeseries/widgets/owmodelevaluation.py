@@ -73,7 +73,7 @@ class OWModelEvaluation(widget.OWWidget):
     @Inputs.time_series
     def set_data(self, data):
         self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data, detect_time_variable=True)
+                           Timeseries.from_data_table(data)
         self.on_changed()
 
     @Inputs.time_series_model

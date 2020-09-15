@@ -249,7 +249,7 @@ class OWMovingTransform(widget.OWWidget):
             self.data = None
             self.var_model.clear()
         else:
-            self.data = Timeseries.from_data_table(data, detect_time_variable=True)
+            self.data = Timeseries.from_data_table(data)
             self.var_model[:] = [
                 var for var in self.data.domain.variables
                 if var.is_continuous and var is not self.data.time_variable]

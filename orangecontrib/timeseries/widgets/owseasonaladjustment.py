@@ -84,8 +84,7 @@ class OWSeasonalAdjustment(widget.OWWidget):
         self.Error.not_enough_instances.clear()
         self.data = None
         self.model.clear()
-        data = None if data is None else \
-               Timeseries.from_data_table(data, detect_time_variable=True)
+        data = None if data is None else Timeseries.from_data_table(data)
         if data is None:
             pass
         elif len(data) > 2:
