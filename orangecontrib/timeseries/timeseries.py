@@ -57,7 +57,7 @@ class TimeDelta:
             self.gcd = self.min
         else:
             # else if there's a mix, use the numbers, and a day
-            nds = [d for d in deltas if isinstance(d, Number)]
+            nds = [int(d) for d in deltas if isinstance(d, Number)]
             self.gcd = int(np.gcd.reduce(nds + list(self._SPAN_DAY)))
 
     def _get_backwards_compatible_delta(self):
