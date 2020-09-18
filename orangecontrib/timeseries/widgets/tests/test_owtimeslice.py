@@ -12,6 +12,14 @@ class TestTimeSliceWidget(WidgetTest):
         self.widget = self.create_widget(OWTimeSlice)
         self.dataset_dir = os.path.join(os.path.dirname(__file__), 'datasets')
 
+    def test_multiple_on_same_dt(self):
+        # GH-115
+        data = Timeseries.from_file(
+            os.path.join(self.dataset_dir, 'multipleonsamedt.csv')
+        )
+        self.widget.set_data(data)
+        self.assertTrue(self.widget.Outputs.subset)
+
     def test_numeric_timedelta(self):
         # GH-110
         data = Timeseries.from_file(

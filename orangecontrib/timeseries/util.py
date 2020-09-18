@@ -22,9 +22,7 @@ def add_time(start_dt: datetime.date, delta, quantity):
         return start_dt + timedelta(seconds=delta*quantity)
     quantity = delta[0] * quantity
     if delta:
-        if delta[1] == 'day':
-            return start_dt + timedelta(days=quantity)
-        elif delta[1] == 'month':
+        if delta[1] == 'month':
             years = int(quantity / 12)
             months = quantity - years * 12
             months_result = start_dt.month + months

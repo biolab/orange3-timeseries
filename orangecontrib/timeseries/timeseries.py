@@ -1,4 +1,6 @@
 import itertools
+from numbers import Number
+
 from more_itertools import unique_everseen
 import numpy as np
 
@@ -28,12 +30,13 @@ class TimeDelta:
             self.min = None
             return
 
-        deltas = list(np.sort(np.unique(np.diff(self.time_values))))
+        deltas = list(np.sort(np.unique(np.diff(np.sort(self.time_values)))))
+        # in case several rows fall on the same datetime, remove the zero
+        if deltas[0] == 0:
+            deltas = deltas[1:]
         # TODO detect multiple days/months/years
         for i, d in enumerate(deltas[:]):
-            if d in self._SPAN_DAY:
-                deltas[i] = (1, 'day')
-            elif d in self._SPAN_MONTH:
+            if d in self._SPAN_MONTH:
                 deltas[i] = (1, 'month')
             elif d in self._SPAN_YEAR:
                 deltas[i] = (1, 'year')
@@ -44,6 +47,18 @@ class TimeDelta:
 
         self.is_equispaced = len(deltas) == 1
         self.min = deltas[0]
+
+        # in setting the greatest common divisor...
+        if all(isinstance(d, Number) for d in deltas):
+            # if no tuple timedeltas, simply calculate the gcd
+            self.gcd = int(np.gcd.reduce([int(d) for d in deltas]))
+        elif all(isinstance(d, tuple) for d in deltas):
+            # if all of them are tuples, use the minimum one
+            self.gcd = self.min
+        else:
+            # else if there's a mix, use the numbers, and a day
+            nds = [d for d in deltas if isinstance(d, Number)]
+            self.gcd = int(np.gcd.reduce(nds + list(self._SPAN_DAY)))
 
     def _get_backwards_compatible_delta(self):
         """
