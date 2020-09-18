@@ -7,7 +7,7 @@ from numbers import Number
 from os.path import join, dirname
 
 from AnyQt.QtWidgets import QLabel, QDateTimeEdit
-from AnyQt.QtCore import QDateTime, Qt, QSize, QTimer
+from AnyQt.QtCore import QDateTime, Qt, QSize, QTimer, QTimeZone
 from AnyQt.QtGui import QIcon
 
 from Orange.data import Table, TimeVariable
@@ -539,8 +539,13 @@ class OWTimeSlice(widget.OWWidget):
         slider.setScale(time_values.min(), time_values.max(), data.time_delta.gcd)
         self.sliderValuesChanged(slider.minimumValue(), slider.maximumValue())
 
-        self.date_from.setDateTimeRange(min_dt, max_dt)
-        self.date_to.setDateTimeRange(min_dt2, max_dt2)
+        def utc_dt(dt):
+            qdt = QDateTime(dt)
+            qdt.setTimeZone(QTimeZone.utc())
+            return qdt
+
+        self.date_from.setDateTimeRange(utc_dt(min_dt), utc_dt(max_dt))
+        self.date_to.setDateTimeRange(utc_dt(min_dt2), utc_dt(max_dt2))
         self.date_from.setDisplayFormat(date_format)
         self.date_to.setDisplayFormat(date_format)
 
