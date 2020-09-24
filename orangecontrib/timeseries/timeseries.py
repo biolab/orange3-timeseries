@@ -24,16 +24,23 @@ class TimeDelta:
         self.time_values = time_values
         self.backwards_compatible_delta = self._get_backwards_compatible_delta()
 
-        if len(time_values) <= 1:
+        def no_delta():
             self.deltas = []
             self.is_equispaced = True
             self.min = None
+
+        if len(time_values) <= 1:
+            no_delta()
             return
 
-        deltas = list(np.sort(np.unique(np.diff(np.sort(self.time_values)))))
+        deltas = list(np.unique(np.diff(np.sort(self.time_values))))
+
         # in case several rows fall on the same datetime, remove the zero
-        if deltas[0] == 0:
-            deltas = deltas[1:]
+        if deltas and deltas[0] == 0:
+            deltas.pop(0)
+        if not deltas:
+            no_delta()
+            return
         # TODO detect multiple days/months/years
         for i, d in enumerate(deltas[:]):
             if d in self._SPAN_MONTH:

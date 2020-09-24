@@ -121,7 +121,7 @@ class OWTimeSlice(widget.OWWidget):
 
     class Error(widget.OWWidget.Error):
         no_time_variable = widget.Msg('Data contains no time variable')
-        no_time_delta = widget.Msg('Data contains only 1 row')
+        no_time_delta = widget.Msg('Data contains only one time point')
 
     MAX_SLIDER_VALUE = 500
     DATE_FORMATS = ('yyyy', '-MM', '-dd', '  HH:mm:ss.zzz')

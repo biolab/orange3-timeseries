@@ -54,6 +54,14 @@ class TestTimeSliceWidget(WidgetTest):
         self.widget.set_data(data)
         self.assertTrue(self.widget.Outputs.subset)
 
+    def test_no_timedelta_ts(self):
+        # GH-126
+        data = Timeseries.from_file(
+            os.path.join(self.dataset_dir, 'notddt.csv')
+        )
+        self.widget.set_data(data)
+        self.assertTrue(self.widget.Outputs.subset)
+
 
 if __name__ == "__main__":
     unittest.main()
