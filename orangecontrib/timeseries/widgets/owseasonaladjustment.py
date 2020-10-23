@@ -92,6 +92,7 @@ class OWSeasonalAdjustment(widget.OWWidget):
             self.model.wrap([var for var in data.domain.variables
                              if var.is_continuous and var is not data.time_variable])
             self.controls.n_periods.setMaximum(min(MAX_PERIODS, len(data) - 1))
+            self.n_periods = self.controls.n_periods.value()
         else:
             self.Error.not_enough_instances()
         self.on_changed()
