@@ -271,7 +271,7 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
     M = data.metas.copy()
 
     # Interpolate discrete columns to mode/nearest value
-    _x = np.arange(1, 1 + len(data))
+    _x = Timeseries.from_data_table(data).time_values.astype(float)
     for A, vars in ((X, attrs),
                     (Y, cvars)):
         for i, var in enumerate(vars):
