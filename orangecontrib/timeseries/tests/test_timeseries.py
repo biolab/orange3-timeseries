@@ -24,6 +24,16 @@ class TestTimeseries(unittest.TestCase):
         self.assertEqual(time_series.time_variable.name, 'date of birth')
         self.assertTrue(time_series.time_variable in time_series.domain.metas)
 
+    def test_time_var_removed(self):
+        ts_with_tv = Timeseries.from_file('airpassengers')
+        # select columns without time variable
+        ts_without_tv = Timeseries.from_data_table(ts_with_tv[:,
+                                      ts_with_tv.domain.class_var])
+        self.assertTrue(ts_with_tv.time_variable)
+        # make sure the Timeseries without time variable in domain has
+        # time_variable set to None
+        self.assertIsNone(ts_without_tv.time_variable)
+
 
 class TestTimestamp(unittest.TestCase):
     def test_timestamp(self):

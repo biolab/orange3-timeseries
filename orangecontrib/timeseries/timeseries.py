@@ -106,6 +106,10 @@ class Timeseries(Table):
                 and table.time_delta is not None:
             return table
 
+        if isinstance(table, Timeseries) \
+                and table.time_variable not in table.domain:
+            table.time_variable = None
+
         if time_attr is not None:
             if time_attr not in table.domain:
                 raise Exception(time_attr.name + ' is not in the domain.')
