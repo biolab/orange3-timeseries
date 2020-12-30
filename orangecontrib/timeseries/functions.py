@@ -442,7 +442,7 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
     Returns
     -------
     res : list of lists
-        Each internal list is [lag, antecedent, consequent] where
+        Each internal list is [lag, p-value, antecedent, consequent] where
         lag is the minimum lag at which antecedent feature in data is
         Granger-causal for the consequent feature in data.
     """
@@ -457,6 +457,7 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
     domain = [var for var in data.domain.variables if var.is_continuous]
     res = []
 
+    step = 0
     for row_attr in domain:
         for col_attr in domain:
             if row_attr == col_attr or data.time_variable in (row_attr, col_attr):
@@ -464,14 +465,22 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
             X = Table(Domain([], [], [col_attr, row_attr], data.domain), data).metas
             try:
                 tests = grangercausalitytests(X, max_lag, verbose=False)
-                lag = next((lag for lag in range(1, 1 + max_lag)
-                            if tests[lag][0]['ssr_ftest'][1] < alpha), 0)
+                lag, p_val = next(
+                    (
+                        (lag, tests[lag][0]["ssr_ftest"][1])
+                        for lag in range(1, 1 + max_lag)
+                        if tests[lag][0]["ssr_ftest"][1] < alpha
+                    ),
+                    (None, None),
+                )
             except ValueError:
-                lag = 0
+                lag = p_val = None
             if lag:
-                res.append([lag, row_attr.name, col_attr.name])
+                res.append([lag, p_val, row_attr.name, col_attr.name])
+
+            step += 1
             if callback:
-                callback(1 / ((len(domain) - 1)**2 - len(domain)))
+                callback(step / ((len(domain) - 1) ** 2 - len(domain) + 1))
     return res
 
 
