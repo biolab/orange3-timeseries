@@ -1,19 +1,31 @@
 from numbers import Number
 from collections import OrderedDict
 from os.path import join, dirname
+from typing import List
 
 import numpy as np
+from AnyQt.QtWidgets import (
+    QTreeWidget,
+    QWidget,
+    QPushButton,
+    QListView,
+    QVBoxLayout,
+)
+from AnyQt.QtGui import QIcon, QCloseEvent
+from AnyQt.QtCore import QSize, pyqtSignal
 
-from Orange.data import TimeVariable, Table
-from Orange.widgets import widget, gui, settings
-from Orange.widgets.widget import Input
-
-from AnyQt.QtWidgets import QTreeWidget, \
-    QWidget, QPushButton, QListView, QVBoxLayout
-from AnyQt.QtGui import QIcon
-from AnyQt.QtCore import QSize, pyqtSignal, QTimer
-
+from orangewidget.utils.widgetpreview import WidgetPreview
+from Orange.data import TimeVariable, Table, Variable
+from Orange.widgets import gui
+from Orange.widgets.widget import OWWidget, Input, AttributeList
+from Orange.widgets.utils import vartype
+from Orange.widgets.settings import (
+    ContextSetting,
+    IncompatibleContext,
+    DomainContextHandler,
+)
 from Orange.widgets.utils.itemmodels import VariableListModel
+
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets.highcharts import Highchart
 
@@ -32,7 +44,9 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
         gui.OWComponent.__init__(self)
 
         self.ax = ax
-        self.view = view = QListView(self, selectionMode=QTreeWidget.ExtendedSelection,)
+        self.view = view = QListView(
+            self, selectionMode=QTreeWidget.ExtendedSelection,
+        )
         view.setModel(varmodel)
         selection = view.selectionModel()
         selection.selectionChanged.connect(self.selection_changed)
@@ -62,8 +76,13 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
                                                      }''')
         button.clicked.connect(lambda: self.sigClosed.emit(ax, self))
         hbox.layout().addWidget(button)
-        gui.checkBox(self, self, 'is_logarithmic', 'Logarithmic axis',
-                     callback=lambda: self.sigLogarithmic.emit(ax, self.is_logarithmic))
+        gui.checkBox(
+            self,
+            self,
+            "is_logarithmic",
+            "Logarithmic axis",
+            callback=self.on_logarithmic,
+        )
         box.addWidget(view)
 
     # This is here because sometimes enterEvent/leaveEvent below were called
@@ -78,11 +97,58 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
         if self.button_close:
             self.button_close.setVisible(False)
 
+    def on_logarithmic(self) -> None:
+        """
+        Callback when changes the the scale to logarithmic or back
+        """
+        self.sigLogarithmic.emit(self.ax, self.is_logarithmic)
+
     def selection_changed(self):
-        selection = [mi.model()[mi.row()]
-                     for mi in self.view.selectionModel().selectedIndexes()]
+        selection = self.get_selection()
         self.sigSelection.emit(self.ax, selection)
         self.sigType.emit(self.ax, self.plot_type)
+
+    def get_selection(self) -> List[Variable]:
+        """
+        Get variables selected in the view.
+
+        Returns
+        -------
+        List with selected variables
+        """
+        return [
+            mi.model()[mi.row()]
+            for mi in self.view.selectionModel().selectedIndexes()
+        ]
+
+    def set_selection(self, values: List[Variable]) -> None:
+        """
+        Select variables in list and update the graph.
+
+        Parameters
+        ----------
+        values
+            Variables to select
+        """
+        sel_model = self.view.selectionModel()
+        sel_model.clearSelection()
+        model = self.view.model()
+        for v in values:
+            index = model.indexOf(v)
+            index = model.index(index, 0)
+            sel_model.select(index, sel_model.Select)
+
+    def set_logarithmic(self, is_log: bool) -> None:
+        """
+        Set is logarithmic setting and update the graph.
+
+        Parameters
+        ----------
+        is_log
+            Boolean that indicates whether to set scale to logarithmic.
+        """
+        self.is_logarithmic = is_log
+        self.on_logarithmic()
 
 
 class Highstock(Highchart):
@@ -339,7 +405,43 @@ class Highstock(Highchart):
         ''' % locals())
 
 
-class OWLineChart(widget.OWWidget):
+class LineChartContextHandler(DomainContextHandler):
+    """
+    Context handler of line chart. The specifics of this widget is
+    that `attrs` variable is list of lists and it is not handled with
+    the DomainContextHandler.
+    """
+
+    def encode_setting(self, context, setting, value):
+        if setting.name == "attrs":
+            value = [
+                [(var.name, vartype(var)) for var in plot] for plot in value
+            ]
+        return super().encode_setting(context, setting, value)
+
+    def decode_setting(self, setting, value, domain=None, *_args):
+        decoded = super().decode_setting(setting, value, domain)
+        if setting.name == "attrs":
+            decoded = [[domain[name] for name, _ in plot] for plot in decoded]
+        return decoded
+
+    def match(self, context, _, attrs, metas):
+        if context.attributes == attrs and context.metas == metas:
+            return self.PERFECT_MATCH
+
+        if "attrs" not in context.values:
+            return self.NO_MATCH
+
+        all_vars = attrs.copy()
+        all_vars.update(metas)
+
+        value = set(y for x in context.values["attrs"] for y in x)
+        return sum(all_vars.get(attr) == vtype for attr, vtype in value) / len(
+            value
+        )
+
+
+class OWLineChart(OWWidget):
     name = 'Line Chart'
     description = "Visualize time series' sequence and progression."
     icon = 'icons/LineChart.svg'
@@ -347,15 +449,18 @@ class OWLineChart(widget.OWWidget):
 
     class Inputs:
         time_series = Input("Time series", Table)
+        features = Input("Features", AttributeList)
         forecast = Input("Forecast", Timeseries, multiple=True)
 
-    attrs = settings.Setting({})  # Maps data.name -> [attrs]
+    settingsHandler = LineChartContextHandler()
+    attrs = ContextSetting([])  # Maps data.name -> [attrs]
+    is_logit = ContextSetting([])
 
     graph_name = 'chart'
 
     def __init__(self):
         self.data = None
-        self.plots = []
+        self.features = None
         self.configs = []
         self.forecasts = OrderedDict()
         self.varmodel = VariableListModel(parent=self)
@@ -376,7 +481,7 @@ class OWLineChart(widget.OWWidget):
             rangeSelector_inputEnabled=False,
             # Disable bottom miniview navigator (it doesn't update)
             navigator_enabled=False, )
-        QTimer.singleShot(0, self.add_plot)
+        self.add_plot()
         self.chart.add_legend()
 
     def add_plot(self):
@@ -407,26 +512,30 @@ class OWLineChart(widget.OWWidget):
         # TODO: set xAxis resolution and tooltip time contents depending on
         # data.time_delta. See: http://imgur.com/yrnlgQz
 
-        # If the same data is updated, short circuit to just updating the chart,
+        # If the same data is updated, short circuit to just updating the chart
         # retaining all panels and list view selections ...
         new_data = None if data is None else \
                    Timeseries.from_data_table(data)
         if new_data is not None and self.data is not None \
                 and new_data.domain == self.data.domain:
             self.data = new_data
-            for config in self.configs:
-                config.selection_changed()
+            self._selections_changed()
             return
 
-        self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data)
+        self.data = data = new_data
         if data is None:
             self.varmodel.clear()
             self.chart.clear()
             return
+
+        self.set_attributes()
+
         if getattr(data.time_variable, 'utc_offset', False):
             offset_minutes = data.time_variable.utc_offset.total_seconds() / 60
-            self.chart.evalJS('Highcharts.setOptions({global: {timezoneOffset: %d}});' % -offset_minutes)  # Why is this negative? It works.
+            self.chart.evalJS(
+                'Highcharts.setOptions({global: {timezoneOffset: %d}});'
+                % -offset_minutes
+            )  # Why is this negative? It works.
             self.chart.chart()
 
         self.chart.setXAxisType(
@@ -436,8 +545,13 @@ class OWLineChart(widget.OWWidget):
                  getattr(data.time_variable, 'have_time', False))) else
             'linear')
 
-        self.varmodel.wrap([var for var in data.domain.variables
-                            if var.is_continuous and var != data.time_variable])
+        variables = [
+            var
+            for var in data.domain.variables
+            if var.is_continuous and var != data.time_variable
+        ]
+        self.varmodel.wrap(variables)
+        self.update_plots()
 
     @Inputs.forecast
     def set_forecast(self, forecast, id):
@@ -447,22 +561,105 @@ class OWLineChart(widget.OWWidget):
             self.forecasts.pop(id, None)
         # TODO: update currently shown plots
 
+    @Inputs.features
+    def set_features(self, features: AttributeList) -> None:
+        if features and not self.features:
+            # if features are on the input and they were not before
+            # context should be saved for later when features will not be
+            # present anymore
+            self.closeContext()
+        self.features = features
+        if self.data:
+            self.set_attributes()
+            self.update_plots()
+
+    def set_attributes(self) -> None:
+        """
+        In case when features present: set shown attributes to match features
+        In case when features not present: set default value and open context
+        """
+        self.closeContext()
+        if self.features:
+            self.attrs = [
+                [f]
+                for f in self.features
+                if f in self.data.domain and f != self.data.time_variable
+            ]
+            self.is_logit = [False] * len(self.attrs)
+        else:
+            variables = [
+                var
+                for var in self.data.domain.variables
+                if var.is_continuous and var != self.data.time_variable
+            ]
+            self.attrs = [[variables[0]]]
+            self.is_logit = [False]
+            # context is only open when features not provided on input
+            # when provided features defines the selection
+            self.openContext(self.data.domain)
+
+    def update_plots(self) -> None:
+        """
+        Update plots when new data or new selection comes
+        """
+        # remove plots if too many of them
+        while len(self.configs) > len(self.attrs):
+            plot = self.configs[-1]
+            plot.sigClosed.emit(plot.ax, plot)
+
+        # add plots if not enough of them
+        while len(self.configs) < len(self.attrs):
+            self.add_plot()
+
+        assert len(self.configs) == len(self.attrs)
+        assert len(self.attrs) == len(self.is_logit)
+        # select correct values
+        for config, attr, log in zip(self.configs, self.attrs, self.is_logit):
+            config.set_logarithmic(log)
+            config.set_selection(attr)
+            config.view.setEnabled(not self.features)
+
+    def _selections_changed(self) -> None:
+        for config in self.configs:
+            config.selection_changed()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """
+        When someone delets the widget closeContext must be called to gather
+        settings.
+        """
+        self.closeContext()
+        super().closeEvent(event)
+
+    def closeContext(self) -> None:
+        """
+        Gather configs in contextVariables and close context.
+        """
+        if not self.features:
+            # only close in case of when features are not present if they are
+            # feature selection is defined by the input and context should
+            # not have impact
+            attrs, is_logit = [], []
+            for config in self.configs:
+                attrs.append(config.get_selection())
+                is_logit.append(config.is_logarithmic)
+            self.attrs = attrs
+            self.is_logit = is_logit
+            super().closeContext()
+
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
     from orangecontrib.timeseries import ARIMA, VAR
 
-    a = QApplication([])
-    ow = OWLineChart()
-
     airpassengers = Timeseries.from_file('airpassengers')
-    ow.set_data(airpassengers),
-
     msft = airpassengers.interp()
-    model = ARIMA((3, 1, 1)).fit(airpassengers)
-    ow.set_forecast(model.predict(10, as_table=True), 0)
-    model = VAR(4).fit(msft)
-    ow.set_forecast(model.predict(10, as_table=True), 1)
-
-    ow.show()
-    a.exec()
+    model1 = ARIMA((3, 1, 1)).fit(airpassengers)
+    model2 = VAR(4).fit(msft)
+    ow = WidgetPreview(OWLineChart)
+    ow.run(
+        set_data=airpassengers,
+        set_forecast=[
+            (model1.predict(10, as_table=True), 0),
+            (model2.predict(10, as_table=True), 1)
+        ]
+    )
