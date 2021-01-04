@@ -19,12 +19,11 @@ class TestAsTimeSeriesWidget(WidgetTest):
         As Timeseries should accept attributes from X and metas.
         """
         w = self.widget
-        data = Table(
-            "http://file.biolab.si/datasets/cyber-security-breaches.tab")[:20]
+        data = Table.from_url("http://file.biolab.si/datasets/cyber-security-breaches.tab")[:20]
         self.send_signal(w.Inputs.data, data)
         self.assertEqual(len(w.attrs_model), 4)
         new_domain = Domain(data.domain[:6], metas=[data.domain[6]])
-        new_data = Table(new_domain, data)
+        new_data = Table.from_table(new_domain, data)
         self.send_signal(w.Inputs.data, new_data)
         self.assertEqual(len(w.attrs_model), 4)
 
