@@ -1,4 +1,6 @@
+import os
 import time
+import unittest
 
 import numpy as np
 
@@ -34,6 +36,10 @@ class HighchartTest(WidgetTest):
         self.assertEqual(svg[:5], '<svg ')
         self.assertEqual(svg[-6:], '</svg>')
 
+    @unittest.skipIf(
+        os.name == 'nt',
+        "GH Actions test on windows cannot open the view."
+    )
     def test_selection(self):
 
         class NoopBridge(QObject):
