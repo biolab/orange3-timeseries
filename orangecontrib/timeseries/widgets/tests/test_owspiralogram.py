@@ -98,10 +98,14 @@ class TestOWSpiralogram(WidgetTest):
         settings = {
             '__version__': 1,
             'context_settings': [
-                Context(values={'agg_attr': ([('Datetime', 104)], -3),
-                                'agg_func': (12, -2),
-                                'ax1': ('months', -2),
-                                'ax2': ('years', -2)})],
+                Context(
+                    attributes={'Datetime': 1, "foo": 2},
+                    metas={'name': 4},
+                    values={'agg_attr': ([('Datetime', 104)], -3),
+                            'agg_func': (12, -2),
+                            'ax1': ('months', -2),
+                            'ax2': ('years', -2)})
+            ],
             'controlAreaVisible': True,
             'invert_date_order': False,
             'savedWidgetGeometry': None
