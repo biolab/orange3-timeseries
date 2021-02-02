@@ -1,3 +1,5 @@
+import traceback
+
 from AnyQt.QtCore import Qt
 
 from Orange.data import Table
@@ -19,7 +21,6 @@ def run(data: Table, max_lag: int, confidence: int, state: TaskState):
         if state.is_interruption_requested():
             raise Exception
         state.set_progress_value(progress * 100)
-
     res = granger_causality(
         data, max_lag, 1 - confidence / 100, callback=advance
     )
