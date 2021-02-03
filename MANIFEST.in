@@ -2,6 +2,7 @@ recursive-include orangecontrib/timeseries *.py *.pyx *.c *.cpp
 recursive-include orangecontrib/timeseries/datasets *.tab *.csv
 
 recursive-include orangecontrib/timeseries/widgets *.png *.svg
+recursive-include orangecontrib/timeseries/widgets/icons/ *.ttf
 recursive-include orangecontrib/timeseries/widgets *.html *.css *.js LICENSE
 recursive-include orangecontrib/timeseries/widgets/tests/datasets *.csv
 
