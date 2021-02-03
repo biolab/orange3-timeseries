@@ -18,6 +18,28 @@ from orangecontrib.timeseries.util import add_time
 from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
 
 
+def fromtimestamp(seconds: float) -> datetime.datetime:
+    """
+    `datetime.datetime.fromtimestamp(seconds)` an issue on Windows since it
+    only supports timestamps between years 1970 and 2038, for other returns
+    an overflow error. https://bugs.python.org/issue36439
+    This function present a workaround for fromtimestamp functionality which
+    works on all OSs.
+
+    Parameters
+    ----------
+    seconds
+        Number of seconds from 1970 Jan 1
+
+    Returns
+    -------
+    A datetime object created from the timestamp
+    """
+    return datetime.datetime(
+        1970, 1, 1, tzinfo=datetime.timezone.utc
+    ) + datetime.timedelta(seconds=seconds)
+
+
 class _TimeSliderMixin:
     DEFAULT_SCALE_LENGTH = 500
 
@@ -29,14 +51,8 @@ class _TimeSliderMixin:
         self.__formatter = str  # type: Callable
 
     def setScale(self, minimum, maximum, time_delta):
-        self.__scale_minimum = datetime.datetime.fromtimestamp(
-            round(minimum),
-            tz=datetime.timezone.utc
-        )
-        self.__scale_maximum = datetime.datetime.fromtimestamp(
-            round(maximum),
-            tz=datetime.timezone.utc
-        )
+        self.__scale_minimum = fromtimestamp(round(minimum))
+        self.__scale_maximum = fromtimestamp(round(maximum))
         self.__time_delta = time_delta
 
     def scale(self, value):
@@ -52,7 +68,7 @@ class _TimeSliderMixin:
 
     def unscale(self, value):
         # Unscale e.g. absolute time to slider value
-        dt_val = datetime.datetime.fromtimestamp(round(value), tz=datetime.timezone.utc)
+        dt_val = fromtimestamp(round(value))
         delta = self.__time_delta
         if isinstance(delta, Number):
             diff = dt_val - self.__scale_minimum
@@ -345,8 +361,7 @@ class OWTimeSlice(widget.OWWidget):
         def new_value(value):
             if self.custom_step_size:
                 step_amount = self.STEP_SIZES[self.step_size]
-                time = datetime.datetime.fromtimestamp(self.slider.scale(value),
-                                                       tz=datetime.timezone.utc)
+                time = fromtimestamp(self.slider.scale(value))
                 newTime = add_time(time, step_amount, -1 if backward else 1)
                 return self.slider.unscale(newTime.timestamp())
             return value + (-delta if backward else delta)
@@ -418,8 +433,9 @@ class OWTimeSlice(widget.OWWidget):
 
         time_values = data.time_values
 
-        min_dt = datetime.datetime.fromtimestamp(round(time_values.min()), tz=datetime.timezone.utc)
-        max_dt = datetime.datetime.fromtimestamp(round(time_values.max()), tz=datetime.timezone.utc)
+        print(round(time_values.min()))
+        min_dt = fromtimestamp(round(time_values.min()))
+        max_dt = fromtimestamp(round(time_values.max()))
 
         # Depending on time delta:
         #   - set slider maximum (granularity)
