@@ -57,7 +57,6 @@ class TestTimestamp(unittest.TestCase):
             date = datetime(y, 5, 1, 19, 20, 21, 5, tzinfo=tz)
             test_date = T(y, 5, 1, 19, 20, 21, 5, tzinfo=tz)
 
-            print(tz, date.timestamp())
             self.assertEqual(date.timestamp(), timestamp(test_date))
             self.assertTrue(was_hit)
 

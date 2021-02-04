@@ -649,7 +649,7 @@ DAYS = 1461
 def timestamp(dt):
     try:
         ts = dt.timestamp()
-    except OverflowError:
+    except (OverflowError, OSError):
         if not dt.tzinfo:
             # treat datetime as in local timezone
             dt = dt.astimezone()

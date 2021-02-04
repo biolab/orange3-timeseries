@@ -13,7 +13,7 @@ from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Input, Output
 
-from orangecontrib.timeseries import Timeseries, fromtimestamp
+from orangecontrib.timeseries import Timeseries, fromtimestamp, timestamp
 from orangecontrib.timeseries.util import add_time
 from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
 
@@ -37,12 +37,14 @@ class _TimeSliderMixin:
         quantity = round(value - self.minimum())
         delta = self.__time_delta
         if delta is None:
-            return (self.__scale_minimum +
-                    (self.__scale_maximum - self.__scale_minimum) *
-                    (value - self.minimum()) /
-                    (self.maximum() - self.minimum())).timestamp()
+            return timestamp(
+                self.__scale_minimum
+                + (self.__scale_maximum - self.__scale_minimum)
+                * (value - self.minimum())
+                / (self.maximum() - self.minimum())
+            )
         scaled_dt = add_time(self.__scale_minimum, delta, quantity)
-        return scaled_dt.timestamp()
+        return timestamp(scaled_dt)
 
     def unscale(self, value):
         # Unscale e.g. absolute time to slider value
@@ -271,8 +273,8 @@ class OWTimeSlice(widget.OWWidget):
         minTime = self.slider.scale(minValue)
         maxTime = self.slider.scale(maxValue)
 
-        from_dt = QDateTime.fromMSecsSinceEpoch(minTime * 1000).toUTC()
-        to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
+        from_dt = QDateTime.fromMSecsSinceEpoch(int(minTime * 1000)).toUTC()
+        to_dt = QDateTime.fromMSecsSinceEpoch(int(maxTime * 1000)).toUTC()
         if self.date_from.dateTime() != from_dt:
             with blockSignals(self.date_from):
                 self.date_from.setDateTime(from_dt)
@@ -289,7 +291,7 @@ class OWTimeSlice(widget.OWWidget):
             # maxValue's range is minValue's range shifted by one
             maxValue += 1
             maxTime = self.slider.scale(maxValue)
-            to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
+            to_dt = QDateTime.fromMSecsSinceEpoch(int(maxTime * 1000)).toUTC()
             with blockSignals(self.date_to):
                 self.date_to.setDateTime(to_dt)
 
@@ -341,7 +343,7 @@ class OWTimeSlice(widget.OWWidget):
                 step_amount = self.STEP_SIZES[self.step_size]
                 time = fromtimestamp(self.slider.scale(value))
                 newTime = add_time(time, step_amount, -1 if backward else 1)
-                return self.slider.unscale(newTime.timestamp())
+                return self.slider.unscale(timestamp(newTime))
             return value + (-delta if backward else delta)
 
         if maxValue == self.slider.maximum() and not backward:
@@ -531,7 +533,7 @@ class OWTimeSlice(widget.OWWidget):
             self.stepsize_combobox.addItem(next_item)
 
         slider.setMinimum(0)
-        slider.setMaximum(maximum + 1)
+        slider.setMaximum(int(maximum + 1))
 
         self._set_disabled(False)
         slider.setHistogram(time_values)
