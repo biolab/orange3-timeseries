@@ -3,6 +3,7 @@ from datetime import timedelta, timezone
 from numbers import Number
 
 import numpy as np
+from dateutil.tz import tzlocal
 from scipy.signal import argrelextrema
 
 
@@ -651,11 +652,11 @@ def timestamp(dt):
         ts = dt.timestamp()
     except (OverflowError, OSError):
         if not dt.tzinfo:
-            # treat datetime as in local timezone
-            dt = dt.astimezone()
+            # treat datetime as in local timezone - workaround for astimezone
+            # which does not work on Windows for dates older than 1970
+            dt = dt.replace(tzinfo=tzlocal())
         # compute timestamp manually
-        ts = (dt - datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)) /\
-             timedelta(seconds=1)
+        ts = (dt - datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds()
     return ts
 
 

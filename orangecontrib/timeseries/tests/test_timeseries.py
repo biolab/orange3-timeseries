@@ -101,3 +101,7 @@ class TestTimestamp(unittest.TestCase):
         with patch('datetime.datetime', MockDatetime):
             self.assertEqual(fromtimestamp(TS, tz=timezone.utc), expected)
             self.assertTrue(was_hit)
+
+
+if __name__ == "__main__":
+    unittest.main()

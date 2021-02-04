@@ -74,6 +74,9 @@ if __name__ == '__main__':
             'numpy',
             'scipy>=0.17',
             'more-itertools',
+            # required to get current timezone
+            # adding it does not hurt, Pandas have it as a dependency
+            'python-dateutil'
         ],
         extras_require={
             'test': ['coverage']
