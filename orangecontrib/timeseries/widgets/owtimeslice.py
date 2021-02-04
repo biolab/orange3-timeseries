@@ -13,31 +13,9 @@ from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Input, Output
 
-from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries import Timeseries, fromtimestamp
 from orangecontrib.timeseries.util import add_time
 from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
-
-
-def fromtimestamp(seconds: float) -> datetime.datetime:
-    """
-    `datetime.datetime.fromtimestamp(seconds)` an issue on Windows since it
-    only supports timestamps between years 1970 and 2038, for other returns
-    an overflow error. https://bugs.python.org/issue36439
-    This function present a workaround for fromtimestamp functionality which
-    works on all OSs.
-
-    Parameters
-    ----------
-    seconds
-        Number of seconds from 1970 Jan 1
-
-    Returns
-    -------
-    A datetime object created from the timestamp
-    """
-    return datetime.datetime(
-        1970, 1, 1, tzinfo=datetime.timezone.utc
-    ) + datetime.timedelta(seconds=seconds)
 
 
 class _TimeSliderMixin:
@@ -433,7 +411,6 @@ class OWTimeSlice(widget.OWWidget):
 
         time_values = data.time_values
 
-        print(round(time_values.min()))
         min_dt = fromtimestamp(round(time_values.min()))
         max_dt = fromtimestamp(round(time_values.max()))
 

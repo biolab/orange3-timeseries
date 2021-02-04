@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from itertools import product
 import unittest
+import platform
 from unittest.mock import patch
 
 from Orange.data import Table
@@ -36,6 +37,10 @@ class TestTimeseries(unittest.TestCase):
 
 
 class TestTimestamp(unittest.TestCase):
+    @unittest.skipIf(
+        platform.system() == "Windows",
+        "On windows date.timestamp() raises OverflowError"
+    )
     def test_timestamp(self):
         local = datetime.now().astimezone().tzinfo
 
@@ -52,12 +57,36 @@ class TestTimestamp(unittest.TestCase):
             date = datetime(y, 5, 1, 19, 20, 21, 5, tzinfo=tz)
             test_date = T(y, 5, 1, 19, 20, 21, 5, tzinfo=tz)
 
+            print(tz, date.timestamp())
             self.assertEqual(date.timestamp(), timestamp(test_date))
+            self.assertTrue(was_hit)
+
+    def test_timestamp_windows(self):
+        """
+        Since test_timestamp cannot be run on Win it is its truncated version
+        with hardcoded correct timestamps. It can be only tested with UTC
+        since otherwise timestamp would be machine local time dependent
+        """
+        class T(datetime):
+            def timestamp(self):
+                nonlocal was_hit
+                was_hit = True
+                raise OverflowError
+
+        # test different years since 1900 was not a leap year, 2000 was
+        # test different timezones to account for naive and aware datetime
+        years = [1890, 1991, 2004]
+        timestamps = [-2514083978.999995, 673125621.000005, 1083439221.000005]
+        for y, y_true in zip(years, timestamps):
+            was_hit = False
+            test_date = T(y, 5, 1, 19, 20, 21, 5, tzinfo=timezone.utc)
+
+            self.assertEqual(y_true, timestamp(test_date))
             self.assertTrue(was_hit)
 
     def test_fromtimestamp(self):
         TS = -1234567890
-        expected = datetime.fromtimestamp(TS)
+        expected = datetime(1930, 11, 18, 0, 28, 30, tzinfo=timezone.utc)
 
         was_hit = False
 
@@ -71,5 +100,5 @@ class TestTimestamp(unittest.TestCase):
                 raise OSError
 
         with patch('datetime.datetime', MockDatetime):
-            self.assertEqual(fromtimestamp(TS), expected)
+            self.assertEqual(fromtimestamp(TS, tz=timezone.utc), expected)
             self.assertTrue(was_hit)
