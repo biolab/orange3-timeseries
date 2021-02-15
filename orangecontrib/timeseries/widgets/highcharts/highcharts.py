@@ -146,7 +146,9 @@ class Highchart(WebviewWidget):
                                attrs)
                 bridge = _Bridge()
 
-        super().__init__(parent, bridge, js_timeout=10000, debug=debug)
+        super().__init__(parent, bridge, debug=debug)
+        if hasattr(self, "js_timeout"):
+            self.js_timeout = 10000
 
         self.highchart = highchart
         self.enable_zoom = enable_zoom
