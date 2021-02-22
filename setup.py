@@ -56,6 +56,7 @@ if __name__ == '__main__':
         packages=find_packages(),
         package_data={
             "orangecontrib.timeseries.widgets": ["icons/*.svg",
+                                                 "icons/*.ttf",
                                                  "*.js"],
             "orangecontrib.timeseries.widgets.highcharts": ["_highcharts/*.js",
                                                             "_highcharts/*.html",
