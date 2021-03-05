@@ -12,7 +12,7 @@ class TestOWGrangerCausality(WidgetTest):
     def setUp(self):
         self.widget: OWGrangerCausality = self.create_widget(OWGrangerCausality)
         dataset_dir = os.path.join(os.path.dirname(__file__), "datasets")
-        self.amzn = Timeseries.from_file(os.path.join(dataset_dir, "AMZN.tab"))
+        self.amzn = Timeseries.from_file(os.path.join(dataset_dir, "AMZN.tab"))[:, :-3]
 
     def test_data_none(self):
         self.send_signal(self.widget.Inputs.time_series, None)
@@ -21,7 +21,7 @@ class TestOWGrangerCausality(WidgetTest):
         """ Test if calculation is triggered and view is filled """
         self.send_signal(self.widget.Inputs.time_series, self.amzn)
         self.wait_until_finished(timeout=10000)
-        self.assertGreater(self.widget.model.rowCount(), 20)
+        self.assertEqual(self.widget.model.rowCount(), 6)
 
     def test_selection(self):
         """ Test if selection is correctly handled """

@@ -260,4 +260,4 @@ class Timeseries(Table):
             return interpolated
         if isinstance(attrs, str):
             attrs = [attrs]
-        return Table(Domain([], [], attrs, interpolated.domain), interpolated).metas
+        return Table.from_table(Domain([], [], attrs, interpolated.domain), interpolated).metas

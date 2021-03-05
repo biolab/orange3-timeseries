@@ -3,6 +3,7 @@ from datetime import timedelta, timezone
 from numbers import Number
 
 import numpy as np
+from dateutil.tz import tzlocal
 from scipy.signal import argrelextrema
 
 
@@ -462,7 +463,7 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
         for col_attr in domain:
             if row_attr == col_attr or data.time_variable in (row_attr, col_attr):
                 continue
-            X = Table(Domain([], [], [col_attr, row_attr], data.domain), data).metas
+            X = Table.from_table(Domain([], [], [col_attr, row_attr], data.domain), data).metas
             try:
                 tests = grangercausalitytests(X, max_lag, verbose=False)
                 lag, p_val = next(
@@ -649,13 +650,13 @@ DAYS = 1461
 def timestamp(dt):
     try:
         ts = dt.timestamp()
-    except OverflowError:
+    except (OverflowError, OSError):
         if not dt.tzinfo:
-            # treat datetime as in local timezone
-            dt = dt.astimezone()
+            # treat datetime as in local timezone - workaround for astimezone
+            # which does not work on Windows for dates older than 1970
+            dt = dt.replace(tzinfo=tzlocal())
         # compute timestamp manually
-        ts = (dt - datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)) /\
-             timedelta(seconds=1)
+        ts = (dt - datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds()
     return ts
 
 

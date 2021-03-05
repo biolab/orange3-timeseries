@@ -13,7 +13,7 @@ from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Input, Output
 
-from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries import Timeseries, fromtimestamp, timestamp
 from orangecontrib.timeseries.util import add_time
 from orangecontrib.timeseries.widgets._rangeslider import ViolinSlider
 
@@ -29,30 +29,26 @@ class _TimeSliderMixin:
         self.__formatter = str  # type: Callable
 
     def setScale(self, minimum, maximum, time_delta):
-        self.__scale_minimum = datetime.datetime.fromtimestamp(
-            round(minimum),
-            tz=datetime.timezone.utc
-        )
-        self.__scale_maximum = datetime.datetime.fromtimestamp(
-            round(maximum),
-            tz=datetime.timezone.utc
-        )
+        self.__scale_minimum = fromtimestamp(round(minimum))
+        self.__scale_maximum = fromtimestamp(round(maximum))
         self.__time_delta = time_delta
 
     def scale(self, value):
         quantity = round(value - self.minimum())
         delta = self.__time_delta
         if delta is None:
-            return (self.__scale_minimum +
-                    (self.__scale_maximum - self.__scale_minimum) *
-                    (value - self.minimum()) /
-                    (self.maximum() - self.minimum())).timestamp()
+            return timestamp(
+                self.__scale_minimum
+                + (self.__scale_maximum - self.__scale_minimum)
+                * (value - self.minimum())
+                / (self.maximum() - self.minimum())
+            )
         scaled_dt = add_time(self.__scale_minimum, delta, quantity)
-        return scaled_dt.timestamp()
+        return timestamp(scaled_dt)
 
     def unscale(self, value):
         # Unscale e.g. absolute time to slider value
-        dt_val = datetime.datetime.fromtimestamp(round(value), tz=datetime.timezone.utc)
+        dt_val = fromtimestamp(round(value))
         delta = self.__time_delta
         if isinstance(delta, Number):
             diff = dt_val - self.__scale_minimum
@@ -277,8 +273,8 @@ class OWTimeSlice(widget.OWWidget):
         minTime = self.slider.scale(minValue)
         maxTime = self.slider.scale(maxValue)
 
-        from_dt = QDateTime.fromMSecsSinceEpoch(minTime * 1000).toUTC()
-        to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
+        from_dt = QDateTime.fromMSecsSinceEpoch(int(minTime * 1000)).toUTC()
+        to_dt = QDateTime.fromMSecsSinceEpoch(int(maxTime * 1000)).toUTC()
         if self.date_from.dateTime() != from_dt:
             with blockSignals(self.date_from):
                 self.date_from.setDateTime(from_dt)
@@ -295,7 +291,7 @@ class OWTimeSlice(widget.OWWidget):
             # maxValue's range is minValue's range shifted by one
             maxValue += 1
             maxTime = self.slider.scale(maxValue)
-            to_dt = QDateTime.fromMSecsSinceEpoch(maxTime * 1000).toUTC()
+            to_dt = QDateTime.fromMSecsSinceEpoch(int(maxTime * 1000)).toUTC()
             with blockSignals(self.date_to):
                 self.date_to.setDateTime(to_dt)
 
@@ -345,10 +341,9 @@ class OWTimeSlice(widget.OWWidget):
         def new_value(value):
             if self.custom_step_size:
                 step_amount = self.STEP_SIZES[self.step_size]
-                time = datetime.datetime.fromtimestamp(self.slider.scale(value),
-                                                       tz=datetime.timezone.utc)
+                time = fromtimestamp(self.slider.scale(value))
                 newTime = add_time(time, step_amount, -1 if backward else 1)
-                return self.slider.unscale(newTime.timestamp())
+                return self.slider.unscale(timestamp(newTime))
             return value + (-delta if backward else delta)
 
         if maxValue == self.slider.maximum() and not backward:
@@ -418,8 +413,8 @@ class OWTimeSlice(widget.OWWidget):
 
         time_values = data.time_values
 
-        min_dt = datetime.datetime.fromtimestamp(round(time_values.min()), tz=datetime.timezone.utc)
-        max_dt = datetime.datetime.fromtimestamp(round(time_values.max()), tz=datetime.timezone.utc)
+        min_dt = fromtimestamp(round(time_values.min()))
+        max_dt = fromtimestamp(round(time_values.max()))
 
         # Depending on time delta:
         #   - set slider maximum (granularity)
@@ -538,7 +533,7 @@ class OWTimeSlice(widget.OWWidget):
             self.stepsize_combobox.addItem(next_item)
 
         slider.setMinimum(0)
-        slider.setMaximum(maximum + 1)
+        slider.setMaximum(int(maximum + 1))
 
         self._set_disabled(False)
         slider.setHistogram(time_values)

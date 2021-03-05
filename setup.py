@@ -55,13 +55,14 @@ if __name__ == '__main__':
         ),
         packages=find_packages(),
         package_data={
-            "orangecontrib.timeseries.widgets": ["icons/*.svg",
-                                                 "icons/*.ttf",
+            "orangecontrib.timeseries.widgets": ["icons/*",
                                                  "*.js"],
             "orangecontrib.timeseries.widgets.highcharts": ["_highcharts/*.js",
                                                             "_highcharts/*.html",
                                                             "_highcharts/*.css",
                                                             "_highcharts/LICENSE"],
+            "orangecontrib.timeseries.widgets.tests": ["datasets/*"],
+
             "orangecontrib.timeseries": ["datasets/*.tab",
                                          "datasets/*.csv"],
         },
@@ -73,7 +74,13 @@ if __name__ == '__main__':
             'numpy',
             'scipy>=0.17',
             'more-itertools',
+            # required to get current timezone
+            # adding it does not hurt, Pandas have it as a dependency
+            'python-dateutil'
         ],
+        extras_require={
+            'test': ['coverage']
+        },
         entry_points=ENTRY_POINTS,
         test_suite='orangecontrib.timeseries.tests.suite',
         namespace_packages=['orangecontrib'],

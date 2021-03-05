@@ -162,6 +162,11 @@ class Highchart(WebviewWidget):
                                             options=json(options)),
                          self.toFileURL(dirname(self._HIGHCHARTS_HTML)) + '/')
 
+        # tests regularly fails with Timeout error while executing JS
+        # temporarily increase since we are planing to replace Highchart
+        if hasattr(self, "js_timeout"):
+            self.js_timeout = 10000
+
     def _update_options_dict(self, options, enable_zoom, enable_select,
                              enable_point_select, enable_rect_select,
                              enable_scrollbar, kwargs):
