@@ -10,7 +10,7 @@ data = Timeseries.from_file('airpassengers')
 class TestSeasonalDecompose(unittest.TestCase):
     def test_seasonal_decomposition(self):
         decomp = seasonal_decompose(data[:, data.domain.class_var], model='multiplicative')
-        self.assertEqual(len(decomp.domain), 4)
+        self.assertEqual(len(decomp.domain.variables), 4)
 
         np.testing.assert_almost_equal(
             decomp[:, 'Air passengers (season. adj.)'],
