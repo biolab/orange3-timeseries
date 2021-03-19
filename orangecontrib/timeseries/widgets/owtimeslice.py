@@ -5,7 +5,7 @@ from collections import OrderedDict
 from numbers import Number
 from os.path import join, dirname
 
-from AnyQt.QtWidgets import QLabel, QDateTimeEdit
+from AnyQt.QtWidgets import QLabel, QDateTimeEdit, QSizePolicy
 from AnyQt.QtCore import QDateTime, Qt, QSize, QTimer, QTimeZone
 from AnyQt.QtGui import QFontDatabase, QFont
 
@@ -175,6 +175,7 @@ class OWTimeSlice(widget.OWWidget):
                                       valuesChanged=self.sliderValuesChanged,
                                       minimumValue=self.slider_values[0],
                                       maximumValue=self.slider_values[1])
+        slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         slider.setShowText(False)
         selectBox = gui.vBox(self.controlArea, 'Select a Time Range')
         selectBox.layout().addWidget(slider)
@@ -219,10 +220,12 @@ class OWTimeSlice(widget.OWWidget):
         gui.rubber(hCenterBox)
         vControlsBox = gui.vBox(hCenterBox)
 
-        stepThroughBox = gui.vBox(vControlsBox, 'Step/Play Through')
+        stepThroughBox = gui.vBox(vControlsBox, 'Step/Play Through',
+                                  sizePolicy=(QSizePolicy.Preferred,
+                                              QSizePolicy.Maximum))
         gui.rubber(stepThroughBox)
         gui.checkBox(stepThroughBox, self, 'loop_playback',
-                     label='Loop playback')
+                     label='Loop playback', attribute=Qt.WA_LayoutUsesWidgetRect)
         customStepBox = gui.hBox(stepThroughBox)
         gui.checkBox(customStepBox, self, 'custom_step_size',
                      label='Custom step size: ',
@@ -265,7 +268,6 @@ class OWTimeSlice(widget.OWWidget):
                         callback=set_intervals)
 
         gui.rubber(hCenterBox)
-        gui.rubber(self.controlArea)
         self._set_disabled(True)
 
     def sliderValuesChanged(self, minValue, maxValue):
@@ -557,6 +559,9 @@ class OWTimeSlice(widget.OWWidget):
 
         self.slider.setFormatter(format_time)
 
+    def sizeHint(self):
+        return self.controlArea.sizeHint()
+
     @classmethod
     def migrate_settings(cls, settings_, version):
         if version < 2:
@@ -569,6 +574,7 @@ class OWTimeSlice(widget.OWWidget):
 
 if __name__ == '__main__':
     from AnyQt.QtWidgets import QApplication
+
     app = QApplication([])
     w = OWTimeSlice()
     data = Table('airpassengers')
