@@ -19,7 +19,7 @@ class TestARIMA(unittest.TestCase):
         model = ARIMA((2, 1, 0))
         model.fit(data)
         forecast = model.predict(10, as_table=True)
-        self.assertEqual(len(forecast.domain), 1 + 2)
+        self.assertEqual(len(forecast.domain.variables), 1 + 2)
 
 
 class TestVAR(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestVAR(unittest.TestCase):
         model = VAR(2)
         model.fit(data)
         forecast = model.predict(10, as_table=True)
-        self.assertEqual(len(forecast.domain), 2 * (1 + 2))
+        self.assertEqual(len(forecast.domain.variables), 2 * (1 + 2))
 
 
 class TestModelEvaluation(unittest.TestCase):

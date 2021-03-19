@@ -63,8 +63,8 @@ class TestOWSeasonalAdjustment(WidgetTest):
         self.send_signal(w.Inputs.time_series, time_series)
         selmodel = w.view.selectionModel()
         selmodel.select(w.model.index(0), selmodel.Select)
-        self.assertGreater(len(self.get_output("Time series").domain),
-                           len(time_series.domain))
+        self.assertGreater(len(self.get_output("Time series").domain.variables),
+                           len(time_series.domain.variables))
 
 
 if __name__ == "__main__":
