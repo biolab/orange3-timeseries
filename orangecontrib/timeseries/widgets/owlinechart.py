@@ -18,16 +18,18 @@ from orangewidget.utils.widgetpreview import WidgetPreview
 from Orange.data import TimeVariable, Table, Variable
 from Orange.widgets import gui
 from Orange.widgets.widget import OWWidget, Input, AttributeList
-from Orange.widgets.utils import vartype
 from Orange.widgets.settings import (
     ContextSetting,
     IncompatibleContext,
-    DomainContextHandler,
+    ContextHandler
 )
 from Orange.widgets.utils.itemmodels import VariableListModel
 
 from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets.highcharts import Highchart
+
+
+PLOT_TYPE_ITEMS = ('line', 'step line', 'column', 'area', 'spline')
 
 
 class PlotConfigWidget(QWidget, gui.OWComponent):
@@ -56,10 +58,10 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
         self.setLayout(box)
 
         hbox = gui.hBox(self)
-        gui.comboBox(hbox, self, 'plot_type',
+        self.plot_type_cb = gui.comboBox(hbox, self, 'plot_type',
                      label='Type:',
                      orientation='horizontal',
-                     items=('line', 'step line', 'column', 'area', 'spline'),
+                     items=PLOT_TYPE_ITEMS,
                      sendSelectedValue=True,
                      callback=lambda: self.sigType.emit(ax, self.plot_type))
         gui.rubber(hbox)
@@ -150,9 +152,13 @@ class PlotConfigWidget(QWidget, gui.OWComponent):
         self.is_logarithmic = is_log
         self.on_logarithmic()
 
+    def set_plot_type(self, plot_type: str) -> None:
+        self.plot_type = plot_type
+        self.plot_type_cb.setCurrentText(plot_type)
+        self.sigType.emit(self.ax, self.plot_type)
+
 
 class Highstock(Highchart):
-
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args,
                          yAxis_lineWidth=2,
@@ -405,40 +411,47 @@ class Highstock(Highchart):
         ''' % locals())
 
 
-class LineChartContextHandler(DomainContextHandler):
+class LineChartContextHandler(ContextHandler):
     """
     Context handler of line chart. The specifics of this widget is
     that `attrs` variable is list of lists and it is not handled with
     the DomainContextHandler.
     """
+    def open_context(self, widget, domain_fetures):
+        if domain_fetures[0] is None:
+            # prevent opening context if no data
+            return
+        super().open_context(widget, domain_fetures)
 
-    def encode_setting(self, context, setting, value):
-        if setting.name == "attrs":
-            value = [
-                [(var.name, vartype(var)) for var in plot] for plot in value
-            ]
-        return super().encode_setting(context, setting, value)
+    def new_context(self, group):
+        context = super().new_context()
+        context.features = group[1]
+        return context
 
-    def decode_setting(self, setting, value, domain=None, *_args):
-        decoded = super().decode_setting(setting, value, domain)
-        if setting.name == "attrs":
-            decoded = [[domain[name] for name, _ in plot] for plot in decoded]
-        return decoded
-
-    def match(self, context, _, attrs, metas):
-        if context.attributes == attrs and context.metas == metas:
-            return self.PERFECT_MATCH
-
+    def match(self, context, domain_features, *args):
         if "attrs" not in context.values:
             return self.NO_MATCH
 
-        all_vars = attrs.copy()
-        all_vars.update(metas)
-
-        value = set(y for x in context.values["attrs"] for y in x)
-        return sum(all_vars.get(attr) == vtype for attr, vtype in value) / len(
-            value
-        )
+        domain, features = domain_features
+        attrs = context.values["attrs"]
+        if features is not None:
+            # when features are present match features only - find context with
+            # same features
+            if hasattr(context, "features") and context.features == features:
+                return self.PERFECT_MATCH
+            else:
+                return self.NO_MATCH
+        else:
+            # match if all selected attributes in domain
+            # when no features on input match just contexts with no features
+            values = set(y for x in attrs for y in x)
+            if (
+                context.features is None and len(values) > 0
+                and all(v in domain for v in values)
+            ):
+                return self.PERFECT_MATCH
+            else:
+                return self.NO_MATCH
 
 
 class OWLineChart(OWWidget):
@@ -453,8 +466,9 @@ class OWLineChart(OWWidget):
         forecast = Input("Forecast", Timeseries, multiple=True)
 
     settingsHandler = LineChartContextHandler()
-    attrs = ContextSetting([])  # Maps data.name -> [attrs]
+    attrs = ContextSetting([])
     is_logit = ContextSetting([])
+    plot_type = ContextSetting([])
 
     graph_name = 'chart'
 
@@ -523,6 +537,7 @@ class OWLineChart(OWWidget):
             return
 
         self.data = data = new_data
+        self.closeContext()
         if data is None:
             self.varmodel.clear()
             self.chart.clear()
@@ -563,29 +578,32 @@ class OWLineChart(OWWidget):
 
     @Inputs.features
     def set_features(self, features: AttributeList) -> None:
-        if features and not self.features:
-            # if features are on the input and they were not before
-            # context should be saved for later when features will not be
-            # present anymore
-            self.closeContext()
+        self.closeContext()
+        # when features present selection is manipulated by  signal and not manually
+        self._disable_buttons(features is not None)
         self.features = features
         if self.data:
             self.set_attributes()
             self.update_plots()
+
+    def _disable_buttons(self, disabled):
+        """ Disable add plot button and buttons for removing the plot"""
+        self.add_button.setDisabled(disabled)
+        for c in self.configs:
+            c.button_close.setDisabled(disabled)
 
     def set_attributes(self) -> None:
         """
         In case when features present: set shown attributes to match features
         In case when features not present: set default value and open context
         """
-        self.closeContext()
+        features = None
         if self.features:
-            self.attrs = [
-                [f]
-                for f in self.features
+            features = [
+                f for f in self.features
                 if f in self.data.domain and f != self.data.time_variable
             ]
-            self.is_logit = [False] * len(self.attrs)
+            self.attrs = [[f] for f in features]
         else:
             variables = [
                 var
@@ -593,10 +611,10 @@ class OWLineChart(OWWidget):
                 if var.is_continuous and var != self.data.time_variable
             ]
             self.attrs = [[variables[0]]]
-            self.is_logit = [False]
-            # context is only open when features not provided on input
-            # when provided features defines the selection
-            self.openContext(self.data.domain)
+        self.is_logit = [False] * len(self.attrs)
+        self.plot_type = [PLOT_TYPE_ITEMS[0]] * len(self.attrs)
+
+        self.openContext((self.data.domain, features))
 
     def update_plots(self) -> None:
         """
@@ -613,10 +631,12 @@ class OWLineChart(OWWidget):
 
         assert len(self.configs) == len(self.attrs)
         assert len(self.attrs) == len(self.is_logit)
+        assert len(self.attrs) == len(self.plot_type)
         # select correct values
-        for config, attr, log in zip(self.configs, self.attrs, self.is_logit):
+        for config, attr, log, pt in zip(self.configs, self.attrs, self.is_logit, self.plot_type):
             config.set_logarithmic(log)
             config.set_selection(attr)
+            config.set_plot_type(pt)
             config.view.setEnabled(not self.features)
 
     def _selections_changed(self) -> None:
@@ -625,7 +645,7 @@ class OWLineChart(OWWidget):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """
-        When someone delets the widget closeContext must be called to gather
+        When someone deletes the widget closeContext must be called to gather
         settings.
         """
         self.closeContext()
@@ -635,17 +655,15 @@ class OWLineChart(OWWidget):
         """
         Gather configs in contextVariables and close context.
         """
-        if not self.features:
-            # only close in case of when features are not present if they are
-            # feature selection is defined by the input and context should
-            # not have impact
-            attrs, is_logit = [], []
-            for config in self.configs:
-                attrs.append(config.get_selection())
-                is_logit.append(config.is_logarithmic)
-            self.attrs = attrs
-            self.is_logit = is_logit
-            super().closeContext()
+        attrs, is_logit, plot_type = [], [], []
+        for config in self.configs:
+            attrs.append(config.get_selection())
+            is_logit.append(config.is_logarithmic)
+            plot_type.append(config.plot_type)
+        self.attrs = attrs
+        self.is_logit = is_logit
+        self.plot_type = plot_type
+        super().closeContext()
 
 
 if __name__ == "__main__":

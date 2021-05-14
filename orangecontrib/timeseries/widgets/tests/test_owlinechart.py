@@ -21,7 +21,7 @@ class TestOWLineChart(WidgetTest):
         self.send_signal(w.Inputs.time_series, None)
         # send selection when no data on the input
         self.send_signal(
-            w.Inputs.features, AttributeList(self.airpassengers.attributes)
+            w.Inputs.features, AttributeList(self.airpassengers.domain.attributes)
         )
         # send forecast on empty data
         model1 = ARIMA((3, 1, 1)).fit(self.airpassengers)
@@ -70,7 +70,7 @@ class TestOWLineChart(WidgetTest):
 
     def test_context_with_features(self):
         """
-        Test if context saves selection correctly afeter providing features
+        Test if context saves selection correctly after providing features
         on the input.
         """
         w = self.widget
