@@ -3,6 +3,7 @@ import unittest
 
 from Orange.widgets.tests.base import WidgetTest
 from Orange.widgets.widget import AttributeList
+from Orange.data import Table
 
 
 from orangecontrib.timeseries import Timeseries, ARIMA
@@ -104,6 +105,12 @@ class TestOWLineChart(WidgetTest):
         sel = self.amzn.domain.attributes[3:5]
         self.send_signal(w.Inputs.features, AttributeList(sel))
         self.assertEqual(2, len(w.configs))
+
+    def test_no_suitable_data(self):
+        self.send_signal(self.widget.Inputs.time_series, Table("titanic"))
+        self.assertEqual(1, len(self.widget.configs))
+        self.assertEqual(1, len(self.widget.attrs))
+        self.assertEqual(0, len(self.widget.attrs[0]))
 
 
 if __name__ == "__main__":

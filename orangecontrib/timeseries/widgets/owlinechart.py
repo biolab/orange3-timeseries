@@ -11,7 +11,7 @@ from AnyQt.QtWidgets import (
     QListView,
     QVBoxLayout,
 )
-from AnyQt.QtGui import QIcon, QCloseEvent
+from AnyQt.QtGui import QIcon
 from AnyQt.QtCore import QSize, pyqtSignal
 
 from orangewidget.utils.widgetpreview import WidgetPreview
@@ -20,8 +20,8 @@ from Orange.widgets import gui
 from Orange.widgets.widget import OWWidget, Input, AttributeList
 from Orange.widgets.settings import (
     ContextSetting,
-    IncompatibleContext,
-    ContextHandler
+    ContextHandler,
+    Context
 )
 from Orange.widgets.utils.itemmodels import VariableListModel
 
@@ -417,12 +417,6 @@ class LineChartContextHandler(ContextHandler):
     that `attrs` variable is list of lists and it is not handled with
     the DomainContextHandler.
     """
-    def open_context(self, widget, domain_fetures):
-        if domain_fetures[0] is None:
-            # prevent opening context if no data
-            return
-        super().open_context(widget, domain_fetures)
-
     def new_context(self, group):
         context = super().new_context()
         context.features = group[1]
@@ -437,7 +431,7 @@ class LineChartContextHandler(ContextHandler):
         if features is not None:
             # when features are present match features only - find context with
             # same features
-            if hasattr(context, "features") and context.features == features:
+            if context.features == features:
                 return self.PERFECT_MATCH
             else:
                 return self.NO_MATCH
@@ -466,9 +460,11 @@ class OWLineChart(OWWidget):
         forecast = Input("Forecast", Timeseries, multiple=True)
 
     settingsHandler = LineChartContextHandler()
-    attrs = ContextSetting([])
-    is_logit = ContextSetting([])
-    plot_type = ContextSetting([])
+    attrs: List[List[str]] = ContextSetting([])
+    is_logit: List[bool] = ContextSetting([])
+    plot_type: List[str] = ContextSetting([])
+
+    settings_version = 2
 
     graph_name = 'chart'
 
@@ -543,8 +539,6 @@ class OWLineChart(OWWidget):
             self.chart.clear()
             return
 
-        self.set_attributes()
-
         if getattr(data.time_variable, 'utc_offset', False):
             offset_minutes = data.time_variable.utc_offset.total_seconds() / 60
             self.chart.evalJS(
@@ -566,6 +560,8 @@ class OWLineChart(OWWidget):
             if var.is_continuous and var != data.time_variable
         ]
         self.varmodel.wrap(variables)
+        self.set_attributes()
+
         self.update_plots()
 
     @Inputs.forecast
@@ -605,14 +601,12 @@ class OWLineChart(OWWidget):
             ]
             self.attrs = [[f] for f in features]
         else:
-            variables = [
-                var
-                for var in self.data.domain.variables
-                if var.is_continuous and var != self.data.time_variable
-            ]
-            self.attrs = [[variables[0]]]
+            self.attrs = [self.varmodel[:1]]
         self.is_logit = [False] * len(self.attrs)
         self.plot_type = [PLOT_TYPE_ITEMS[0]] * len(self.attrs)
+        # update self.conf tp new setting - otherwise self.attrs will be set
+        # back to self.conf settings - openContext calls storeSpecificSettings
+        self.update_plots()
 
         self.openContext((self.data.domain, features))
 
@@ -643,18 +637,12 @@ class OWLineChart(OWWidget):
         for config in self.configs:
             config.selection_changed()
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def storeSpecificSettings(self) -> None:
         """
-        When someone deletes the widget closeContext must be called to gather
-        settings.
+        Gather configs in contextVariables before context is closed, widget is
+        closed or workflow is saved
         """
-        self.closeContext()
-        super().closeEvent(event)
-
-    def closeContext(self) -> None:
-        """
-        Gather configs in contextVariables and close context.
-        """
+        super().storeSpecificSettings()
         attrs, is_logit, plot_type = [], [], []
         for config in self.configs:
             attrs.append(config.get_selection())
@@ -663,7 +651,13 @@ class OWLineChart(OWWidget):
         self.attrs = attrs
         self.is_logit = is_logit
         self.plot_type = plot_type
-        super().closeContext()
+
+    @classmethod
+    def migrate_context(cls, context: Context, version: int) -> None:
+        # all current context should have features attributes, if it is not
+        # present yet the context was made before the changes
+        if version < 2:
+            context.features = []
 
 
 if __name__ == "__main__":
