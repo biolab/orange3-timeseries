@@ -64,6 +64,23 @@ class TestOWAggregate(WidgetTest):
         self.send_signal(self.widget.Inputs.time_series, self.time_series)
         self.assertEqual(self.widget.model[0][1], AGG_FUNCTIONS[1])
 
+    def test_feature_change(self):
+        data = Table.from_url(
+            "https://datasets.biolab.si/core/philadelphia-crime.csv.xz")
+        domain1 = data.domain.select_columns({"Datetime", "Lon"})
+        data1 = data.transform(domain1)
+        domain2 = data.domain.select_columns({"Datetime"})
+        data2 = data.transform(domain2)
+        domain3 = data.domain.select_columns({"Datetime", "Type", "Lat"})
+        data3 = data.transform(domain3)
+
+        self.send_signal(self.widget.Inputs.time_series, data1)
+        self.assertEqual(len(self.widget.model), 1)
+        self.send_signal(self.widget.Inputs.time_series, data2)
+        self.assertEqual(len(self.widget.model), 0)
+        self.send_signal(self.widget.Inputs.time_series, data3)
+        self.assertEqual(len(self.widget.model), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
