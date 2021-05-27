@@ -8,7 +8,7 @@ from AnyQt.QtCore import Qt
 
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.settings import ContextSetting, DomainContextHandler
+from Orange.widgets.settings import ContextSetting, PerfectDomainContextHandler
 from Orange.widgets.utils.itemmodels import PyTableModel
 from Orange.widgets.widget import Input, Output
 
@@ -30,7 +30,7 @@ class OWAggregate(widget.OWWidget):
     class Outputs:
         time_series = Output("Time series", Timeseries)
 
-    settingsHandler = DomainContextHandler()
+    settingsHandler = PerfectDomainContextHandler()
     variables = ContextSetting([])
     agg_funcs = ContextSetting([])
 
