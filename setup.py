@@ -79,7 +79,8 @@ if __name__ == '__main__':
             'python-dateutil'
         ],
         extras_require={
-            'test': ['coverage']
+            'test': ['coverage'],
+            'doc': ['sphinx', 'recommonmark', 'sphinx_rtd_theme'],
         },
         entry_points=ENTRY_POINTS,
         test_suite='orangecontrib.timeseries.tests.suite',
