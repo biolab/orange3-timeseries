@@ -3,6 +3,7 @@ import unittest
 
 from Orange.widgets.tests.base import WidgetTest
 from Orange.widgets.widget import AttributeList
+from Orange.data import Table
 
 
 from orangecontrib.timeseries import Timeseries, ARIMA
@@ -21,7 +22,7 @@ class TestOWLineChart(WidgetTest):
         self.send_signal(w.Inputs.time_series, None)
         # send selection when no data on the input
         self.send_signal(
-            w.Inputs.features, AttributeList(self.airpassengers.attributes)
+            w.Inputs.features, AttributeList(self.airpassengers.domain.attributes)
         )
         # send forecast on empty data
         model1 = ARIMA((3, 1, 1)).fit(self.airpassengers)
@@ -70,7 +71,7 @@ class TestOWLineChart(WidgetTest):
 
     def test_context_with_features(self):
         """
-        Test if context saves selection correctly afeter providing features
+        Test if context saves selection correctly after providing features
         on the input.
         """
         w = self.widget
@@ -104,6 +105,12 @@ class TestOWLineChart(WidgetTest):
         sel = self.amzn.domain.attributes[3:5]
         self.send_signal(w.Inputs.features, AttributeList(sel))
         self.assertEqual(2, len(w.configs))
+
+    def test_no_suitable_data(self):
+        self.send_signal(self.widget.Inputs.time_series, Table("titanic"))
+        self.assertEqual(1, len(self.widget.configs))
+        self.assertEqual(1, len(self.widget.attrs))
+        self.assertEqual(0, len(self.widget.attrs[0]))
 
 
 if __name__ == "__main__":
