@@ -1,4 +1,3 @@
-from datetime import datetime
 from numbers import Number
 from collections import OrderedDict
 from os.path import join, dirname
@@ -554,9 +553,8 @@ class OWLineChart(OWWidget):
                 offset_minutes = offsets.pop().total_seconds() / 60
                 self.chart.evalJS(
                     "Highcharts.setOptions({global: {timezoneOffset: %d}});"
-                    % -offset_minutes
+                    % -60
                 )  # Why is this negative? It works.
-                self.chart.chart()
 
         self.chart.setXAxisType(
             'datetime'
