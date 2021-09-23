@@ -25,7 +25,7 @@ from Orange.widgets.settings import (
 )
 from Orange.widgets.utils.itemmodels import VariableListModel
 
-from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries import Timeseries, fromtimestamp
 from orangecontrib.timeseries.widgets.highcharts import Highchart
 
 
@@ -518,7 +518,7 @@ class OWLineChart(OWWidget):
             self.resize(QSize(925, 635))
 
     @Inputs.time_series
-    def set_data(self, data):
+    def set_data(self, data: Table):
         # TODO: set xAxis resolution and tooltip time contents depending on
         # data.time_delta. See: http://imgur.com/yrnlgQz
 
@@ -539,13 +539,22 @@ class OWLineChart(OWWidget):
             self.chart.clear()
             return
 
-        if getattr(data.time_variable, 'utc_offset', False):
-            offset_minutes = data.time_variable.utc_offset.total_seconds() / 60
-            self.chart.evalJS(
-                'Highcharts.setOptions({global: {timezoneOffset: %d}});'
-                % -offset_minutes
-            )  # Why is this negative? It works.
-            self.chart.chart()
+        if getattr(data.time_variable, "timezone", False):
+            # get all datetime values in as timestamp
+            t_values = data.get_column_view(data.time_variable)[0]
+            # get all offsets (it is possible to have multiple offsets because
+            # of changes in history and changes to dst)
+            offsets = set(
+                fromtimestamp(s, tz=data.time_variable.timezone).utcoffset()
+                for s in t_values
+            ) - {None}
+            # set offset only when same offset for all datetimes
+            if len(offsets) == 1:
+                offset_minutes = offsets.pop().total_seconds() / 60
+                self.chart.evalJS(
+                    "Highcharts.setOptions({global: {timezoneOffset: %d}});"
+                    % -60
+                )  # Why is this negative? It works.
 
         self.chart.setXAxisType(
             'datetime'
