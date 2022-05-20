@@ -1,6 +1,7 @@
 from itertools import chain
 
 import numpy as np
+import statsmodels
 from scipy.stats import norm
 import statsmodels.api as sm
 
@@ -295,15 +296,13 @@ class ARIMA(_BaseModel):
     unfitted_model
     """
     REQUIRES_STATIONARY = False
-    __wrapped__ = sm.tsa.ARIMA
+    __wrapped__ = statsmodels.tsa.arima.model.ARIMA
 
     def __init__(self, order=(1, 0, 0), use_exog=False):
         super().__init__()
         self.order = order
         self.use_exog = use_exog
         self._model_kwargs.update(order=order)
-        self._fit_kwargs.update(disp=0,  # Don't print shit
-                                verbose=False)
 
     def __str__(self):
         return '{}({})'.format('AR{}MA{}'.format('I' if self.order[1] else '',
@@ -311,7 +310,9 @@ class ARIMA(_BaseModel):
                                ','.join(map(str, self.order)))
 
     def _predict(self, steps, exog, alpha):
-        forecast, _, confint = self.results.forecast(steps, exog, alpha)
+        pred_res = self.results.get_forecast(steps, exog=exog)
+        forecast = pred_res.predicted_mean
+        confint = pred_res.conf_int(alpha=alpha)
         return np.c_[forecast, confint].T
 
     def _before_init(self, endog, exog):
