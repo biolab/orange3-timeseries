@@ -6,6 +6,8 @@ import numpy as np
 from AnyQt.QtWidgets import QStyledItemDelegate, QComboBox
 from AnyQt.QtCore import Qt
 
+from orangewidget.utils.widgetpreview import WidgetPreview
+
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.settings import ContextSetting, PerfectDomainContextHandler
@@ -200,11 +202,4 @@ class OWAggregate(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication([])
-    ow = OWAggregate()
-    ow.set_data(Timeseries.from_file('airpassengers'))
-
-    ow.show()
-    a.exec()
+    WidgetPreview(OWAggregate).run(Timeseries.from_file('airpassengers'))
