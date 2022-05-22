@@ -2,7 +2,7 @@ Orange3-Timeseries
 ==================
 
 Orange add-on for analyzing, visualizing, manipulating, and forecasting time
-series data. The add-on includes ANOVA and VAR models, model evaluation, time
+series data. The add-on includes ARIMA and VAR models, model evaluation, time
 series preprocessing, seasonal adjustment and a wide array of visualizations.
 See [documentation](http://orange3-timeseries.readthedocs.org/).
 
