@@ -24,9 +24,11 @@ class TestCorrelogramWidget(WidgetTest):
             Domain(attributes=[ContinuousVariable("a"), ContinuousVariable("b")]),
             list(zip(list(range(5)), list(range(5))))
         )
-        time_series.X[:, 1] = np.nan
+        with time_series.unlocked():
+            time_series.X[:, 1] = np.nan
         self.send_signal(self.widget.Inputs.time_series, time_series)
-        time_series.X[2, 1] = 42
+        with time_series.unlocked():
+            time_series.X[2, 1] = 42
         self.send_signal(self.widget.Inputs.time_series, time_series)
 
     def test_no_instances(self):

@@ -7,10 +7,11 @@ from orangecontrib.timeseries import Timeseries, interpolate_timeseries
 class TestInterpolation(unittest.TestCase):
     def setUp(self):
         data = Timeseries.from_file('airpassengers')
-        data.Y[:2] = np.nan
-        data.Y[10:15] = np.nan
-        data.Y[-2:] = np.nan
-        self.data = data
+        with data.unlocked():
+            data.Y[:2] = np.nan
+            data.Y[10:15] = np.nan
+            data.Y[-2:] = np.nan
+            self.data = data
 
     def test_methods(self):
         for method in ('linear', 'cubic', 'nearest', 'mean'):
