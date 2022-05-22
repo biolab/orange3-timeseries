@@ -395,7 +395,7 @@ def seasonal_decompose(data, model='multiplicative', period=12, *, callback=None
     for var in data.domain.variables:
         decomposed = sm.tsa.seasonal_decompose(np.ravel(interp_data[:, var]),
                                                model=model,
-                                               freq=period)
+                                               period=period)
         adjusted = recomposition(decomposed.observed,
                                  decomposed.seasonal)
 
