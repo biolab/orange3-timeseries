@@ -184,7 +184,7 @@ def _significant_acf(corr, has_confint):
     return result
 
 
-def autocorrelation(x, *args, unbiased=True, nlags=None, fft=True, **kwargs):
+def autocorrelation(x, *args, nlags=None, fft=True, **kwargs):
     """
     Return autocorrelation function of signal `x`.
 
@@ -209,7 +209,7 @@ def autocorrelation(x, *args, unbiased=True, nlags=None, fft=True, **kwargs):
     from statsmodels.tsa.stattools import acf
     if nlags is None:
         nlags = int(.9 * len(x))
-    corr = acf(x, *args, unbiased=unbiased, nlags=nlags, fft=fft, **kwargs)
+    corr = acf(x, *args, nlags=nlags, fft=fft, **kwargs)
     return _significant_acf(corr, kwargs.get('alpha'))
 
 
