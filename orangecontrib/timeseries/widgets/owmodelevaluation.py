@@ -11,6 +11,7 @@ from Orange.widgets.widget import Input
 
 from orangecontrib.timeseries import Timeseries, model_evaluation
 from orangecontrib.timeseries.models import _BaseModel
+from orangewidget.utils.widgetpreview import WidgetPreview
 
 
 class Output:
@@ -44,8 +45,7 @@ class OWModelEvaluation(widget.OWWidget):
         unexpected_error = widget.Msg('Unexpected error: {}')
 
     class Warning(widget.OWWidget.Warning):
-        model_not_appropriate = widget.Msg(
-            'Model or its settings are not appropriate for this type of data.')
+        model_failed = widget.Msg('One or more models failed.')
 
     def __init__(self):
         self.data = None
@@ -89,7 +89,7 @@ class OWModelEvaluation(widget.OWWidget):
 
     def commit(self):
         self.Error.unexpected_error.clear()
-        self.Warning.model_not_appropriate.clear()
+        self.Warning.model_failed.clear()
         self.model.clear()
         data = self.data
         if not data or not self._models:

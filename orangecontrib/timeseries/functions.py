@@ -635,7 +635,7 @@ def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):
             if fittedvalues.ndim > 1:
                 fittedvalues = fittedvalues[..., 0]
         except Exception:
-            row = ['err'] * 7
+            row = ['err'] * 8
         else:
             row = _score_vector(model, true_y, fittedvalues)
         row[0] = row[0] + ' (in-sample)'
