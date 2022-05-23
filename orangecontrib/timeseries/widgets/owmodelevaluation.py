@@ -103,39 +103,21 @@ class OWModelEvaluation(widget.OWWidget):
             self.Error.unexpected_error(e.args[0])
             return
         res = np.array(res, dtype=object)
-        if res.ndim > 1:
-            self.model.setHorizontalHeaderLabels(res[0, 1:].tolist())
-            self.model.setVerticalHeaderLabels(res[1:, 0].tolist())
-            self.model.wrap(res[1:, 1:].tolist())
-        else:
-            self.Warning.model_not_appropriate()
+        self.Warning.model_failed(shown="err" in res)
+        self.model.setHorizontalHeaderLabels(res[0, 1:].tolist())
+        self.model.setVerticalHeaderLabels(res[1:, 0].tolist())
+        self.model.wrap(res[1:, 1:].tolist())
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-    from Orange.data import Domain
+    class BadModel(_BaseModel):
+        def _predict(self):
+            return 1 / 0
+
     from orangecontrib.timeseries import ARIMA, VAR
-
-    a = QApplication([])
-    ow = OWModelEvaluation()
-
     data = Timeseries.from_file('airpassengers')
-    # Make Adjusted Close a class variable
-    attrs = [var.name for var in data.domain.attributes]
-    if 'Adj Close' in attrs:
-        attrs.remove('Adj Close')
-        data = Timeseries.from_table(Domain(attrs, [data.domain['Adj Close']], None,
-                                            source=data.domain),
-                                     data)
-
-    ow.set_data(data)
-    ow.set_model(ARIMA((1, 1, 1)), 1)
-    ow.set_model(ARIMA((2, 1, 0)), 2)
-    # ow.set_model(ARIMA((0, 1, 1)), 3)
-    # ow.set_model(ARIMA((4, 1, 0)), 4)
-    ow.set_model(VAR(1), 11)
-    ow.set_model(VAR(5), 12)
-    # ow.set_model(VAR(6), 14)
-
-    ow.show()
-    a.exec()
+    learners = [ARIMA((1, 1, 1)), ARIMA((2, 1, 0)), VAR(1), VAR(5), BadModel()]
+    WidgetPreview(OWModelEvaluation).run(
+        set_data=data,
+        set_model=[(model, i) for i, model in enumerate(learners)]
+    )
