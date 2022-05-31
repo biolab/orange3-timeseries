@@ -67,7 +67,7 @@ if __name__ == '__main__':
                                          "datasets/*.csv"],
         },
         install_requires=[
-            'Orange3',
+            'Orange3>=3.31.0',
             'statsmodels>=0.13.0',
             'pandas',  # statsmodels requires this but doesn't have it in dependencies?
             'pandas_datareader',
