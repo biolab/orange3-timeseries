@@ -184,7 +184,7 @@ def _significant_acf(corr, has_confint):
     return result
 
 
-def autocorrelation(x, *args, unbiased=True, nlags=None, fft=True, **kwargs):
+def autocorrelation(x, *args, nlags=None, fft=True, **kwargs):
     """
     Return autocorrelation function of signal `x`.
 
@@ -209,7 +209,7 @@ def autocorrelation(x, *args, unbiased=True, nlags=None, fft=True, **kwargs):
     from statsmodels.tsa.stattools import acf
     if nlags is None:
         nlags = int(.9 * len(x))
-    corr = acf(x, *args, unbiased=unbiased, nlags=nlags, fft=fft, **kwargs)
+    corr = acf(x, *args, nlags=nlags, fft=fft, **kwargs)
     return _significant_acf(corr, kwargs.get('alpha'))
 
 
@@ -395,7 +395,7 @@ def seasonal_decompose(data, model='multiplicative', period=12, *, callback=None
     for var in data.domain.variables:
         decomposed = sm.tsa.seasonal_decompose(np.ravel(interp_data[:, var]),
                                                model=model,
-                                               freq=period)
+                                               period=period)
         adjusted = recomposition(decomposed.observed,
                                  decomposed.seasonal)
 
@@ -635,7 +635,7 @@ def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):
             if fittedvalues.ndim > 1:
                 fittedvalues = fittedvalues[..., 0]
         except Exception:
-            row = ['err'] * 7
+            row = ['err'] * 8
         else:
             row = _score_vector(model, true_y, fittedvalues)
         row[0] = row[0] + ' (in-sample)'

@@ -33,12 +33,13 @@ class TestAsTimeSeriesWidget(WidgetTest):
         GH-30
         """
         w = self.widget
-        data = Table("iris")[:2]
+        data = Table("iris")[:2].copy()
         self.assertFalse(w.Information.nan_times.is_shown())
         self.send_signal(w.Inputs.data, data)
         self.assertFalse(w.Information.nan_times.is_shown())
         self.assertIsInstance(self.get_output(w.Outputs.time_series), Timeseries)
-        data.X[:, 0] = np.nan
+        with data.unlocked():
+            data.X[:, 0] = np.nan
         self.send_signal(w.Inputs.data, data)
         self.assertTrue(w.Information.nan_times.is_shown())
         self.assertIsNone(self.get_output(w.Outputs.time_series))

@@ -27,7 +27,8 @@ class TestOWAggregate(WidgetTest):
             metas=[DiscreteVariable("meta", values=["0"])]
         )
         data = self.time_series.transform(new_domain)
-        data.metas = np.zeros((144, 1), dtype=object)
+        with data.unlocked(data.metas):
+            data.metas = np.zeros((144, 1), dtype=object)
         self.assertEqual(len(data.metas.shape), 2)
         self.send_signal(w.Inputs.time_series, data)
         w.controls.autocommit.click()

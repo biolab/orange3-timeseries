@@ -19,7 +19,8 @@ class TestOWSeasonalAdjustment(WidgetTest):
         """
         w = self.widget
         table = Timeseries.from_file("iris")
-        table.X[1, 1] = -1
+        with table.unlocked():
+            table.X[1, 1] = -1
         w.decomposition = 1
         w.autocommit = True
         self.assertFalse(w.Error.seasonal_decompose_fail.is_shown())

@@ -144,36 +144,54 @@ class Timeseries(Table):
         return ts
 
     @classmethod
+    def convert_from_data_table(cls, table, time_attr=None):
+        """
+        Create TimeSeries and re-assign the original arrays to the new table
+
+        The goal of this is to ensure the timeseries objects owns its data
+        if it can. Therefore, re-assignment happens only if an array is a view
+        into the table (which also means that the `table` itself is not a view)
+        """
+        ts = cls.from_data_table(table, time_attr)
+        for attr in ("X", "Y", "metas", "W"):
+            orig = getattr(table, attr)
+            new =  getattr(ts, attr)
+            if new.base is orig:
+                with ts.unlocked_reference(new):
+                    setattr(ts, attr, orig)
+        return ts
+
+    @classmethod
     def from_domain(cls, *args, time_attr=None, **kwargs):
         table = Table.from_domain(*args, **kwargs)
-        return cls.from_data_table(table, time_attr=time_attr)
+        return cls.convert_from_data_table(table, time_attr=time_attr)
 
     @classmethod
     def from_table(cls, domain, source, *args, time_attr=None, **kwargs):
         if not isinstance(source, Timeseries):
             table = Table.from_table(domain, source, *args, **kwargs)
-            return cls.from_data_table(table, time_attr=time_attr)
+            return cls.convert_from_data_table(table, time_attr=time_attr)
         return super().from_table(domain, source, *args, **kwargs)
 
     @classmethod
     def from_numpy(cls, *args, time_attr=None, **kwargs):
         table = Table.from_numpy(*args, **kwargs)
-        return cls.from_data_table(table, time_attr=time_attr)
+        return cls.convert_from_data_table(table, time_attr=time_attr)
 
     @classmethod
     def from_list(cls, *args, **kwargs):
         table = Table.from_list(*args, **kwargs)
-        return cls.from_data_table(table)
+        return cls.convert_from_data_table(table)
 
     @classmethod
     def from_file(cls, *args, **kwargs):
         table = Table.from_file(*args, **kwargs)
-        return cls.from_data_table(table)
+        return cls.convert_from_data_table(table)
 
     @classmethod
     def from_url(cls, *args, **kwargs):
         table = Table.from_url(*args, **kwargs)
-        return cls.from_data_table(table)
+        return cls.convert_from_data_table(table)
 
     @classmethod
     def make_timeseries_from_sequence(cls, table):
