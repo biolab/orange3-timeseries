@@ -6,6 +6,8 @@ import numpy as np
 from AnyQt.QtWidgets import QStyledItemDelegate, QComboBox
 from AnyQt.QtCore import Qt
 
+from orangewidget.utils.widgetpreview import WidgetPreview
+
 from Orange.data import Table, Domain, TimeVariable
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.settings import ContextSetting, PerfectDomainContextHandler
@@ -61,7 +63,7 @@ class OWAggregate(widget.OWWidget):
                      items=tuple(self.AGG_TIME.keys()),
                      sendSelectedValue=True,
                      orientation=Qt.Horizontal,
-                     callback=lambda: self.commit)
+                     callback=self.commit.deferred)
         self.model = model = PyTableModel(parent=self, editable=[False, True])
         model.setHorizontalHeaderLabels(['Attribute', 'Aggregation function'])
 
@@ -122,12 +124,12 @@ class OWAggregate(widget.OWWidget):
         self.data = data
         if data is None:
             self.model.clear()
-            self.commit()
+            self.commit.now()
             return
         self.set_default(self.data)
         self.openContext(self.data)
         self.unpack_settings()
-        self.commit()
+        self.commit.now()
 
     def set_default(self, data):
         self.variables = [attr for attr in chain(data.domain.variables,
@@ -146,6 +148,7 @@ class OWAggregate(widget.OWWidget):
         self.model[:] = [[var, func] for var, func in zip(self.variables,
                                                           self.agg_funcs)]
 
+    @gui.deferred
     def commit(self):
         data = self.data
         if not data:
@@ -199,11 +202,4 @@ class OWAggregate(widget.OWWidget):
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication([])
-    ow = OWAggregate()
-    ow.set_data(Timeseries.from_file('airpassengers'))
-
-    ow.show()
-    a.exec()
+    WidgetPreview(OWAggregate).run(Timeseries.from_file('airpassengers'))
