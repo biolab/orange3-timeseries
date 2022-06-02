@@ -13,7 +13,7 @@ class OWBaseModel(widget.OWWidget):
     LEARNER = None
 
     class Inputs:
-        time_series = Input("Time series", Table)
+        time_series = Input("Time series", Table, default=True)
 
     class Outputs:
         learner = Output("Time series model", _BaseModel)
@@ -89,8 +89,11 @@ class OWBaseModel(widget.OWWidget):
                 self.fit_model(model, self.data)
                 is_fit = True
                 forecast = self.forecast(model)
+                forecast.name = f"Forecast ({model.name})"
                 fittedvalues = model.fittedvalues(as_table=True)
+                fittedvalues.name = f"Fitted values ({model.name})"
                 residuals = model.residuals(as_table=True)
+                residuals.name = f"Residuals ({model.name})"
             except Exception as ex:
                 action = 'forecasting' if is_fit else 'fitting model'
                 self.Error.model_error(action, ex.__class__.__name__,
