@@ -12,6 +12,7 @@ data = Timeseries.from_file('airpassengers')
 
 
 class TestMovingTransform(unittest.TestCase):
+    @unittest.skip("reenable this for Orange 3.33")
     def test_duplicated_names(self):
         def mock_transform(*_, **__):
             return np.zeros(10)
