@@ -1,10 +1,14 @@
 import datetime
 from datetime import timedelta, timezone
+from functools import partial
 from numbers import Number
 
 import numpy as np
 from dateutil.tz import tzlocal
+from scipy import stats
 from scipy.signal import argrelextrema
+
+import Orange.data.util
 
 
 def _parse_args(args, kwargs, names, *defaults):
@@ -485,6 +489,84 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
     return res
 
 
+def moving_sum(x, width, shift=1):
+    s = np.nancumsum(x)
+    return np.hstack((s[width - 1:width] - 0,
+                      s[shift + width - 1::shift]
+                      - s[shift - 1:-width:shift]))
+
+
+def moving_count_nonzero(x, width, shift=1):
+    return moving_sum(x != 0, width, shift)
+
+
+def moving_count_defined(x, width, shift=1):
+    return moving_sum(np.isfinite(x), width, shift)
+
+
+def _windowed(x, width, shift):
+    if width > x.size:
+        return np.empty((0, 1))  # we need a 2d array, but 0 rows
+    return np.lib.stride_tricks.as_strided(
+        x,
+        shape=(1 + (x.size - width) // shift, width),
+        strides=(shift * x.strides[0], x.strides[0])
+    )
+
+
+def windowed_func(func, x, width, shift):
+    return func(_windowed(x, width, shift), axis=1)
+
+
+def windowed_span(x, width, shift):
+    windows = _windowed(x, width, shift)
+    return np.max(windows, axis=1) - np.min(windows, axis=1)
+
+
+def _windowed_weighted(x, weights, shift):
+    return np.sum(_windowed(x, len(weights), shift) * weights, axis=1)
+
+
+def windowed_linear_MA(x, width, shift):
+    weights = np.arange(width, 0, -1) / (width * (width + 1) / 2)
+    return _windowed_weighted(x, weights, shift)
+
+
+def windowed_exponential_MA(x, width, shift):
+    alpha = 2 / (width + 1.0)
+    weights = alpha * (1 - alpha) ** np.arange(width - 1, -1, -1)
+    return _windowed_weighted(x, weights, shift)
+
+
+def windowed_cumsum(x, width, shift):
+    return np.nancumsum(x)[width - 1::shift]
+
+
+def windowed_cumprod(x, width, shift):
+    return np.nancumprod(x)[width - 1::shift]
+
+
+def windowed_mode(x, width, shift):
+    return windowed_func(
+        partial(stats.mode, nan_policy='omit'),
+        x, width, shift).mode[:, 0]
+
+
+def _moving_transform(x, func, wlen, shift):
+    from itertools import chain
+    from orangecontrib.timeseries.agg_funcs import Cumulative_sum, Cumulative_product
+
+    if func in (Cumulative_sum, Cumulative_product):
+        return list(chain.from_iterable(func(x[i:i + wlen])
+                                        for i in range(0, len(x), shift)))
+    else:
+        # In reverse cause lazy brain. Also prefer informative ends, not beginnings as much
+        x = x[::-1]
+        out = [func(x[i:i + wlen])
+               for i in range(0, len(x) - wlen, shift)]
+        return out[::-1]
+
+
 def moving_transform(data, spec, fixed_wlen=0):
     """
     Return data transformed according to spec.
@@ -505,36 +587,22 @@ def moving_transform(data, spec, fixed_wlen=0):
     transformed : Timeseries
         A table of original data its transformations.
     """
-    from itertools import chain
     from Orange.data import ContinuousVariable, Domain
     from orangecontrib.timeseries import Timeseries
-    from orangecontrib.timeseries.widgets.utils import available_name
-    from orangecontrib.timeseries.agg_funcs import Cumulative_sum, Cumulative_product
 
     X = []
-    attrs = []
-
+    names = []
     for var, wlen, func in spec:
-        col = np.ravel(data[:, var])
+        var = data.domain[var]
+        col = data.get_column_view(var)[0]
+        transformed = _moving_transform(
+            col, func, wlen=fixed_wlen or wlen, shift=fixed_wlen or 1)
+        X.append(transformed)
+        names.append(f"{var.name} "
+                     f"({wlen}; {func.__name__.lower().replace('_', ' ')})")
 
-        if fixed_wlen:
-            wlen = fixed_wlen
-
-        if func in (Cumulative_sum, Cumulative_product):
-            out = list(chain.from_iterable(func(col[i:i + wlen])
-                                           for i in range(0, len(col), wlen)))
-        else:
-            # In reverse cause lazy brain. Also prefer informative ends, not beginnings as much
-            col = col[::-1]
-            out = [func(col[i:i + wlen])
-                   for i in range(0, len(col), wlen if bool(fixed_wlen) else 1)]
-            out = out[::-1]
-
-        X.append(out)
-
-        template = '{} ({}; {})'.format(var.name, wlen, func.__name__.lower().replace('_', ' '))
-        name = available_name(data.domain, template)
-        attrs.append(ContinuousVariable(name))
+    names = Orange.data.util.get_unique_names(data.domain, names)
+    attrs = [ContinuousVariable(name) for name in names]
 
     dataX, dataY, dataM = data.X, data.Y, data.metas
     if fixed_wlen:
@@ -543,14 +611,12 @@ def moving_transform(data, spec, fixed_wlen=0):
         dataY = dataY[::-1][::fixed_wlen][:n][::-1]
         dataM = dataM[::-1][::fixed_wlen][:n][::-1]
 
-    ts = Timeseries.from_numpy(Domain(data.domain.attributes + tuple(attrs),
-                                      data.domain.class_vars,
-                                      data.domain.metas),
-                               np.column_stack(
-                                   (dataX, np.column_stack(X))) if X else dataX,
-                               dataY, dataM)
-    ts.time_variable = data.time_variable
-    return ts
+    domain = Domain(data.domain.attributes + tuple(attrs),
+                    data.domain.class_vars,
+                    data.domain.metas)
+    new_dataX = np.column_stack((dataX, np.column_stack(X))) if X else dataX
+    return Timeseries.from_numpy(domain, new_dataX, dataY, dataM,
+                                 time_attr=data.time_variable)
 
 
 def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):
@@ -668,3 +734,11 @@ def fromtimestamp(ts, tz=None):
         dt = datetime.datetime.fromtimestamp(ts + k * SECONDS, tz=tz) - \
              timedelta(days=k * DAYS)
     return dt
+
+
+def truncated_date(date, level):
+    kwargs = {unit: zeroed
+              for unit, zeroed  in (
+                  ("month", 1), ("day", 1),
+                  ("hour", 0), ("minute", 0), ("second", 0))[level:]}
+    return date.replace(**kwargs)
