@@ -497,7 +497,7 @@ def moving_sum(x, width, shift=1):
 
 
 def moving_count_nonzero(x, width, shift=1):
-    return moving_sum(x != 0, width, shift)
+    return moving_sum((x != 0) & np.isfinite(x), width, shift)
 
 
 def moving_count_defined(x, width, shift=1):
@@ -520,11 +520,11 @@ def windowed_func(func, x, width, shift):
 
 def windowed_span(x, width, shift):
     windows = _windowed(x, width, shift)
-    return np.max(windows, axis=1) - np.min(windows, axis=1)
+    return np.nanmax(windows, axis=1) - np.nanmin(windows, axis=1)
 
 
 def _windowed_weighted(x, weights, shift):
-    return np.sum(_windowed(x, len(weights), shift) * weights, axis=1)
+    return np.nansum(_windowed(x, len(weights), shift) * weights, axis=1)
 
 
 def windowed_linear_MA(x, width, shift):
@@ -535,6 +535,7 @@ def windowed_linear_MA(x, width, shift):
 def windowed_exponential_MA(x, width, shift):
     alpha = 2 / (width + 1.0)
     weights = alpha * (1 - alpha) ** np.arange(width - 1, -1, -1)
+    weights /= np.sum(weights)
     return _windowed_weighted(x, weights, shift)
 
 
@@ -547,76 +548,28 @@ def windowed_cumprod(x, width, shift):
 
 
 def windowed_mode(x, width, shift):
-    return windowed_func(
+    modes, counts = windowed_func(
         partial(stats.mode, nan_policy='omit'),
-        x, width, shift).mode[:, 0]
+        x, width, shift)
+    modes = modes[:, 0]
+    if np.ma.isMaskedArray(modes):
+        # If counts == 0, all values were nan
+        modes = modes.data
+        modes[counts[:, 0] == 0] = np.nan
+    return modes
 
-
-def _moving_transform(x, func, wlen, shift):
-    from itertools import chain
-    from orangecontrib.timeseries.agg_funcs import Cumulative_sum, Cumulative_product
-
-    if func in (Cumulative_sum, Cumulative_product):
-        return list(chain.from_iterable(func(x[i:i + wlen])
-                                        for i in range(0, len(x), shift)))
-    else:
-        # In reverse cause lazy brain. Also prefer informative ends, not beginnings as much
-        x = x[::-1]
-        out = [func(x[i:i + wlen])
-               for i in range(0, len(x) - wlen, shift)]
-        return out[::-1]
-
-
-def moving_transform(data, spec, fixed_wlen=0):
-    """
-    Return data transformed according to spec.
-
-    Parameters
-    ----------
-    data : Timeseries
-        A table with features to transform.
-    spec : list of lists
-        A list of lists [feature:Variable, window_length:int, function:callable].
-    fixed_wlen : int
-        If not 0, then window_length in spec is disregarded and this length
-        is used. Also the windows don't shift by one but instead align
-        themselves side by side.
-
-    Returns
-    -------
-    transformed : Timeseries
-        A table of original data its transformations.
-    """
-    from Orange.data import ContinuousVariable, Domain
-    from orangecontrib.timeseries import Timeseries
-
-    X = []
-    names = []
-    for var, wlen, func in spec:
-        var = data.domain[var]
-        col = data.get_column_view(var)[0]
-        transformed = _moving_transform(
-            col, func, wlen=fixed_wlen or wlen, shift=fixed_wlen or 1)
-        X.append(transformed)
-        names.append(f"{var.name} "
-                     f"({wlen}; {func.__name__.lower().replace('_', ' ')})")
-
-    names = Orange.data.util.get_unique_names(data.domain, names)
-    attrs = [ContinuousVariable(name) for name in names]
-
-    dataX, dataY, dataM = data.X, data.Y, data.metas
-    if fixed_wlen:
-        n = len(X[0])
-        dataX = dataX[::-1][::fixed_wlen][:n][::-1]
-        dataY = dataY[::-1][::fixed_wlen][:n][::-1]
-        dataM = dataM[::-1][::fixed_wlen][:n][::-1]
-
-    domain = Domain(data.domain.attributes + tuple(attrs),
-                    data.domain.class_vars,
-                    data.domain.metas)
-    new_dataX = np.column_stack((dataX, np.column_stack(X))) if X else dataX
-    return Timeseries.from_numpy(domain, new_dataX, dataY, dataM,
-                                 time_attr=data.time_variable)
+def windowed_harmonic_mean(x, width, shift):
+    windows = _windowed(x, width, shift)
+    try:
+        return stats.hmean(windows, axis=1)
+    except ValueError:
+        r = np.full(len(windows), np.nan)
+        for i, window in enumerate(windows):
+            try:
+                r[i] = stats.hmean(window)
+            except ValueError:
+                pass
+        return r
 
 
 def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):

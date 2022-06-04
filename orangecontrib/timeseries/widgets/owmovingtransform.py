@@ -3,7 +3,7 @@ import calendar
 from collections import Counter
 from datetime import date
 from functools import partial
-from itertools import chain, count
+from itertools import chain
 from typing import Callable, Dict, NamedTuple, Optional, Sequence
 
 from scipy import stats
@@ -27,8 +27,8 @@ from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.functions import \
     truncated_date, \
     windowed_func, moving_sum, moving_count_nonzero, moving_count_defined, \
-    windowed_linear_MA, windowed_exponential_MA, windowed_mode,\
-    windowed_cumsum, windowed_cumprod, windowed_span
+    windowed_linear_MA, windowed_exponential_MA, windowed_mode, \
+    windowed_cumsum, windowed_cumprod, windowed_span, windowed_harmonic_mean
 
 
 @dataclasses.dataclass
@@ -62,7 +62,7 @@ AggDesc('product', pmw(np.nanprod), np.nanprod)
 AggDesc('min', pmw(np.nanmin), np.nanmin, "Minimum")
 AggDesc('max', pmw(np.nanmax), np.nanmax, "Maximum")
 AggDesc('span', windowed_span,
-        lambda x: np.nanmin(x) - np.nanmax(x), "Span")
+        lambda x: np.nanmax(x) - np.nanmin(x), "Span")
 AggDesc('median', pmw(np.nanmedian), np.nanmedian)
 AggDesc('mode', windowed_mode,
         lambda x: float(stats.mode(x, nan_policy='omit').mode),
@@ -71,10 +71,10 @@ AggDesc('std', pmw(np.nanstd), np.nanstd, "Standard deviation")
 AggDesc('var', pmw(np.nanvar), np.nanvar, "Variance")
 AggDesc('lin. MA', windowed_linear_MA, None, "Linear MA")
 AggDesc('exp. MA', windowed_exponential_MA, None, "Exponential MA")
-AggDesc('harmonic', pmw(stats.hmean), stats.hmean, "Harmonic mean")
+AggDesc('harmonic', windowed_harmonic_mean, stats.hmean, "Harmonic mean")
 AggDesc('geometric', pmw(stats.gmean), stats.gmean, "Geometric mean")
 AggDesc('non-zero', moving_count_nonzero,
-        lambda x: np.sum(x != 0), "Non-zero count",
+        lambda x: np.sum((x != 0) & np.isfinite(x)), "Non-zero count",
         supports_discrete=True, count_aggregate=True)
 AggDesc('defined', moving_count_defined,
         lambda x: np.sum(np.isfinite(x)), "Defined count",
@@ -122,16 +122,15 @@ N_NONPERIODIC = \
 
 
 class TransformationsModel(VariableListModel):
-    IsNumeric = Qt.UserRole + 1
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self._transformations = []
 
     def set_variables(self, variables):
         self[:] = variables
         self._transformations = [set() for _ in self]
 
     def data(self, index, role=Qt.DisplayRole):
-        if role == TransformationsModel.IsNumeric:
-            return self[index.row()].is_continuous()
-
         if role == Qt.FontRole and self._transformations[index.row()]:
             font = QFont()
             font.setBold(True)
@@ -202,8 +201,8 @@ class OWMovingTransform(widget.OWWidget):
         inapplicable_aggregations = \
             widget.Msg("Some aggregations are applicable "
                        "only to sliding window ({})")
-        window_to_large = widget.Msg("Window width is to large")
-        block_to_large = widget.Msg("Block width is to large")
+        window_to_large = widget.Msg("Window width is too large")
+        block_to_large = widget.Msg("Block width is too large")
 
     DiscardOriginal, KeepFirst, KeepMiddle, KeepLast = range(4)
     REF_OPTIONS = ("Discard original data", "Keep first instance",
@@ -301,6 +300,7 @@ class OWMovingTransform(widget.OWWidget):
         self.clear_filter.setFixedWidth(30)
         self.clear_filter.setAutoDefault(False)
         self.clear_filter.setFlat(True)
+        self.clear_filter.setHidden(True)
         self.clear_filter.clicked.connect(self._clear_filter)
 
         vbox.layout().addWidget(self.filter_line)
@@ -370,12 +370,16 @@ class OWMovingTransform(widget.OWWidget):
     def _filter_changed(self):
         self._set_clear_filter_pos()
         text = self.filter_line.text()
-        self.clear_filter.setVisible(bool(text))
+        self.clear_filter.setHidden(not text)
         self.proxy.set_pattern(text)
 
     def _current_selection(self):
         return self.proxy.mapSelectionToSource(
             self.var_view.selectionModel().selection()).indexes()
+
+    @staticmethod
+    def _varkey(var):
+        return var.name, var.is_continuous
 
     def _checkbox_changed(self):
         state = self.sender().isChecked()
@@ -384,12 +388,12 @@ class OWMovingTransform(widget.OWWidget):
         self.var_model.set_transformation(selection, transformation, state)
         self.var_view.setFocus()
         for index in selection:
-            name = self.var_model[index.row()].name
+            key = self._varkey(self.var_model[index.row()])
             transfs = self.var_model.get_transformations(index)
             if transfs:
-                self.var_hints[name] = set(transfs)
-            elif name in self.var_hints:
-                del self.var_hints[name]
+                self.var_hints[key] = set(transfs)
+            elif key in self.var_hints:
+                del self.var_hints[key]
 
         self.commit.deferred()
 
@@ -410,7 +414,6 @@ class OWMovingTransform(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.transformations = []
         if data is None:
             self.data = None
             self.var_model.set_variables([])
@@ -421,7 +424,7 @@ class OWMovingTransform(widget.OWWidget):
                 if var.is_discrete or
                 var.is_continuous and var is not self.data.time_variable)
             for i, attr in enumerate(self.var_model):
-                transformations = self.var_hints.get(attr.name)
+                transformations = self.var_hints.get(self._varkey(attr))
                 if transformations:
                     self.var_model.set_transformations(i, transformations)
 
@@ -429,7 +432,6 @@ class OWMovingTransform(widget.OWWidget):
         self.rb_period.setDisabled(disabled)
         self.controls.period_width.setDisabled(disabled)
 
-        # USE VAR HINTS
         self._selection_changed()
         self._set_naming_visibility()
         self.commit.now()
@@ -470,27 +472,31 @@ class OWMovingTransform(widget.OWWidget):
         else:
             rows = ...
             leading = np.full(self.window_width - 1, np.nan)
-        orig_columns = chain(data.X.T,
-                             [data.Y] if data.Y.ndim == 1 else data.Y.T)
 
-        for i, attr, column in zip(count(), domain.variables, orig_columns):
-            if not discard and i < len(domain.attributes):
-                # Aggregates from class are added to attributes (to avoid
-                # multiple classes); but we mustn't add a class here
+        def add_aggregates(attr, column):
+            if attr not in model:  # skip time_attribute
+                return
+            row = model.indexOf(attr)
+            for transformation in model.get_transformations(row):
+                agg = AggOptions[transformation]
+                attributes.append(self._var_for_agg(attr, agg, names))
+                if agg.cumulative and self.keep_instances == self.KeepAll:
+                    agg_column = agg.cumulative(column)
+                else:
+                    agg_column = agg.transform(column, self.window_width, 1)
+                    if self.keep_instances == self.KeepAll:
+                        agg_column = np.hstack((leading, agg_column))
+                columns.append(agg_column)
+
+        for attr, column in zip(domain.attributes, data.X.T):
+            if not discard:
                 attributes.append(attr)
                 columns.append(column[rows])
-            if attr in model:
-                row = model.indexOf(attr)
-                for transformation in model.get_transformations(row):
-                    agg = AggOptions[transformation]
-                    attributes.append(self._var_for_agg(attr, agg, names))
-                    if agg.cumulative and self.keep_instances == self.KeepAll:
-                        agg_column = agg.cumulative(column)
-                    else:
-                        agg_column = agg.transform(column, self.window_width, 1)
-                        if self.keep_instances == self.KeepAll:
-                            agg_column = np.hstack((leading, agg_column))
-                    columns.append(agg_column)
+            add_aggregates(attr, column)
+        for attr, column in zip(domain.class_vars,
+                                [data.Y] if data.Y.ndim == 1 else data.Y.T):
+            add_aggregates(attr, column)
+
         self._set_warnings(columns, None)
         if not columns:
             return None
@@ -517,7 +523,7 @@ class OWMovingTransform(widget.OWWidget):
             return None
 
         def add_aggregates(attr, column=None):
-            if attr not in model:
+            if attr not in model:  # skip time_attribute
                 return
             row = model.indexOf(attr)
             for transformation in model.get_transformations(row):
@@ -594,6 +600,8 @@ class OWMovingTransform(widget.OWWidget):
 
         periods, period_indices, counts = \
             np.unique(times, return_inverse=True, return_counts=True)
+        if self.period_width == "Month of year" and not self.use_names:
+            periods += 1
         columns.append(periods)
 
         attributes.append(ContinuousVariable(next(names)))
