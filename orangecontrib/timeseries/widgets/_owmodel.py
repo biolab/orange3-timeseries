@@ -1,5 +1,4 @@
-from AnyQt.QtCore import QTimer, Qt
-from AnyQt.QtWidgets import QFormLayout
+from AnyQt.QtCore import QTimer
 
 from Orange.data import Table
 from Orange.widgets import widget, gui, settings
@@ -45,7 +44,7 @@ class OWBaseModel(widget.OWWidget):
         self.preprocessors = None
         self.outdated_settings = False
         self.setup_layout()
-        QTimer.singleShot(0, self.apply.now)
+        QTimer.singleShot(0, self.apply)
 
     def create_learner(self):
         """Creates a learner (cunfit model) with current configuration """
@@ -57,8 +56,11 @@ class OWBaseModel(widget.OWWidget):
                            Timeseries.from_data_table(data)
         self.update_model()
 
-    @gui.deferred
     def apply(self):
+        self.commit()
+
+    def commit(self):
+        """Applies leaner and sends new model."""
         self.update_learner()
         self.update_model()
 
@@ -146,14 +148,11 @@ class OWBaseModel(widget.OWWidget):
             tooltip='The name will identify this model in other widgets')
 
     def add_bottom_buttons(self):
-        layout = QFormLayout()
-        gui.widgetBox(self.controlArea, 'Forecast', orientation=layout)
-        layout.addRow('Forecast steps ahead:',
-                      gui.spin(None, self, 'forecast_steps', 1, 100,
-                               alignment=Qt.AlignRight,
-                               controlWidth=50, callback=self.apply.deferred))
-        layout.addRow('Confidence intervals:',
-                      gui.hSlider(None, self, 'forecast_confint', None, 1, 99,
-                      callback=self.apply.deferred))
-        gui.auto_commit(self.controlArea, self, 'autocommit', "&Apply",
-                        commit=self.apply)
+        box = gui.vBox(self.controlArea, 'Forecast')
+        gui.spin(box, self, 'forecast_steps', 1, 100,
+                 label='Forecast steps ahead:',
+                 callback=self.apply)
+        gui.hSlider(box, self, 'forecast_confint',
+                    None, 1, 99, label='Confidence intervals:',
+                    callback=self.apply)
+        gui.auto_commit(self.controlArea, self, 'autocommit', "&Apply")
