@@ -2,7 +2,7 @@
 branch = True
 source = orangecontrib
 omit =
-    orangecontrib/timeseries/widgets/*
+    orangecontrib/timeseries/widgets/tests/*
     orangecontrib/timeseries/tests/*
 
 [report]
