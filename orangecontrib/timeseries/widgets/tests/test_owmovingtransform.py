@@ -641,6 +641,18 @@ class TestOWMovingTransform(WidgetTest):
                               widget.TimePeriods):
             widget.send_report()
 
+    def test_migrated_aggregate_settings(self):
+        settings = {'agg_interval': 'day', 'autocommit': False,
+                    'controlAreaVisible': True,
+                    'savedWidgetGeometry': None,
+                    '__version__': 1, 'context_settings': []}
+        widget = self.create_widget(OWMovingTransform, stored_settings=settings)
+        self.send_signal(widget.Inputs.time_series, self.data)
+        self.assertTrue(widget.Error.migrated_aggregate.is_shown())
+        widget.controls.method.buttons[0].click()
+        widget.controls.method.buttons[1].click()
+        self.assertFalse(widget.Error.migrated_aggregate.is_shown())
+
 
 class AggFuncsTest(unittest.TestCase):
     def test_sliding(self):
@@ -684,7 +696,6 @@ class AggFuncsTest(unittest.TestCase):
         np.testing.assert_equal(mode.block_transform(x[:4]), 2)
         np.testing.assert_equal(mode.block_transform(x[4:8]), 1)
         np.testing.assert_equal(mode.block_transform(x[8:12]), 0)
-
 
 
 if __name__ == "__main__":

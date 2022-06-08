@@ -190,6 +190,8 @@ class OWMovingTransform(widget.OWWidget):
     icon = 'icons/MovingTransform.svg'
     priority = 20
 
+    replaces = ["orangecontrib.timeseries.widgets.owaggregate.OWAggregate"]
+
     class Inputs:
         time_series = Input("Time series", Table)
 
@@ -203,6 +205,11 @@ class OWMovingTransform(widget.OWWidget):
                        "only to sliding window ({})")
         window_to_large = widget.Msg("Window width is too large")
         block_to_large = widget.Msg("Block width is too large")
+
+    class Error(widget.OWWidget.Error):
+        migrated_aggregate = widget.Msg(
+            "Aggregate was replaced with Moving Transform; "
+            "manually re-set the widget")
 
     DiscardOriginal, KeepFirst, KeepMiddle, KeepLast = range(4)
     REF_OPTIONS = ("Discard original data", "Keep first instance",
@@ -235,6 +242,8 @@ class OWMovingTransform(widget.OWWidget):
     var_hints = settings.Setting({}, schema_only=True)
     autocommit = settings.Setting(True)
 
+    migrated_aggregate = settings.Setting(False)
+
     def __init__(self):
         self.data = None
         self.only_numeric = False
@@ -244,7 +253,7 @@ class OWMovingTransform(widget.OWWidget):
 
         vbox = gui.vBox(box, "Aggregation Type")
         buttons = gui.radioButtons(
-            vbox, self, "method", callback=self.commit.deferred)
+            vbox, self, "method", callback=self._method_changed)
 
         gui.appendRadioButton(buttons, "Sliding window")
         indbox = gui.indentedBox(buttons)
@@ -338,17 +347,25 @@ class OWMovingTransform(widget.OWWidget):
         self.filter_line.clear()
         self._filter_changed()
 
+    def _method_changed(self):
+        self._hide_migrated_aggregate()
+        self.commit.deferred()
+
     def _window_width_changed(self):
         self.method = self.SlidingWindow
+        self._hide_migrated_aggregate()
         self.commit.deferred()
 
     def _keep_instances_changed(self):
+        self.method = self.SlidingWindow
+        self._hide_migrated_aggregate()
         self.controls.keep_instances.setToolTip(
             self.KEEP_TOOLTIPS[self.keep_instances])
         self.commit.deferred()
 
     def _use_sequential_blocks(self):
         self.method = self.SequentialBlocks
+        self._hide_migrated_aggregate()
         self.commit.deferred()
 
     def _time_period_changed(self):
@@ -395,6 +412,7 @@ class OWMovingTransform(widget.OWWidget):
             elif key in self.var_hints:
                 del self.var_hints[key]
 
+        self._hide_migrated_aggregate()
         self.commit.deferred()
 
     def _selection_changed(self):
@@ -439,7 +457,12 @@ class OWMovingTransform(widget.OWWidget):
     @gui.deferred
     def commit(self):
         self.Warning.clear()
+        self.Error.clear()
+
         if not self.data:
+            ts = None
+        elif self.migrated_aggregate:
+            self.Error.migrated_aggregate()
             ts = None
         else:
             ts = [self._compute_sliding_window,
@@ -694,6 +717,19 @@ class OWMovingTransform(widget.OWWidget):
                      ", ".join(AggOptions[t].long_desc for t in transfs)))
         if transformations:
             self.report_items("Transformations", tuple(transformations))
+
+    @classmethod
+    def migrate_settings(cls, settings, _=None):
+        if "agg_interval" in settings:
+            for name in ("agg_interval", "agg_funcs",
+                         "savedWidgetGeometry", "context_settings"):
+                if name in settings:
+                    del settings[name]
+            settings["migrated_aggregate"] = True
+
+    def _hide_migrated_aggregate(self):
+        self.migrated_aggregate = False
+        self.Error.migrated_aggregate.clear()
 
 
 if __name__ == "__main__":
