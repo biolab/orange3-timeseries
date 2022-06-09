@@ -268,6 +268,8 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
     from Orange.data import Domain
     from orangecontrib.timeseries import Timeseries
 
+    assert method in ("linear", "cubic", "mean", "nearest")
+
     attrs = data.domain.attributes
     cvars = data.domain.class_vars
     metas = data.domain.metas
