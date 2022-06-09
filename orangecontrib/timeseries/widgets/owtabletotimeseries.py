@@ -87,14 +87,14 @@ class OWTableToTimeseries(widget.OWWidget):
         if self.radio_sequential:
             ts = Timeseries.make_timeseries_from_sequence(data)
         else:
-            ts = Timeseries.make_timeseries_from_continuous_var(data,
-                                                                self.selected_attr)
-            # Check if NaNs were present in data
-            time_var = data.domain[self.selected_attr]
-            values = Table.from_table(Domain([], [], [time_var]),
-                                      source=data).metas.ravel()
-            if np.isnan(values).any():
-                self.Information.nan_times(time_var.name)
+            ts = Timeseries.make_timeseries_from_continuous_var(
+                data, self.selected_attr)
+            # Warn if instances are omitted because of nans in selected attr
+            times, sparse = data.get_column_view(self.selected_attr)
+            if sparse:
+                times = times.data
+            if np.isnan(times).any():
+                self.Information.nan_times(self.selected_attr)
 
         self.Outputs.time_series.send(ts)
 

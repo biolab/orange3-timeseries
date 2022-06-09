@@ -1,9 +1,9 @@
 import unittest
 
 import numpy as np
-from Orange.data import Domain
+import scipy.sparse as sp
 
-from Orange.data import Table
+from Orange.data import Table, Domain, DiscreteVariable, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.timeseries import Timeseries
@@ -43,6 +43,53 @@ class TestAsTimeSeriesWidget(WidgetTest):
         self.send_signal(w.Inputs.data, data)
         self.assertTrue(w.Information.nan_times.is_shown())
         self.assertIsNone(self.get_output(w.Outputs.time_series))
+
+    def test_timeserise_sparse(self):
+        widget = self.widget
+        widget.radio_sequential = 0
+
+        domain = Domain(
+            [DiscreteVariable("a", values=tuple("abc")),
+             ContinuousVariable("x"),
+             ContinuousVariable("y")],
+            DiscreteVariable("c"),
+            [ContinuousVariable("m")])
+        x = sp.csr_matrix([[0, 1, 0], [2, 0, np.nan], [0, -1, 2]])
+        y = sp.csr_matrix([[0], [1], [np.nan]])
+        m = sp.csr_matrix([[0], [3], [np.nan]])
+        data = Table.from_numpy(domain, x, y, m)
+        self.send_signal(widget.Inputs.data, data)
+
+        widget.selected_attr = "x"
+        widget.commit()
+        out = self.get_output(widget.Outputs.time_series)
+        np.testing.assert_equal(
+            out.X, [[0, -1, 2], [2, 0, np.nan], [0, 1, 0]])
+
+        widget.selected_attr = "y"
+        widget.commit()
+        out = self.get_output(widget.Outputs.time_series)
+        np.testing.assert_equal(
+            out.X, [[0, 1, 0], [0, -1, 2]])
+        self.assertTrue(widget.Information.nan_times.is_shown())
+
+        widget.selected_attr = "m"
+        widget.commit()
+        out = self.get_output(widget.Outputs.time_series)
+        np.testing.assert_equal(
+            out.X, [[0, 1, 0], [2, 0, np.nan]])
+        self.assertTrue(widget.Information.nan_times.is_shown())
+
+        widget.selected_attr = "x"
+        widget.commit()
+        self.assertFalse(widget.Information.nan_times.is_shown())
+
+        widget.selected_attr = "m"
+        widget.commit()
+        self.assertTrue(widget.Information.nan_times.is_shown())
+
+        self.send_signal(widget.Inputs.data, None)
+        self.assertFalse(widget.Information.nan_times.is_shown())
 
     def test_non_cont_sequental(self):
         """
