@@ -162,23 +162,23 @@ class TestMovingTransform(unittest.TestCase):
     def test_windowed_weighted(self):
         a = np.array([3, 8, 6, 4, 2, 4, 6, 8])
         np.testing.assert_equal(
-            _windowed_weighted(a, [1, 0, -2], 1),
+            _windowed_weighted(a, np.array([1, 0, -2]), 1),
             np.array([3 - 12, 8 - 8, 6 - 4, 4 - 8, 2 - 12, 4 - 16]))
 
         a = np.array([3, np.nan, 6, 4, np.nan, 4, 6, 8])
         np.testing.assert_equal(
-            _windowed_weighted(a, [1, 0, -2], 1),
-            np.array([3 - 12, -8, 6, 4 - 8, -12, 4 - 16]))
+            _windowed_weighted(a, np.array([1, 0, -2]), 1),
+            np.array([3 - 12, -4, -6, 4 - 8, -6, 4 - 16]))
 
     @patch("orangecontrib.timeseries.functions._windowed_weighted")
     def test_windowed_MA(self, ww):
         a = np.array([3, 8, 6, 4, 2, 4, 6, 8])
 
         windowed_linear_MA(a, 4, 1)
-        np.testing.assert_equal(ww.call_args[0][1], np.array([4, 3, 2, 1]) / 10)
+        np.testing.assert_equal(ww.call_args[0][1], np.array([1, 2, 3, 4]) / 10)
 
         windowed_linear_MA(a, 2, 1)
-        np.testing.assert_equal(ww.call_args[0][1], np.array([2, 1]) / 3)
+        np.testing.assert_equal(ww.call_args[0][1], np.array([1, 2]) / 3)
 
         windowed_exponential_MA(a, 4, 1)
         weights = ww.call_args[0][1]
@@ -224,6 +224,35 @@ class TestMovingTransform(unittest.TestCase):
         np.testing.assert_almost_equal(
             windowed_harmonic_mean(a, 3, 1),
             [2.5714286, 2.25, 2, 0, 0, 0, 0, 0, 1.63636363, np.nan, np.nan, np.nan])
+
+    def test_windowed_linear_MA(self):
+        a = np.array([1, 2, 3, 8, 5])
+        np.testing.assert_almost_equal(
+            windowed_linear_MA(a, 3, 1),
+            [(3 * 3 + 2 * 2 + 1 * 1) / 6,
+             (8 * 3 + 3 * 2 + 2 * 1) / 6,
+             (5 * 3 + 8 * 2 + 3 * 1) / 6])
+        np.testing.assert_almost_equal(
+            windowed_linear_MA(a, 5, 1),
+            [(5 * 5 + 8 * 4 + 3 * 3 + 2 * 2 + 1 * 1) / (1 + 2 + 3 + 4 + 5)])
+
+        a = np.array([1, 2, 3, np.nan, 5])
+        np.testing.assert_almost_equal(
+            windowed_linear_MA(a, 3, 1),
+            [(3 * 3 + 2 * 2 + 1 * 1) / 6,
+             (3 * 2 + 2 * 1) / 3,
+             (5 * 3 + 3 * 1) / 4])
+
+        a = np.array([1, np.nan, np.nan, np.nan, 5, 6])
+        np.testing.assert_almost_equal(
+            windowed_linear_MA(a, 3, 1),
+            [1, np.nan, 5, (6 * 3 + 5 * 2) / 5])
+
+    def test_windowed_exponentional_MA(self):
+        a = np.array([1, 2, 3, 4, 5])
+        np.testing.assert_almost_equal(
+            windowed_exponential_MA(a, 3, 1),
+            [2.4285714, 3.4285714, 4.4285714])
 
 
 if __name__ == "__main__":

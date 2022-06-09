@@ -524,11 +524,30 @@ def windowed_span(x, width, shift):
 
 
 def _windowed_weighted(x, weights, shift):
-    return np.nansum(_windowed(x, len(weights), shift) * weights, axis=1)
+    xnans = np.isnan(x)
+    if not np.any(xnans):
+        return np.sum(_windowed(x, len(weights), shift) * weights, axis=1)
 
+    # Recompute weights for each line so that the total sum is the same
+    # after skipping the weights that correspond to nan
+    # If the sum of weights is 1, this is just "renormalization"
+    x = x.copy()
+    windows = _windowed(x, len(weights), shift)
+    nans = np.isnan(windows)
+    total_weight = np.sum(weights)
+    weights = np.repeat(weights[None, :], len(windows), axis=0)
+    weights[nans] = 0
+    x[xnans] = 0
+    weightsums = np.sum(weights, axis=1) / total_weight
+    no_data = weightsums == 0
+    weightsums[no_data] = 1
+    res = np.sum(windows * weights, axis=1) / weightsums
+    res[no_data] = np.nan
+    return res
 
 def windowed_linear_MA(x, width, shift):
-    weights = np.arange(width, 0, -1) / (width * (width + 1) / 2)
+    weights = np.arange(1, width + 1, dtype=float)
+    weights /= np.sum(weights)
     return _windowed_weighted(x, weights, shift)
 
 

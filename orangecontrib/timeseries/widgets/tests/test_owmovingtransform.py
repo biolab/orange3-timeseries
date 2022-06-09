@@ -669,8 +669,13 @@ class AggFuncsTest(unittest.TestCase):
                 ("median", [6, 6.5, 6.5, 5, 3.5, 3, 2, 0]),
                 ("std", [2.2912878, 2.2776084, 1.4790199, 2.236068 , 1.4790199, 0.8164966, 1.6996732, 1.6996732]),
                 ("var", [5.25, 5.1875, 2.1875, 5, 2.1875, 0.6666667, 2.8888889, 2.8888889]),
-                ("lin. MA", [4.8, 5.1, 6.8, 6, 4.3, 2.8, 1.6, 1]),
-                ("exp. MA", [6.4338235, 6.3198529, 5.5110294, 3.8088235, 3.1875, 1.5551471, 0.2352941, 0.0220588]),
+                ("lin. MA", [(4 * 8 + 3 * 7 + 2 * 2 + 1 * 5) / 10,
+                             (4 * 6 + 3 * 8 + 2 * 7 + 1 * 2) / 10,
+                             5.7, 4, 3.2,
+                             (3 * 3 + 2 * 2 + 1 * 4) / 6,
+                             (4 * -1 + 2 * 3 + 1 * 2) / 7,
+                             (3 * -1 + 1 * 3) / 4]),
+                ("exp. MA", [6.4338235, 6.3198529, 5.5110294, 3.8088235, 3.1875, 2.877551, 0.3248731, 0.0264317]),
                 ("harmonic", ([4.1328413, 4.2802548, 5.8434783, 3.84, 3.2, np.nan, np.nan, np.nan])),
                 ("geometric", ([4.8645986, 5.0914598, 6.0548002, 4.4267277, 3.4641016, np.nan, np.nan, np.nan])),
                 ("non-zero", ([4, 4, 4, 4, 4, 3, 3, 2])),
@@ -681,8 +686,9 @@ class AggFuncsTest(unittest.TestCase):
             desc = AggOptions[agg]
             msg = f"in function {agg}"
             np.testing.assert_almost_equal(desc.transform(x, 4, 1), exp, err_msg=msg)
-            np.testing.assert_almost_equal(desc.transform(x, 4, 2), exp[::2], err_msg=msg)
-            np.testing.assert_almost_equal(desc.transform(x, 4, 4), exp[::4], err_msg=msg)
+            if not agg.endswith(" MA"):
+                np.testing.assert_almost_equal(desc.transform(x, 4, 2), exp[::2], err_msg=msg)
+                np.testing.assert_almost_equal(desc.transform(x, 4, 4), exp[::4], err_msg=msg)
             if desc.block_transform is not None:
                 for i, exp in zip(range(0, len(x), 4), desc.transform(x, 4, 4)):
                     np.testing.assert_almost_equal(
