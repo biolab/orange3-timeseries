@@ -20,7 +20,6 @@ Widgets
    widgets/var
    widgets/model_evaluation_w
    widgets/time_slice
-   widgets/aggregate
    widgets/difference
    widgets/seasonal_adjustment
 
