@@ -199,10 +199,10 @@ class Timeseries(Table):
         return super(Timeseries, cls).from_table(table.domain, table)
 
     @classmethod
-    def make_timeseries_from_continuous_var(cls, table, attr_name):
+    def make_timeseries_from_continuous_var(cls, table, attr):
         # Make a sequence attribute from one of the existing attributes,
         # and sort all values according to it
-        time_var = table.domain[attr_name]
+        time_var = table.domain[attr]
         values = table.get_column_view(time_var)[0].astype(float)
         # Filter out NaNs
         nans = np.isnan(values)

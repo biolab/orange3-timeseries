@@ -2,8 +2,12 @@ from itertools import chain
 
 import numpy as np
 
-from Orange.data import Table, ContinuousVariable, TimeVariable, Domain
+from AnyQt.QtWidgets import QGridLayout
+
+from orangewidget.utils.widgetpreview import WidgetPreview
+from Orange.data import Table
 from Orange.widgets import widget, gui, settings
+from Orange.widgets.settings import DomainContextHandler
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.widget import Input, Output
 
@@ -12,7 +16,7 @@ from orangecontrib.timeseries import Timeseries
 
 class OWTableToTimeseries(widget.OWWidget):
     name = 'As Timeseries'
-    description = ('Reinterpret data table as a time series object.')
+    description = 'Reinterpret data table as a time series.'
     icon = 'icons/TableToTimeseries.svg'
     priority = 10
 
@@ -25,8 +29,13 @@ class OWTableToTimeseries(widget.OWWidget):
     want_main_area = False
     resizing_enabled = False
 
-    radio_sequential = settings.Setting(0)
+    # Old settings that can't be migrated, but can be supported
     selected_attr = settings.Setting('')
+    radio_sequential = settings.Setting(2)
+
+    settingsHandler = DomainContextHandler()
+    implied_sequence = settings.ContextSetting(0)
+    order = settings.ContextSetting(None)
     autocommit = settings.Setting(True)
 
     class Information(widget.OWWidget.Information):
@@ -35,78 +44,82 @@ class OWTableToTimeseries(widget.OWWidget):
 
     def __init__(self):
         self.data = None
-        box = gui.vBox(self.controlArea, 'Sequence')
-        group = gui.radioButtons(box, self, 'radio_sequential',
-                                 callback=self.on_changed)
-        hbox = gui.hBox(box)
-        gui.appendRadioButton(group, 'Sequential attribute:',
-                              insertInto=hbox)
 
-        attrs_model = self.attrs_model = VariableListModel()
-        combo_attrs = self.combo_attrs = gui.comboBox(
-            hbox, self, 'selected_attr',
-            callback=self.on_changed,
-            sendSelectedValue=True)
-        combo_attrs.setModel(attrs_model)
-
-        gui.appendRadioButton(group, 'Sequence is implied by instance order',
-                              insertInto=box)
+        layout = QGridLayout()
+        gui.widgetBox(self.controlArea, True, orientation=layout)
+        group = gui.radioButtons(
+            None, self, 'implied_sequence', callback=self.commit.deferred)
+        layout.addWidget(
+            gui.appendRadioButton(
+                group, 'Sequential attribute:', addToLayout=False),
+            0, 0)
+        layout.addWidget(
+            gui.comboBox(
+                None, self, 'order', model=VariableListModel(),
+                callback=self._on_attribute_changed),
+            0, 1)
+        layout.addWidget(
+            gui.appendRadioButton(
+                group, 'Sequence implied by instance order', addToLayout=False),
+            1, 0, 1, 2)
 
         gui.auto_commit(self.controlArea, self, 'autocommit', '&Apply')
         # TODO: seasonally adjust data (select attributes & season cycle length (e.g. 12 if you have monthly data))
 
+    def _on_attribute_changed(self):
+        self.implied_sequence = 0
+        self.commit.deferred()
+
     @Inputs.data
     def set_data(self, data):
+        self.closeContext()
         self.data = data
-        self.attrs_model.clear()
-        if self.data is None:
-            self.commit()
-            return
+        model = self.controls.order.model()
+        if data:
+            valid = (var
+                     for var in chain(data.domain.variables, data.domain.metas)
+                     if var.is_continuous)
+            model[:] = sorted(valid, key=lambda var: not var.is_time)
+        else:
+            model.clear()
 
-        if data.domain.has_continuous_attributes(include_metas=True):
-            vars = [var for var in data.domain.variables if var.is_time] + \
-                   [var for var in data.domain.metas if var.is_time] + \
-                   [var for var in data.domain.variables
-                    if var.is_continuous and not var.is_time] + \
-                   [var for var in data.domain.metas if var.is_continuous and
-                    not var.is_time]
-            self.attrs_model[:] = vars
-            self.selected_attr = data.time_variable.name if getattr(data, 'time_variable', False) else vars[0].name
-        self.on_changed()
+        if not model:
+            self.implied_sequence = 1
+        # radio_sequential and selected_attr can't be migrated, but can be used
+        elif self.radio_sequential != 2:
+            self.implied_sequence = self.radio_sequential
+        if model:
+            if self.selected_attr in data.domain \
+                    and data.domain[self.selected_attr] in model:
+                self.order = data.domain[self.selected_attr]
+            else:
+                self.order = getattr(data, "time_variable", model[0])
+        self.controls.implied_sequence.buttons[0].setDisabled(not model)
+        self.openContext(data)
+        self.commit.now()
 
-    def on_changed(self):
-        self.commit()
-
+    @gui.deferred
     def commit(self):
         data = self.data
         self.Information.clear()
-        if data is None or (self.selected_attr not in data.domain and not self.radio_sequential):
+        if not data:
             self.Outputs.time_series.send(None)
             return
 
-        if self.radio_sequential:
+        if self.order is None:
             ts = Timeseries.make_timeseries_from_sequence(data)
         else:
-            ts = Timeseries.make_timeseries_from_continuous_var(data,
-                                                                self.selected_attr)
-            # Check if NaNs were present in data
-            time_var = data.domain[self.selected_attr]
-            values = Table.from_table(Domain([], [], [time_var]),
-                                      source=data).metas.ravel()
-            if np.isnan(values).any():
-                self.Information.nan_times(time_var.name)
+            ts = Timeseries.make_timeseries_from_continuous_var(data, self.order)
+            # Warn if instances are omitted because of nans in selected attr
+            times, sparse = data.get_column_view(self.order)
+            if sparse:
+                times = times.data
+            if np.isnan(times).any():
+                self.Information.nan_times(self.order.name)
 
         self.Outputs.time_series.send(ts)
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication([])
-    ow = OWTableToTimeseries()
-
     data = Timeseries.from_file('airpassengers')
-    ow.set_data(data)
-
-    ow.show()
-    a.exec()
+    WidgetPreview(OWTableToTimeseries).run(data)
