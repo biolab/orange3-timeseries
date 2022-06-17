@@ -1,15 +1,16 @@
-from AnyQt.QtCore import Qt
+from orangewidget.utils.widgetpreview import WidgetPreview
 
 from Orange.data import Table
 from Orange.util import try_
-from Orange.widgets import widget, gui, settings
-from Orange.widgets.widget import Input, Output
+from Orange.widgets import gui, settings
+from Orange.widgets.widget import Input, Output, Msg, OWWidget
+
 from orangecontrib.timeseries import Timeseries
 
 
-class OWInterpolate(widget.OWWidget):
+class OWInterpolate(OWWidget):
     name = 'Interpolate'
-    description = 'Induce missing values (nan) in the time series by interpolation.'
+    description = 'Interpolate missing values in the time series.'
     icon = 'icons/Interpolate.svg'
     priority = 15
 
@@ -17,66 +18,68 @@ class OWInterpolate(widget.OWWidget):
         time_series = Input("Time series", Table)
 
     class Outputs:
-        interpolated = Output("Interpolated time series", Timeseries, default=True)
-        timeseries = Output("Time series", Timeseries)  # TODO
-        # interpolator = Output("Interpolation model", Model)  # TODO
+        interpolated = Output("Interpolated time series", Timeseries)
 
     want_main_area = False
     resizing_enabled = False
 
-    interpolation = settings.Setting('linear')
+    Linear, Cubic, Nearest, Mean = range(4)
+    Options = ["Linear interpolation", "Cubic interpolation",
+               "Nearest point interpolation", "Mean/Mode interpolation"]
+    OptArgs = ["linear", "cubic", "nearest", "mean"]
+
+    interpolation = settings.Setting(Linear)
     multivariate = settings.Setting(False)
     autoapply = settings.Setting(True)
 
-    UserAdviceMessages = [
-        widget.Message('While you can freely choose the interpolation method '
-                       'for continuous variables, discrete variables can only '
-                       'be interpolated with the <i>nearest</i> method or '
-                       'their mode (i.e. the most frequent value).',
-                       'discrete-interp',
-                       widget.Message.Warning)
-    ]
+    settings_version = 2
+
+    class Warning(OWWidget.Warning):
+        # This message's formulation is weird but: the widget is narrow and
+        # it's better to start the sentence with "Categorical" (which is seen)
+        # than with "Missing values for ..."
+        discrete_mode = Msg(
+            "Categorical variables:\n"
+            "missing values are replaced by the most common value")
 
     def __init__(self):
         self.data = None
-        box = gui.vBox(self.controlArea, 'Interpolation Parameters')
-        gui.comboBox(box, self, 'interpolation',
-                     callback=self.on_changed,
-                     label='Interpolation of missing values:',
-                     sendSelectedValue=True,
-                     orientation=Qt.Horizontal,
-                     items=('linear', 'cubic', 'nearest', 'mean'))
+        box = gui.vBox(self.controlArea, True)
+        gui.comboBox(box, self, 'interpolation', items=self.Options,
+                     callback=self.commit.deferred)
         gui.checkBox(box, self, 'multivariate',
                      label='Multi-variate interpolation',
-                     callback=self.on_changed)
+                     callback=self.commit.deferred)
         gui.auto_commit(box, self, 'autoapply', 'Apply')
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = None if data is None else \
-                    Timeseries.from_data_table(data)
-        self.on_changed()
+        self.data = Timeseries.from_data_table(data) if data else None
+        self.commit.now()
 
-    def on_changed(self):
-        self.commit()
-
+    @gui.deferred
     def commit(self):
-        data = self.data
-        if data is not None:
-            data = data.copy()
-            data.set_interpolation(self.interpolation, self.multivariate)
-        self.Outputs.timeseries.send(data)
+        self.Warning.clear()
+
+        if not self.data:
+            self.Outputs.interpolated.send(None)
+            return
+
+        if self.interpolation not in (self.Mean, self.Nearest) \
+                and any(var.is_discrete for var in self.data.domain.variables):
+            self.Warning.discrete_mode()
+
+        data = self.data.copy()
+        data.set_interpolation(self.OptArgs[self.interpolation], self.multivariate)
         self.Outputs.interpolated.send(try_(lambda: data.interp()) or None)
+
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        if not version or version < 2:
+            settings["interpolation"] = \
+                cls.OptArgs.index(settings["interpolation"])
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication([])
-    ow = OWInterpolate()
-
     data = Timeseries.from_file('airpassengers')
-    ow.set_data(data)
-
-    ow.show()
-    a.exec()
+    WidgetPreview(OWInterpolate).run(data)
