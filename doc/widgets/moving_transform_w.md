@@ -11,7 +11,7 @@ Compute aggregations over a sliding window, consecutive blocks or time periods o
 
 - Time series: Data with computed aggregations
 
-![](images/Moving-Transform.png)
+![](images/moving-transform.png)
 
 1. Define the method for forming blocks of data:
    - *Sliding window*: use a sliding window of the specified width. The function is often used for smoothing the data.
