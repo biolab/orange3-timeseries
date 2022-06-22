@@ -94,13 +94,6 @@
     "keywords": []
    },
    {
-    "text": "Aggregate",
-    "doc": "widgets/aggregate.md",
-    "icon": "../orangecontrib/timeseries/widgets/icons/Aggregate.svg",
-    "background": "#33aaff",
-    "keywords": []
-   },
-   {
     "text": "Difference",
     "doc": "widgets/difference.md",
     "icon": "../orangecontrib/timeseries/widgets/icons/Difference.svg",
