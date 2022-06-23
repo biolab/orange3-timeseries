@@ -1,7 +1,10 @@
+import dataclasses
 import datetime
-from datetime import timedelta, timezone
+from datetime import timedelta, timezone, date
+import calendar
 from functools import partial
 from numbers import Number
+from typing import Dict, Callable, Optional, NamedTuple, Sequence, Union
 
 import numpy as np
 from dateutil.tz import tzlocal
@@ -9,6 +12,9 @@ from scipy import stats
 from scipy.signal import argrelextrema
 
 import Orange.data.util
+from Orange.data import DiscreteVariable, ContinuousVariable, Table
+from Orange.util import utc_from_timestamp
+from orangecontrib.timeseries import Timeseries
 
 
 def _parse_args(args, kwargs, names, *defaults):
@@ -591,6 +597,131 @@ def windowed_harmonic_mean(x, width, shift):
             except ValueError:
                 pass
         return r
+
+
+@dataclasses.dataclass
+class AggDesc:
+    short_desc: str
+    transform: Callable
+    block_transform: Callable
+    _long_desc: str = ""
+    supports_discrete: bool = False
+    count_aggregate: bool = False
+    cumulative: Optional[Callable] = None
+
+    def __new__(cls, short_desc, *args, **kwargs):
+        self = super().__new__(cls)
+        AggOptions[short_desc] = self
+        return self
+
+    @property
+    def long_desc(self):
+        return self._long_desc or self.short_desc.title()
+
+
+def pmw(*args):
+    return partial(windowed_func, *args)
+
+
+AggOptions: Dict[str, AggDesc] = {}
+AggDesc("mean", pmw(np.nanmean), np.nanmean, "Mean value")
+AggDesc("sum", moving_sum, np.nansum)
+AggDesc('product', pmw(np.nanprod), np.nanprod)
+AggDesc('min', pmw(np.nanmin), np.nanmin, "Minimum")
+AggDesc('max', pmw(np.nanmax), np.nanmax, "Maximum")
+AggDesc('span', windowed_span,
+        lambda x: np.nanmax(x) - np.nanmin(x), "Span")
+AggDesc('median', pmw(np.nanmedian), np.nanmedian)
+AggDesc('mode', windowed_mode,
+        lambda x: float(stats.mode(x, nan_policy='omit').mode),
+        supports_discrete=True)
+AggDesc('std', pmw(np.nanstd), np.nanstd, "Standard deviation")
+AggDesc('var', pmw(np.nanvar), np.nanvar, "Variance")
+AggDesc('lin. MA', windowed_linear_MA, None, "Linear MA")
+AggDesc('exp. MA', windowed_exponential_MA, None, "Exponential MA")
+AggDesc('harmonic', windowed_harmonic_mean, stats.hmean, "Harmonic mean")
+AggDesc('geometric', pmw(stats.gmean), stats.gmean, "Geometric mean")
+AggDesc('non-zero', moving_count_nonzero,
+        lambda x: np.sum((x != 0) & np.isfinite(x)), "Non-zero count",
+        supports_discrete=True, count_aggregate=True)
+AggDesc('defined', moving_count_defined,
+        lambda x: np.sum(np.isfinite(x)), "Defined count",
+        supports_discrete=True, count_aggregate=True)
+AggDesc('cumsum', windowed_cumsum, None, "Cumulative sum",
+        cumulative=np.nancumsum)
+AggDesc('cumprod', windowed_cumprod, None, "Cumulative product",
+        cumulative=np.nancumprod)
+
+
+@dataclasses.dataclass
+class PeriodDesc:
+    name: str
+    struct_index: int
+    periodic: Union[bool, int]
+    attr_name: str
+    value_as_period: bool = True
+    names: Optional[Sequence[str]] = None
+    names_option: Optional[str] = None
+    value_offset: int = 0
+
+    def __new__(cls, name, *args, **kwargs):
+        self = super().__new__(cls)
+        PeriodOptions[name] = self
+        return self
+
+
+PeriodOptions = {}
+PeriodDesc("Years", 0, False, "Time"),
+PeriodDesc("Months", 1, False, "Time"),
+PeriodDesc("Days", 2, False, "Time"),
+PeriodDesc("Hours", 3, False, "Time"),
+PeriodDesc("Minutes", 4, False, "Time"),
+PeriodDesc("Seconds", 5, False, "Time"),
+PeriodDesc("Month of year", 1, 12, "Month",
+           names=calendar.month_name[1:],
+           names_option="Use month names",
+           value_offset=-1),
+PeriodDesc("Day of year", 2, 366, "Day",
+           value_as_period=False),
+PeriodDesc("Day of month", 2, 31, "Day"),
+PeriodDesc("Day of week", 2, 7, "Day",
+           value_as_period=False,
+           names_option="Use day names",
+           names=calendar.day_name),
+PeriodDesc("Hour of day", 3, 24, "Hour")
+
+
+def time_blocks(data: Timeseries,
+                period: PeriodDesc,
+                attr_name: Sequence[str],
+                use_period_names: bool):
+    times = (utc_from_timestamp(x)
+             for x in data.get_column_view(data.time_variable)[0])
+    if period.periodic:
+        if period.value_as_period:
+            times = [x.timetuple()[period.struct_index] for x in times]
+        elif period.name == "Day of week":
+            times = [d.weekday() for d in times]
+        elif period.name == "Day of year":
+            times = [d.toordinal() - date(d.year, 1, 1).toordinal() + 1
+                     for d in times]
+        times = np.array(times) + period.value_offset
+        if period.names and use_period_names:
+            attribute = DiscreteVariable(attr_name, values=period.names)
+        else:
+            attribute = ContinuousVariable(attr_name)
+    else:
+        ind = period.struct_index
+        times = (truncated_date(x, ind) for x in times)
+        times = [calendar.timegm(x.timetuple()) for x in times]
+        attribute = data.time_variable.copy(name=attr_name)
+
+    periods, period_indices, counts = \
+        np.unique(times, return_inverse=True, return_counts=True)
+    if period.name == "Month of year" and not use_period_names:
+        periods += 1
+
+    return attribute, periods, period_indices, counts
 
 
 def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):
