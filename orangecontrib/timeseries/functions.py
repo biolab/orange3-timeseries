@@ -608,6 +608,7 @@ class AggDesc:
     supports_discrete: bool = False
     count_aggregate: bool = False
     cumulative: Optional[Callable] = None
+    same_scale: bool = False
 
     def __new__(cls, short_desc, *args, **kwargs):
         self = super().__new__(cls)
@@ -624,23 +625,30 @@ def pmw(*args):
 
 
 AggOptions: Dict[str, AggDesc] = {}
-AggDesc("mean", pmw(np.nanmean), np.nanmean, "Mean value")
+AggDesc("mean", pmw(np.nanmean), np.nanmean, "Mean value",
+        same_scale=True)
 AggDesc("sum", moving_sum, np.nansum)
 AggDesc('product', pmw(np.nanprod), np.nanprod)
-AggDesc('min', pmw(np.nanmin), np.nanmin, "Minimum")
-AggDesc('max', pmw(np.nanmax), np.nanmax, "Maximum")
+AggDesc('min', pmw(np.nanmin), np.nanmin, "Minimum",
+        same_scale=True)
+AggDesc('max', pmw(np.nanmax), np.nanmax, "Maximum",
+        same_scale=True)
 AggDesc('span', windowed_span,
         lambda x: np.nanmax(x) - np.nanmin(x), "Span")
-AggDesc('median', pmw(np.nanmedian), np.nanmedian)
+AggDesc('median', pmw(np.nanmedian), np.nanmedian,
+        same_scale=True)
 AggDesc('mode', windowed_mode,
         lambda x: float(stats.mode(x, nan_policy='omit').mode),
-        supports_discrete=True)
-AggDesc('std', pmw(np.nanstd), np.nanstd, "Standard deviation")
+        supports_discrete=True, same_scale=True)
+AggDesc('std', pmw(np.nanstd), np.nanstd, "Standard deviation", same_scale=True)
 AggDesc('var', pmw(np.nanvar), np.nanvar, "Variance")
-AggDesc('lin. MA', windowed_linear_MA, None, "Linear MA")
-AggDesc('exp. MA', windowed_exponential_MA, None, "Exponential MA")
-AggDesc('harmonic', windowed_harmonic_mean, stats.hmean, "Harmonic mean")
-AggDesc('geometric', pmw(stats.gmean), stats.gmean, "Geometric mean")
+AggDesc('lin. MA', windowed_linear_MA, None, "Linear MA", same_scale=True)
+AggDesc('exp. MA', windowed_exponential_MA, None, "Exponential MA",
+        same_scale=True)
+AggDesc('harmonic', windowed_harmonic_mean, stats.hmean, "Harmonic mean",
+        same_scale=True)
+AggDesc('geometric', pmw(stats.gmean), stats.gmean, "Geometric mean",
+        same_scale=True)
 AggDesc('non-zero', moving_count_nonzero,
         lambda x: np.sum((x != 0) & np.isfinite(x)), "Non-zero count",
         supports_discrete=True, count_aggregate=True)
