@@ -585,6 +585,7 @@ def windowed_mode(x, width, shift):
         modes[counts[:, 0] == 0] = np.nan
     return modes
 
+
 def windowed_harmonic_mean(x, width, shift):
     windows = _windowed(x, width, shift)
     try:
@@ -597,6 +598,11 @@ def windowed_harmonic_mean(x, width, shift):
             except ValueError:
                 pass
         return r
+
+
+def block_mode(x):
+    mode = stats.mode(x, nan_policy='omit').mode
+    return float(mode) if mode.size else np.nan
 
 
 @dataclasses.dataclass
@@ -637,8 +643,7 @@ AggDesc('span', windowed_span,
         lambda x: np.nanmax(x) - np.nanmin(x), "Span")
 AggDesc('median', pmw(np.nanmedian), np.nanmedian,
         same_scale=True)
-AggDesc('mode', windowed_mode,
-        lambda x: float(stats.mode(x, nan_policy='omit').mode),
+AggDesc('mode', windowed_mode, block_mode,
         supports_discrete=True, same_scale=True)
 AggDesc('std', pmw(np.nanstd), np.nanstd, "Standard deviation", same_scale=True)
 AggDesc('var', pmw(np.nanvar), np.nanvar, "Variance")
