@@ -1,22 +1,19 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from functools import reduce
 from itertools import count
 from math import pi, cos, sin, atan2, degrees
-from typing import Optional, Dict, Tuple, List
+from typing import Optional, Dict, Tuple, List, Callable, Union
 
 import numpy as np
 
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsSimpleTextItem, \
-    QGraphicsPathItem
+    QGraphicsPathItem, QGraphicsItemGroup, QGraphicsRectItem
 from AnyQt.QtCore import QTimer, Qt, QItemSelectionModel
 from AnyQt.QtGui import QPainterPath, QPen, QColor, QBrush, QPainter, \
     QFontMetrics
-from PyQt5.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem
 
-from Orange.data.util import get_unique_names
-from Orange.widgets.visualize.owscatterplotgraph import DiscretizedScale
-from Orange.widgets.visualize.utils import ViewWithPress
-from Orange.widgets.visualize.utils.plotutils import PaletteItemSample
 from orangewidget.settings import Setting, ContextSetting
 from orangewidget.utils.itemmodels import PyListModel
 from orangewidget.utils.signals import Input, Output
@@ -26,15 +23,21 @@ from Orange.data import Table, Variable, DiscreteVariable, ContinuousVariable, \
     Domain
 from Orange.preprocess import time_binnings, decimal_binnings, short_time_units
 from Orange.preprocess.discretize import Discretizer
+from Orange.data.util import get_unique_names
+
 from Orange.widgets import gui
+from Orange.widgets.widget import OWWidget
 from Orange.widgets.settings import DomainContextHandler
+from Orange.widgets.visualize.owscatterplotgraph import DiscretizedScale
+from Orange.widgets.visualize.utils import ViewWithPress
+from Orange.widgets.visualize.utils.plotutils import PaletteItemSample
 from Orange.widgets.utils.colorpalettes import DefaultContinuousPalette, \
     ContinuousPalette, BinnedContinuousPalette
 from Orange.widgets.utils.itemmodels import DomainModel, VariableListModel
-from Orange.widgets.widget import OWWidget
 
 from orangecontrib.timeseries import Timeseries, time_blocks
 from orangecontrib.timeseries.functions import PeriodOptions, AggOptions
+
 
 Clear = QItemSelectionModel.Clear
 ClearAndSelect = QItemSelectionModel.ClearAndSelect
@@ -42,8 +45,36 @@ Select = QItemSelectionModel.Select
 
 
 class SegmentItem(QGraphicsPathItem):
+    """
+    Graphics item for a segment of spiralogram.
+
+    It also calls a callback function on mouse click (pure graphics items
+    cannot emit signals) and shows a different border when selected.
+    """
     def __init__(self, x00, y00, x11, y11, r0, r1, a00, a01, a10, a11,
                  x, r, color, tooltip, selected, onclick=None, parent=None):
+        """
+        Constructor gets corner coordinates as well as radii and angels.
+        All are needed for drawing; although coordinates could be computed from
+        angles, they are passed simply because they are already know (used
+        in computation of angles, see below).
+
+        Args:
+            x00, y00, x11, y11 (float): corner coordinates, ordered like this:
+                x10 ........ x11 (outer)
+                x00 ........ x01 (inner)
+                ("left") ... ("right")
+
+            r0, r1 (float): inner and outer radius
+            a00, a01, a10, a11 (float): angles for corners (same order as above)
+            x, r (float): segment coordinates (x is angle, r is distance)
+            color (QColor): segment color
+            tooltip (str): tooltip shown on hover
+            selected (bool): True if segment is initially selected
+            onclick (Callable[SegmentItem, QGraphicsSceneMouseEvent)):
+                callback on mouse click
+            parent (QGraphicsItem): parent item
+        """
         path = QPainterPath()
         path.moveTo(x00, -y00)
         path.arcTo(-r0, -r0, 2 * r0, 2 * r0, a00, a01 - a00)
@@ -62,16 +93,35 @@ class SegmentItem(QGraphicsPathItem):
         self.set_selected(selected)
 
     @classmethod
-    def from_coordinates(cls, x, r, radius, ngroups, nperiods,
+    def from_coordinates(cls, x, r, radius, nperiods, ngroups,
                          color, tooltip, selected, onclick=None,
                          parent=None):
-        # This computes coordinates of corners of segments, and angles for arcs
-        # We compute coordinate on a line separating the segments (i/n 2 pi),
-        # and then move one half of the width away from the line.
-        # Points do not lie on a line that goes through the center.
+        """
+        Constructs a segment for given coordinates
 
-        # I don't disagree with anybody who thinks this could be vectorized
-        # I do disagree that it would be readable and considerably faster
+        Thi computes coordinates of corners of segments, and angles for arcs
+        We compute coordinate on a line separating the segments (i/n 2 pi),
+        and then move one half of the width away from the line.
+        Points do not lie on a line that goes through the center.
+
+        Args:
+            x, r (float): segment coordinates
+            radius (float): total radius of spiralogram
+            nperiods (float): number of angular divisions
+            ngroups (float): number of radial divisions
+            color (QColor): segment color
+            tooltip (str): segmen tooltip
+            selected (bool): True if segment is initially selected
+            onclick (Callable[SegmentItem, QGraphicsSceneMouseEvent)):
+                callback on mouse click
+            parent (QGraphicsItem): parent item
+
+        Returns:
+            segment (SegmentItem)
+        """
+
+        # This could be vectorized, computed for all segments at once,
+        # but we wouldn't gain much speed and greatle reduce readability
         radseg = radius / (ngroups + 0.5)
 
         # width of the line separating radial segments
@@ -79,7 +129,7 @@ class SegmentItem(QGraphicsPathItem):
         # inner and outer radii
         r0, r1 = ((r + i + 0.5) * radseg + w * [1, -1][i] for i in (0, 1))
         # angle of beginning and the end
-        a0, a1 = (pi / 2 - 2 * pi * (x + i) / nperiods for i in (0, 1))
+        a0, a1 = (pi / 2 - 2 * pi * (x + i - 0.5) / nperiods for i in (0, 1))
 
         # x10 ...... x11 (outer)
         # x00 ...... x01 (inner)
@@ -93,8 +143,8 @@ class SegmentItem(QGraphicsPathItem):
         a00, a10 = degrees(atan2(y00, x00)), degrees(atan2(y10, x10))
         a01, a11 = degrees(atan2(y01, x01)), degrees(atan2(y11, x11))
 
-        # Qt requires arcs lenghts, so we must take care of negative starting
-        # angles if the end is positive
+        # Drawing requires arcs lengths, so we must take care of negative
+        # starting angles if the end is positive
         if a00 < 0 < a01:
             a00 += 360
         if a10 < 0 < a11:
@@ -103,37 +153,47 @@ class SegmentItem(QGraphicsPathItem):
         return cls(x00, y00, x11, y11, r0, r1, a00, a01, a10, a11,
                    x, r, color, tooltip, selected, onclick, parent=parent)
 
-    def set_selected(self, selected):
+    def set_selected(self, selected: bool):
+        """Change the border pen according to whether the segment is selected"""
         if selected:
             self.setPen(QPen(Qt.blue, 3, Qt.DotLine))
         else:
             self.setPen(QPen(self.color.darker(150), 2))
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         if self.onclick:
             self.onclick(self, event)
 
 
-class SelectionSegment(SegmentItem):
-    def __init__(self, x00, y00, x11, y11, r0, r1, a0, a1, parent=None):
-        super().__init__(x00, y00, x11, y11, r0, r1, a0, a1, a0, a1, parent)
-        self.setPen(QPen(Qt.NoPen))
-        self.set_selected(False)
-
-    def set_selected(self, selected):
-        self.setBrush(QBrush(Qt.cyan if selected else Qt.NoBrush))
-
-
 @dataclass
 class BlockData:
+    """
+    Data about spiralogram that excludes the color
+
+    This is (re)computed at each change of data and radial and angular
+    attributes, and includes the data for quick computation of aggregates
+    and creation of output table
+    """
+
+    # Attributes defining the blocks; either angular or angular and radial
+    # Names are ensured unique
     attributes: Optional[List[Variable]] = None
+
+    # Data for these attributes (used for output table)
     columns: Optional[List[np.ndarray]] = None
+
+    # Indices of rows for each block; dict keys are x and r
+    # The order is the same as in columns, though dict is used for faster
+    # access when outputting selection
     indices: Optional[Dict[Tuple[int, int], np.ndarray]] = None
 
 
-AggItems = {desc.long_desc: desc
-            for desc in AggOptions.values()
-            if desc.block_transform}
+# Data for combos
+
+AggItems: Dict[str, AggDesc] = \
+    {desc.long_desc: desc
+     for desc in AggOptions.values()
+     if desc.block_transform}
 
 PeriodItems = [name
                for name, desc in PeriodOptions.items()
@@ -141,35 +201,100 @@ PeriodItems = [name
 
 
 class AggOptionsModel(PyListModel):
-    def __init__(self, variable):
+    """
+    PyListModel that disables aggregations that don't support discrete variables
+    """
+    def __init__(self, variable: Variable):
         super().__init__(list(AggItems))
         self.discrete = False
         self.set_variable(variable)
 
-    def flags(self, index):
+    def flags(self, index: QModelIndex):
         flags = super().flags(index)
         if self.is_disabled(self[index.row()]):
             flags = flags & ~Qt.ItemIsEnabled
         return flags
 
-    def is_disabled(self, item):
+    def is_disabled(self, item: str):
+        """
+        Returns `True` if the given option does not support the current variable
+        """
         return self.discrete and not AggItems[item].supports_discrete
 
     def set_variable(self, variable: Variable):
+        """
+        Set the current variable and emits that model is changed
+        """
         self.discrete = variable and variable.is_discrete
         self.dataChanged.emit(self.index(0), self.index(len(self) - 1))
 
-SHOW_COUNT = "(Instance count)"
-
 
 class VariableBinner:
-    def __init__(self, master, bin_index_attr):
+    """
+    Class for controlling a slider for binning variables
+
+    To use it, insert a control like this:
+
+    ```
+    self.binner = VariableBinner(self, "r_bins_index")
+    self.binner.create_control(box)
+    ```
+
+    where `r_bins_index` will be (usually a context) setting. Additional
+    arguments, like callbacks and labels and also be provided.
+
+    When the variables to which the binner refers is changed, extract the
+    corresponding column (e.g. with obj:`Table.get_column_view`) and call
+
+    ```
+    self.binner.recompute_binnings(column, is_time)
+    ```
+
+    where `is_time` indicates whether this is a time variable.
+
+    To obtain the binned variable, call
+
+    ```
+    attr = self.binner.binned_var(self.original_variable)
+    ```
+
+    typically followed by
+
+    ```
+    binned_data = attr.compute_value(data)
+    ```
+
+    to obtain binned data.
+
+    Args:
+        master (OWWidget): widget that contains the control
+        bin_index_attr (str):
+            the widget's attribute for storing the current bin index
+    """
+    def __init__(self, master: OWWidget, bin_index_attr: str):
         self.master = master
         self.bin_index_attr = bin_index_attr
-        self.binnings = []
+        self.binnings: List[BinDefinition] = []
         self.bin_width_label = self.slider = None
 
-    def create_control(self, widget, callback, on_released, label="Bin width"):
+    def create_control(self,
+                       widget: OWWidget,
+                       callback: Callable[[OWWidget], None],
+                       on_released: Callable[[OWWidget], None],
+                       label: str="Bin width") -> Slider:
+        """
+        Create a slider and the corresponding label(s)
+
+        Args:
+            widget (QWidget): widget into which to insert the control
+                (e.g. controlArea or some box within it)
+            callback (Callable[QWidget]): callback for slider movement
+            on_released (Callable[QWidget]): called when slider is released
+            label (str): label to put before the slider
+
+        Returns:
+            a slider
+        """
         slider = self.slider = gui.hSlider(
             widget, self.master, self.bin_index_attr,
             label=label, orientation=Qt.Horizontal,
@@ -183,25 +308,40 @@ class VariableBinner:
         return slider
 
     @property
-    def bin_index(self):
+    def bin_index(self) -> int:
+        """Index of currently selected entry in binnings; for internal use"""
         return getattr(self.master, self.bin_index_attr)
 
     @bin_index.setter
-    def bin_index(self, value):
+    def bin_index(self, value: int):
         setattr(self.master, self.bin_index_attr, value)
 
-    def recompute_binnings(self, column, is_time):
+    def recompute_binnings(self, column: np.ndarray, is_time: bool,
+                           **binning_args):
+        """
+        Recomputes the set of available binnings based on data
+
+        The method accepts the same keyword arguments as
+        :obj:`Orange.preprocess.discretize.decimal_binnings` and
+        :obj:`Orange.preprocess.discretize.time_binnings`.
+
+        Args:
+            column (np.ndarray): column with data for binning
+            is_time (bool): indicates whether this is a time variable
+            **binning_args: see documentation for
+                :obj:`Orange.preprocess.discretize.decimal_binnings` and
+                :obj:`Orange.preprocess.discretize.time_binnings`.
+        """
         if column is None or not np.any(np.isfinite(column)):
             self.binnings = []
             self.slider.box.setDisabled(True)
             return
 
         self.slider.box.setDisabled(False)
-        pars = dict(min_unique=5, max_bins=10)
         if is_time:
-            self.binnings = time_binnings(column, **pars)
+            self.binnings = time_binnings(column, **binning_args)
         else:
-            self.binnings = decimal_binnings(column, add_unique=10, **pars)
+            self.binnings = decimal_binnings(column, **binning_args)
         fm = QFontMetrics(self.master.font())
         width = max(fm.size(Qt.TextSingleLine,
                             self._short_text(binning.width_label)
@@ -214,7 +354,8 @@ class VariableBinner:
             self.bin_index = max_bins
         self._set_bin_width_slider_label()
 
-    def current_binning(self):
+    def current_binning(self) -> BinDefinition:
+        """Return the currently selected binning"""
         return self.binnings[self.bin_index]
 
     @staticmethod
@@ -231,7 +372,11 @@ class VariableBinner:
             text = ""
         self.bin_width_label.setText(text)
 
-    def binned_var(self, var):
+    def binned_var(self, var: ContinuousVariable) -> DiscreteVariable:
+        """
+        Creates a discrete variable for the given continuous variable,
+        using the currently selected binning
+        """
         binning = self.binnings[self.bin_index]
         discretizer = Discretizer(var, list(binning.thresholds[1:-1]))
         blabels = binning.labels[1:-1]
@@ -258,28 +403,38 @@ class OWSpiralogram(OWWidget):
     graph_name = "view"
 
     settingsHandler = DomainContextHandler()
-    time_period = Setting(PeriodItems[0])
-    aggregation = next(iter(AggItems))
-    group_var: Optional[Variable] = ContextSetting(None)
+    x_var: Union[str, Variable] = Setting(PeriodItems[0])
+    x_bins_index: int = ContextSetting(0)
+    r_var: Optional[Variable] = ContextSetting(None)
+    r_bins_index: int = ContextSetting(0)
     color_var: Optional[Variable] = ContextSetting(None)
-    x_bins_index = ContextSetting(0)
-    r_bins_index = ContextSetting(0)
+    aggregation: str = next(iter(AggItems))
 
     def __init__(self):
         super().__init__()
         self.data = None
 
-        self.block_data = None
-        self.computed_data = None
-        self._segments = {}
         self.selection = set()
-        self.last_selected = None
+        self.last_selected = None  # reference for shift-click
+
+        # Widget updates in three phases
+        # block_data contains data independent of color_var selection and
+        # changes on new data or change of radial or angular var and binnings
+        self.block_data: Optional[BlockData] = None
+        # computed_data depends also on color_var and aggregation;
+        # this is a table with output data
+        self.computed_data: Optional[Table] = None  # Data
+        # A dictionary of SegmentItems, used for computing selections
+        self.segments: Dict[Tuple[int, int], SegmentItem] = {}
+        self.legend = None
+        self.palette = None
+        self.color_scale = None
 
         box = gui.vBox(self.controlArea, "Time Period")
         self.x_model = VariableListModel(list(PeriodItems))
         gui.comboBox(
-            box, self, "time_period", model=self.x_model,
-            callback=self._time_period_changed)
+            box, self, "x_var", model=self.x_model,
+            callback=self._x_var_changed)
         self.x_binner = VariableBinner(self, "x_bins_index")
         self.x_binner.create_control(
             gui.indentedBox(box, 12),
@@ -288,20 +443,20 @@ class OWSpiralogram(OWWidget):
 
         box = gui.vBox(self.controlArea, "Radial")
         self.rad_model = DomainModel(
-            placeholder="(None)",
+            placeholder="(None)", separators=False,
             valid_types=(DiscreteVariable, ContinuousVariable))
         gui.comboBox(
-            box, self, "group_var", model=self.rad_model,
-            callback=self._group_var_changed)
-        self.radial_binner = VariableBinner(self, "r_bins_index")
-        self.radial_binner.create_control(
+            box, self, "r_var", model=self.rad_model,
+            callback=self._r_var_changed)
+        self.r_binner = VariableBinner(self, "r_bins_index")
+        self.r_binner.create_control(
             gui.indentedBox(box, 12),
-            callback=self._on_bins_changed,
-            on_released=self._on_bin_slider_released)
+            callback=self._on_r_bins_changed,
+            on_released=self._on_r_bin_slider_released)
 
         box = gui.vBox(self.controlArea, "Color")
         self.var_model = DomainModel(
-            placeholder="(Show instance count)",
+            placeholder="(Show instance count)", separators=False,
             valid_types=(DiscreteVariable, ContinuousVariable))
         gui.comboBox(
             box, self, "color_var", model=self.var_model,
@@ -315,7 +470,7 @@ class OWSpiralogram(OWWidget):
 
         self.scene = QGraphicsScene()
 
-        self.view = ViewWithPress(self.mainArea, handler=self._scene_clicked)
+        self.view = ViewWithPress(self.mainArea, handler=self._on_scene_clicked)
         self.view.setMinimumWidth(400)
         self.view.setMinimumHeight(400)
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -323,6 +478,81 @@ class OWSpiralogram(OWWidget):
         self.view.setRenderHint(QPainter.Antialiasing)
         self.view.setScene(self.scene)
         self.mainArea.layout().addWidget(self.view)
+
+    # Event handlers
+    # --------------
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.computed_data:
+            self.redraw()
+
+    def _x_var_changed(self):
+        self._rebin(self.x_binner, self.x_var)
+        self.reblock()
+
+    def _r_var_changed(self):
+        self._rebin(self.r_binner, self.r_var)
+        self.reblock()
+
+    def _color_var_changed(self):
+        self.controls.aggregation.model().set_variable(self.color_var)
+        self.update_agg_combo()
+        self.recompute()
+
+    def _rebin(self, binner=None, var=None):
+        if binner is None:
+            for binner_, var_ in ((self.x_binner, self.x_var),
+                                  (self.r_binner, self.r_var)):
+                self._rebin(binner_, var_)
+            return
+
+        if isinstance(var, Variable) and var.is_continuous:
+            column = self.data.get_column_view(var)[0].astype(float)
+        else:
+            column = None
+        binner.recompute_binnings(column, column is not None and var.is_time)
+
+    def _on_x_bins_changed(self):
+        self.reblock()
+
+    def _on_x_bin_slider_released(self):
+        # TODO commit data from here, not _on_x_bins_changed
+        pass
+
+    def _on_r_bins_changed(self):
+        self.reblock()
+
+    def _on_r_bin_slider_released(self):
+        # TODO commit data from here, not _on_r_bins_changed
+        pass
+
+    def update_agg_combo(self):
+        aggcombo = self.controls.aggregation
+        if self.color_var is None:
+            aggcombo.setDisabled(True)
+        else:
+            aggcombo.setDisabled(False)
+            model = aggcombo.model()
+            if model.is_disabled(self.aggregation):
+                for agg in model:
+                    # "Mode" would be a bad default because it can be slow
+                    if agg != "Mode" and not model.is_disabled(agg):
+                        self.aggregation = agg
+                        break
+
+    def x_r_var_names(self):
+        if self.r_var is self.x_var:
+            return [f"{self.r_var.name} ({i})" for i in (1, 2)]
+        names = []
+        if isinstance(self.x_var, Variable):
+            names.append(self.x_var.name)
+        if self.r_var:
+            names.append(self.r_var.name)
+        return names
+
+    # Data and properties
+    # -------------------
 
     @Inputs.time_series
     def set_data(self, data: Table):
@@ -335,163 +565,146 @@ class OWSpiralogram(OWWidget):
         valid_vars = [var
                       for var in data.domain.attributes if var.is_primitive()]
         if valid_vars:
-            self.x_model.append(PyListModel.Separator)
+            self.x_model[len(self.x_model):] = [PyListModel.Separator]
+            # Todo: when https://github.com/biolab/orange-widget-base/pull/207
+            # is merged and released, replace the above line with
+            # self.x_model.append(PyListModel.Separator)
             self.x_model += valid_vars
+
         self.var_model.set_domain(data.domain)
         self.rad_model.set_domain(data.domain)
         self._rebin()
         self.update_agg_combo()
+        # Doing this ensures that `redraw` gets proper size hint
         QTimer.singleShot(0, self.reblock)
-
-    def _rebin(self, binner=None, var=None):
-        if binner is None:
-            for binner, var in ((self.x_binner, self.time_period),
-                                (self.radial_binner, self.group_var)):
-                self._rebin(binner, var)
-        if isinstance(var, Variable) and var.is_continuous:
-            column = self.data.get_column_view(var)[0].astype(float)
-        else:
-            column = None
-        binner.recompute_binnings(column, column is not None and var.is_time)
-
-    def _time_period_changed(self):
-        self._rebin(self.x_binner, self.time_period)
-        self.reblock()
-
-    def _group_var_changed(self):
-        self._rebin(self.radial_binner, self.group_var)
-        self.reblock()
-
-    def _color_var_changed(self):
-        self.controls.aggregation.model().set_variable(self.color_var)
-        self.update_agg_combo()
-        self.recompute()
-
-    def update_agg_combo(self):
-        aggcombo = self.controls.aggregation
-        if self.color_var is None:
-            aggcombo.setDisabled(True)
-        else:
-            aggcombo.setDisabled(False)
-            model = aggcombo.model()
-            if model.is_disabled(self.aggregation):
-                for i, agg in enumerate(model):
-                    # "Mode" would be a bad default because it can be slow
-                    if agg != "Mode" and not model.is_disabled(agg):
-                        self.aggregation = agg
-                        break
-
-    def _on_x_bins_changed(self):
-        self.reblock()
-
-    def _on_x_bin_slider_released(self):
-        pass
-
-    def _on_bins_changed(self):
-        self.reblock()
-
-    def _on_bin_slider_released(self):
-        pass
 
     @property
     def nperiods(self):
         if not self.computed_data:
             return 0
         elif self.is_time_period:
-            return PeriodOptions[self.time_period].periodic
+            return PeriodOptions[self.x_var].periodic
         else:
-            # This case does not cover the above because variable can be numeric
-            # (day of month, day of year, hour of day ...)
+            # This case does not cover the above one because variable can be
+            # numeric (day of month, day of year, hour of day ...)
             return len(self.computed_data.domain[0].values)
 
     @property
     def ngroups(self):
         if not self.computed_data:
             return 0
-        if self.group_var is None:
+        if self.r_var is None:
             return 1
         return len(self.computed_data.domain[1].values)
 
     @property
     def is_time_period(self):
-        return isinstance(self.time_period, str)
+        return isinstance(self.x_var, str)
 
-    def period_group_var_names(self):
-        if self.group_var is self.time_period:
-            return [f"{self.group_var.name} ({i})" for i in (1, 2)]
-        names = []
-        if isinstance(self.time_period, Variable):
-            names.append(self.time_period.name)
-        if self.group_var:
-            names.append(self.group_var.name)
-        return names
+    # Recomputation and redrawing flow
+    # --------------------------------
 
-    def get_unique_name(self, name):
-        return get_unique_names(self.period_group_var_names(), name)
+    def reblock(self):
+        """Invalidate, recompute, commit all data, starting from division"""
+        self.computed_data = None
+        self.selection.clear()
+        self.commit_selection()
+        self.last_selected = None
 
-    def _compute_block_data(self):
+        self.block_data = self.compute_block_data() if self.data else None
+        self.recompute()
+
+    def recompute(self):
+        """Invalidate, recompute, commit aggregation for given division"""
+        self.computed_data = self.compute_data() if self.block_data else None
+        self.commit_statistics()
+        self.redraw()
+
+    def redraw(self):
+        """Redraw graph"""
+        self.scene.clear()
+        self.legend = None
+        self.segments.clear()
+        if self.computed_data is None:
+            return
+
+        self.create_palette()
+        self.prepare_legend()  # legend is prepared so we know the radius
+        self.draw_segments()
+        self.draw_labels()
+        self.draw_legend()
+        self.view.setSceneRect(self.scene.itemsBoundingRect())
+
+    # Recomputation
+    # -------------
+
+    def _get_unique_name(self, name):
+        return get_unique_names(self.x_r_var_names(), name)
+
+    def compute_block_data(self):
+        assert self.data is not None
+
+        data = self.data
         if self.is_time_period:
-            period_desc = PeriodOptions[self.time_period]
-            attr_name = self.get_unique_name("Period")
-            period_attr, periods, period_data, _ = \
+            period_desc = PeriodOptions[self.x_var]
+            attr_name = self._get_unique_name("Period")
+            x_attr, periods, x_data, _ = \
                 time_blocks(self.data, period_desc, attr_name, True)
         else:
-            if self.time_period.is_continuous:
-                period_attr = self.x_binner.binned_var(self.time_period)
-                period_data = period_attr.compute_value(data)
+            if self.x_var.is_continuous:
+                x_attr = self.x_binner.binned_var(self.x_var)
+                x_data = x_attr.compute_value(data)
             else:
-                period_attr = self.time_period
-                period_data = self.data.get_column_view(period_attr)[0]
-            periods = np.arange(len(period_attr.values))
+                x_attr = self.x_var
+                x_data = self.data.get_column_view(x_attr)[0]
+            periods = np.arange(len(x_attr.values))
 
         nperiods = len(periods)
-        if self.group_var is None:
+        if self.r_var is None:
             return BlockData(
-                [period_attr],
+                [x_attr],
                 [periods],
-                {(x, 0): np.flatnonzero(period_data == x)
+                {(x, 0): np.flatnonzero(x_data == x)
                  for x in range(nperiods)})
 
-        if self.group_var.is_continuous:
-            group_attr = self.radial_binner.binned_var(self.group_var)
-            group_data = group_attr.compute_value(data)
+        if self.r_var.is_continuous:
+            r_attr = self.r_binner.binned_var(self.r_var)
+            r_data = r_attr.compute_value(data)
         else:
-            group_attr = self.group_var
-            group_data = data.get_column_view(self.group_var)[0]
+            r_attr = self.r_var
+            r_data = data.get_column_view(self.r_var)[0]
 
-        if period_attr.name == group_attr.name:
-            period_name, group_name = self.period_group_var_names()
-            period_attr = period_attr.copy(name=period_name)
-            group_attr = group_attr.copy(name=group_name)
+        if x_attr.name == r_attr.name:
+            period_name, group_name = self.x_r_var_names()
+            x_attr = x_attr.copy(name=period_name)
+            r_attr = r_attr.copy(name=group_name)
 
-        ngroups = len(group_attr.values)
-        x_x_mask = ((x, period_data == x) for x in range(nperiods))
-        return BlockData(
-            [period_attr, group_attr],
+        ngroups = len(r_attr.values)
+        x_x_mask = ((x, x_data == x) for x in range(nperiods))
+        attributes = [x_attr, r_attr]
+        columns = [np.repeat(periods, ngroups),
+                   np.tile(np.arange(ngroups), len(periods))]
+        indices = {(x, r): np.flatnonzero(x_mask & (r_data == r))
+                   for x, x_mask in x_x_mask for r in range(ngroups)}
+        return BlockData(attributes, columns, indices)
 
-            [np.repeat(periods, ngroups),
-             np.tile(np.arange(ngroups), len(periods))],
-
-            {(x, r): np.flatnonzero(x_mask & (group_data == r))
-             for x, x_mask in x_x_mask for r in range(ngroups)})
-
-    def _compute_data(self):
+    def compute_data(self):
         assert self.block_data
 
         agg_desc = AggItems[self.aggregation]
 
-        count_var = ContinuousVariable(self.get_unique_name("Count"))
+        count_var = ContinuousVariable(self._get_unique_name("Count"))
         counts = np.array([len(indices)
                            for indices in self.block_data.indices.values()])
 
         if self.color_var:
             name = f"{self.color_var.name} ({agg_desc.short_desc})"
-            name = self.get_unique_name(name)
+            name = self._get_unique_name(name)
             if agg_desc.same_scale:
                 class_var = self.color_var.copy(name=name)
             else:
                 class_var = ContinuousVariable(name)
-            color_data = data.get_column_view(self.color_var)[0]
+            color_data = self.data.get_column_view(self.color_var)[0]
             values = np.array([agg_desc.block_transform(color_data[indices])
                               for indices in self.block_data.indices.values()])
         else:
@@ -500,6 +713,21 @@ class OWSpiralogram(OWWidget):
         return Table.from_numpy(
             Domain(self.block_data.attributes + [count_var], class_var),
             np.vstack(self.block_data.columns + [counts]).T, values)
+
+    # Redraw
+    # ------
+
+    @property
+    def radius(self):
+        assert self.legend
+        sw2, sh2 = self.view.width() / 2, self.view.height() / 2
+        return min(sw2 - self.legend.boundingRect().width(), sh2) * 0.85
+
+    @property
+    def _label_font(self):
+        font = self.font()
+        font.setPointSize(int(round(font.pointSize() * 0.9)))
+        return font
 
     def create_palette(self):
         assert self.computed_data is not None
@@ -521,118 +749,6 @@ class OWSpiralogram(OWWidget):
 
         self.palette = palette
         self.color_scale = scale
-
-    def draw_segments(self):
-        assert self.computed_data is not None
-        assert self.palette is not None
-
-        data = self.computed_data
-        x_col = data.X[:, 0].astype(int)
-        x_attr = data.domain[0]
-        cvar = data.domain.class_var
-        if self.group_var:
-            r_col = data.X[:, 1].astype(int)
-            r_attr = data.domain[1]
-        else:
-            r_col = np.zeros(len(x_col), dtype=int)
-            r_attr = None
-
-        values = data.Y if data.Y.size else data.X[:, -1]
-
-        colors = self.palette.values_to_qcolors(values)
-        counts = data.X[:, -1]
-        for x, r, value, color, count in \
-                zip(x_col, r_col, values, colors, counts):
-            if not count:
-                continue
-            if cvar:
-                tooltip = f"{cvar.name} = {cvar.repr_val(value)}<hr/>"
-            else:
-                tooltip = ""
-            tooltip += f"{x_attr.name} = {x_attr.repr_val(x)}"
-            if r_attr:
-                tooltip += f"<br/>{r_attr.name} = {r_attr.repr_val(r)}"
-            tooltip += f"<hr/>{int(count)} instances"
-
-            segment = SegmentItem.from_coordinates(
-                x, r,
-                self.radius, self.ngroups, self.nperiods, color, tooltip,
-                selected=(x, r) in self.selection,
-                onclick=self._segment_clicked)
-            self.scene.addItem(segment)
-            self._segments[(x, r)] = segment
-
-    def compute_geometry(self):
-        sw2, sh2 = self.view.width() / 2, self.view.height() / 2
-        self.radius = min(sw2 - self.legend.boundingRect().width(), sh2) * 0.85
-
-    @property
-    def _label_font(self):
-        font = self.font()
-        font.setPointSize(int(round(font.pointSize() * 0.9)))
-        return font
-
-    def _period_label_items(self):
-        font = self._label_font
-        variable = self.computed_data.domain[0]
-        if variable.is_discrete:
-            labels = variable.values
-        else:
-            off = self.nperiods != 24
-            labels = [str(i + off) for i in range(self.nperiods)]
-        items = []
-        for label in labels:
-            item = QGraphicsSimpleTextItem(label)
-            item.setFont(font)
-            items.append(item)
-        return items
-
-    def draw_labels(self):
-        assert self.computed_data is not None
-
-        section = 2 * pi / self.nperiods
-        r = self.radius
-        labels = self._period_label_items()
-        step = len(labels) > 31
-        for i, item in enumerate(labels):
-            if i != 0 and step and (i + 1) % 10 != 0:
-                continue
-            rect = item.boundingRect()
-            w, h = rect.width(), rect.height()
-            angle = pi / 2 - section * (i + 0.5)
-            x, y = (r + 0.1) * cos(angle), -(r + 0.1) * sin(angle)
-            dangle = degrees(angle) % 360
-            if round(dangle) in (90, 270):
-                x -= w // 2
-            elif 90 < dangle < 270:
-                x -= w
-            if round(dangle) in (0, 180):
-                y -= h // 2
-            elif dangle < 180:
-                y -= h
-            item.setPos(x, y)
-            self.scene.addItem(item)
-
-        if self.group_var:
-            font = self._label_font
-            group_var = self.computed_data.domain[1]
-            rbrush = QBrush(QColor(255, 255, 255, 224))
-            for i, label in enumerate(group_var.values):
-                item = QGraphicsSimpleTextItem(label)
-                item.setFont(font)
-                rect = item.boundingRect()
-                w, h = rect.width(), rect.height()
-                x = 5
-                y = -r * (i + 1) / (self.ngroups + 0.5) - h // 2
-                item.setPos(x, y)
-                path = QPainterPath()
-                path.addRoundedRect(rect.adjusted(-2, -2, 2, 2), 4, 4)
-                ritem = QGraphicsPathItem(path)
-                ritem.setBrush(rbrush)
-                ritem.setPen(QPen(Qt.NoPen))
-                ritem.setPos(x, y)
-                self.scene.addItem(ritem)
-                self.scene.addItem(item)
 
     def prepare_legend(self):
         if isinstance(self.palette, BinnedContinuousPalette):
@@ -660,6 +776,107 @@ class OWSpiralogram(OWWidget):
 
         self.legend = legend
 
+    def draw_segments(self):
+        assert self.computed_data is not None
+        assert self.palette is not None
+
+        data = self.computed_data
+        x_col = data.X[:, 0].astype(int)
+        x_attr = data.domain[0]
+        cvar = data.domain.class_var
+        if self.r_var:
+            r_col = data.X[:, 1].astype(int)
+            r_attr = data.domain[1]
+        else:
+            r_col = np.zeros(len(x_col), dtype=int)
+            r_attr = None
+
+        values = data.Y if data.Y.size else data.X[:, -1]
+
+        colors = self.palette.values_to_qcolors(values)
+        counts = data.X[:, -1]
+        geometry = (self.radius, self.nperiods, self.ngroups)
+        for x, r, value, color, count in \
+                zip(x_col, r_col, values, colors, counts):
+            if not count:
+                continue
+            if cvar:
+                tooltip = f"{cvar.name} = {cvar.repr_val(value)}<hr/>"
+            else:
+                tooltip = ""
+            tooltip += f"{x_attr.name} = {x_attr.repr_val(x)}"
+            if r_attr:
+                tooltip += f"<br/>{r_attr.name} = {r_attr.repr_val(r)}"
+            tooltip += f"<hr/>{int(count)} instances"
+
+            segment = SegmentItem.from_coordinates(
+                x, r, *geometry, color, tooltip,
+                selected=(x, r) in self.selection,
+                onclick=self._on_segment_clicked)
+            self.scene.addItem(segment)
+            self.segments[(x, r)] = segment
+
+    def draw_labels(self):
+        assert self.computed_data is not None
+
+        section = 2 * pi / self.nperiods
+        r = self.radius
+        labels = self._period_label_items()
+        step = len(labels) > 31
+        for i, item in enumerate(labels):
+            if i != 0 and step and (i + 1) % 10 != 0:
+                continue
+            rect = item.boundingRect()
+            w, h = rect.width(), rect.height()
+            angle = pi / 2 - section * i
+            x, y = (r + 0.1) * cos(angle), -(r + 0.1) * sin(angle)
+            dangle = degrees(angle) % 360
+            if round(dangle) in (90, 270):
+                x -= w // 2
+            elif 90 < dangle < 270:
+                x -= w
+            if round(dangle) in (0, 180):
+                y -= h // 2
+            elif dangle < 180:
+                y -= h
+            item.setPos(x, y)
+            self.scene.addItem(item)
+
+        if self.r_var:
+            font = self._label_font
+            r_var = self.computed_data.domain[1]
+            rbrush = QBrush(QColor(255, 255, 255, 224))
+            for i, label in enumerate(r_var.values):
+                item = QGraphicsSimpleTextItem(label)
+                item.setFont(font)
+                rect = item.boundingRect()
+                w, h = rect.width(), rect.height()
+                x = -w / 2
+                y = -r * (i + 1) / (self.ngroups + 0.5) - h // 2
+                item.setPos(x, y)
+                path = QPainterPath()
+                path.addRoundedRect(rect.adjusted(-2, -2, 2, 2), 4, 4)
+                ritem = QGraphicsPathItem(path)
+                ritem.setBrush(rbrush)
+                ritem.setPen(QPen(Qt.NoPen))
+                ritem.setPos(x, y)
+                self.scene.addItem(ritem)
+                self.scene.addItem(item)
+
+    def _period_label_items(self):
+        font = self._label_font
+        variable = self.computed_data.domain[0]
+        if variable.is_discrete:
+            labels = variable.values
+        else:
+            off = self.nperiods != 24
+            labels = [str(i + off) for i in range(self.nperiods)]
+        items = []
+        for label in labels:
+            item = QGraphicsSimpleTextItem(label)
+            item.setFont(font)
+            items.append(item)
+        return items
 
     def draw_legend(self):
         legend = self.legend
@@ -671,7 +888,10 @@ class OWSpiralogram(OWWidget):
                       + 20 * isinstance(legend, PaletteItemSample))
         self.scene.addItem(legend)
 
-    def _segment_clicked(self, segment, event):
+    # Selection
+    # ---------
+
+    def _on_segment_clicked(self, segment, event):
         if event.button() != Qt.LeftButton:
             event.ignore()
             return
@@ -697,7 +917,7 @@ class OWSpiralogram(OWWidget):
 
         self.select(target, flag)
 
-    def _scene_clicked(self):
+    def _on_scene_clicked(self):
         self.select(None, Clear)
 
     def select(self, selection, flag):
@@ -713,42 +933,12 @@ class OWSpiralogram(OWWidget):
             self.selection |= selection
 
         for coord in to_update:
-            self._segments[coord].set_selected(coord in self.selection)
+            if coord in self.segments:
+                self.segments[coord].set_selected(coord in self.selection)
         self.commit_selection()
 
-    def reblock(self):
-        self.computed_data = None
-        self.selection.clear()
-        self.commit_selection()
-        self.last_selected = None
-        self.radius = 0
-
-        self.block_data = self._compute_block_data() if self.data else None
-        self.recompute()
-
-    def recompute(self):
-        self.scene.clear()
-        self.computed_data = self._compute_data() if self.block_data else None
-        self.commit_statistics()
-        self.create_palette()
-        self.redraw()
-
-    def redraw(self):
-        self.scene.clear()
-        self._segments.clear()
-        if self.computed_data is None:
-            return
-        self.prepare_legend()
-        self.compute_geometry()
-        self.draw_segments()
-        self.draw_labels()
-        self.draw_legend()
-        self.view.setSceneRect(self.scene.itemsBoundingRect())
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if self.computed_data:
-            self.redraw()
+    # Commits
+    # -------
 
     def commit_statistics(self):
         self.Outputs.statistics.send(self.computed_data)
@@ -764,6 +954,7 @@ class OWSpiralogram(OWWidget):
 
 
 if __name__ == "__main__":
-    data = Timeseries.from_file('/Users/janez/Downloads/slovenia-traffic-accidents-2016-events.tab')
-    WidgetPreview(OWSpiralogram).run(data)
-
+    WidgetPreview(OWSpiralogram).run(
+        Timeseries.from_file(
+            '/Users/janez/Downloads/slovenia-traffic-accidents-2016-events.tab')
+    )
