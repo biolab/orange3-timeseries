@@ -405,6 +405,7 @@ class OWSpiralogram(OWWidget):
     settingsHandler = DomainContextHandler()
     x_var: Union[str, Variable] = ContextSetting(PeriodItems[0])
     r_var: Optional[Variable] = ContextSetting(None)
+    hide_r_labels: bool = Setting(False)
     color_var: Optional[Variable] = ContextSetting(None)
     aggregation: str = ContextSetting(next(iter(AggItems)))
 
@@ -454,10 +455,14 @@ class OWSpiralogram(OWWidget):
             box, self, "r_var", model=self.rad_model,
             callback=self._r_var_changed)
         self.r_binner = VariableBinner(self, "r_bins_index")
+        ibox = gui.indentedBox(box, 12)
         self.r_binner.create_control(
-            gui.indentedBox(box, 12),
+            ibox,
             callback=self._on_r_bins_changed,
             on_released=self._on_r_bin_slider_released)
+        gui.checkBox(
+            ibox, self, "hide_r_labels", "Hide inner labels",
+            callback=self.redraw)
 
         box = gui.vBox(self.controlArea, "Color")
         self.var_model = DomainModel(
@@ -673,7 +678,7 @@ class OWSpiralogram(OWWidget):
 
     def _resolve_pending_selection(self):
         if set(self._pending_selection) <= set(self.segments):
-            self.selection = self._pending_selection
+            self.selection = set(self._pending_selection)
             self.commit_selection()
         self._pending_selection = None
 
@@ -884,7 +889,7 @@ class OWSpiralogram(OWWidget):
             item.setPos(x, y)
             self.scene.addItem(item)
 
-        if self.r_var:
+        if self.r_var and not self.hide_r_labels:
             font = self._label_font
             r_var = self.computed_data.domain[1]
             rbrush = QBrush(QColor(255, 255, 255, 224))
