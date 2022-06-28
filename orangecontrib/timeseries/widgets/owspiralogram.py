@@ -403,12 +403,14 @@ class OWSpiralogram(OWWidget):
     graph_name = "view"
 
     settingsHandler = DomainContextHandler()
-    x_var: Union[str, Variable] = Setting(PeriodItems[0])
-    x_bins_index: int = ContextSetting(0)
+    x_var: Union[str, Variable] = ContextSetting(PeriodItems[0])
     r_var: Optional[Variable] = ContextSetting(None)
-    r_bins_index: int = ContextSetting(0)
     color_var: Optional[Variable] = ContextSetting(None)
-    aggregation: str = next(iter(AggItems))
+    aggregation: str = ContextSetting(next(iter(AggItems)))
+
+    _pending_selection: Optional[List[Tuple[int, int]]] = \
+        ContextSetting(None, schema_only=True)
+    _pending_bins: Optional[Tuple[int, int]] = ContextSetting(None)
 
     def __init__(self):
         super().__init__()
@@ -416,6 +418,9 @@ class OWSpiralogram(OWWidget):
 
         self.selection = set()
         self.last_selected = None  # reference for shift-click
+
+        self.r_bins_index = 0
+        self.x_bins_index = 0
 
         # Widget updates in three phases
         # block_data contains data independent of color_var selection and
@@ -478,6 +483,8 @@ class OWSpiralogram(OWWidget):
         self.view.setRenderHint(QPainter.Antialiasing)
         self.view.setScene(self.scene)
         self.mainArea.layout().addWidget(self.view)
+
+        self.settingsAboutToBePacked.connect(self.pack_settings)
 
     # Event handlers
     # --------------
@@ -556,27 +563,50 @@ class OWSpiralogram(OWWidget):
 
     @Inputs.time_series
     def set_data(self, data: Table):
+        self.closeContext()
+
+        self.data = data
         if not data:
             self.var_model.set_domain(None)
             self.rad_model.set_domain(None)
+            self.reblock()
+            return
 
-        self.data = data
-        del self.x_model[len(PeriodItems):]
+        self.x_model.clear()
+        if isinstance(data, Timeseries):
+            self.x_model[:] = PeriodItems
         valid_vars = [var
                       for var in data.domain.attributes if var.is_primitive()]
-        if valid_vars:
+        if self.x_model and valid_vars:
             self.x_model[len(self.x_model):] = [PyListModel.Separator]
-            # Todo: when https://github.com/biolab/orange-widget-base/pull/207
-            # is merged and released, replace the above line with
-            # self.x_model.append(PyListModel.Separator)
-            self.x_model += valid_vars
+        # Todo: when https://github.com/biolab/orange-widget-base/pull/207
+        # is merged and released, replace the above line with
+        # self.x_model.append(PyListModel.Separator)
+        self.x_model += valid_vars
 
         self.var_model.set_domain(data.domain)
         self.rad_model.set_domain(data.domain)
-        self._rebin()
         self.update_agg_combo()
+
+        self.openContext(data)
+        self._rebin()
+        if self._pending_bins:
+            self._resolve_pending_bins()
+
         # Doing this ensures that `redraw` gets proper size hint
         QTimer.singleShot(0, self.reblock)
+
+    def _resolve_pending_bins(self):
+        x, r = self._pending_bins
+        if self.x_binner.binnings:
+            self.x_bins_index = min(x, len(self.x_binner.binnings) - 1)
+        if self.r_binner.binnings:
+            self.r_bins_index = min(r, len(self.r_binner.binnings) - 1)
+        self._pending_bins = None
+
+    def pack_settings(self):
+        self._pending_selection = list(self.selection) or None
+        self._pending_bins = self.x_bins_index, self.r_bins_index
 
     @property
     def nperiods(self):
@@ -607,8 +637,11 @@ class OWSpiralogram(OWWidget):
     def reblock(self):
         """Invalidate, recompute, commit all data, starting from division"""
         self.computed_data = None
-        self.selection.clear()
-        self.commit_selection()
+        if self.selection:
+            self.selection.clear()
+            # If selection is non-empty, there can no longer be
+            # _pending_selection, so we commit None here
+            self.commit_selection()
         self.last_selected = None
 
         self.block_data = self.compute_block_data() if self.data else None
@@ -634,6 +667,15 @@ class OWSpiralogram(OWWidget):
         self.draw_labels()
         self.draw_legend()
         self.view.setSceneRect(self.scene.itemsBoundingRect())
+
+        if self._pending_selection:
+            self._resolve_pending_selection()
+
+    def _resolve_pending_selection(self):
+        if set(self._pending_selection) <= set(self.segments):
+            self.selection = self._pending_selection
+            self.commit_selection()
+        self._pending_selection = None
 
     # Recomputation
     # -------------
