@@ -9,7 +9,7 @@ from typing import Optional, Dict, Tuple, List, Callable, Union
 import numpy as np
 
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsSimpleTextItem, \
-    QGraphicsPathItem, QGraphicsItemGroup, QGraphicsRectItem
+    QGraphicsPathItem, QGraphicsItemGroup, QGraphicsRectItem, QSlider
 from AnyQt.QtCore import QTimer, Qt, QItemSelectionModel
 from AnyQt.QtGui import QPainterPath, QPen, QColor, QBrush, QPainter, \
     QFontMetrics
@@ -249,15 +249,17 @@ class VariableBinner:
     """
     Class for controlling a slider for binning variables
 
-    To use it, insert a control like this:
+    To use it, the widget has to create a setting called `binner_settings`,
+    with default value `{}`. Then insert a slider like:
 
     ```
-    self.binner = VariableBinner(self, "r_bins_index")
-    self.binner.create_control(box)
+    self.binner = VariableBinner(widget, self)
     ```
 
-    where `r_bins_index` will be (usually a context) setting. Additional
-    arguments, like callbacks and labels and also be provided.
+    If you use multiple binners in the widget, also provide a `binner_id`
+    argument (str or int).
+
+    Additional arguments, like callbacks and labels and also be provided.
 
     When the variables to which the binner refers is changed, extract the
     corresponding column (e.g. with obj:`Table.get_column_view`) and call
@@ -281,56 +283,50 @@ class VariableBinner:
     ```
 
     to obtain binned data.
-
-    Args:
-        master (OWWidget): widget that contains the control
-        bin_index_attr (str):
-            the widget's attribute for storing the current bin index
     """
-    def __init__(self, master: OWWidget, bin_index_attr: str):
+    def __init__(self, widget: QWidget, master: OWWidget,
+                 callback: Callable[[OWWidget], None],
+                 on_released: Callable[[OWWidget], None],
+                 hide_when_inactive: bool = False,
+                 label: str = "Bin width",
+                 binner_id: Union[str, int] = None):
         self.master = master
-        self.bin_index_attr = bin_index_attr
         self.binnings: List[BinDefinition] = []
-        self.bin_width_label = self.slider = None
+        self.hide_when_inactive = hide_when_inactive
+        self.binner_id = binner_id
 
-    def create_control(self,
-                       widget: OWWidget,
-                       callback: Callable[[OWWidget], None],
-                       on_released: Callable[[OWWidget], None],
-                       label: str="Bin width") -> Slider:
-        """
-        Create a slider and the corresponding label(s)
+        self.box = gui.hBox(widget)
+        gui.widgetLabel(self.box, label)
 
-        Args:
-            widget (QWidget): widget into which to insert the control
-                (e.g. controlArea or some box within it)
-            callback (Callable[QWidget]): callback for slider movement
-            on_released (Callable[QWidget]): called when slider is released
-            label (str): label to put before the slider
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.sliderMoved.connect(callback)
+        self.slider.sliderMoved.connect(self._set_bin_width_slider_label)
+        self.slider.sliderReleased.connect(on_released)
+        self.box.layout().addWidget(self.slider)
 
-        Returns:
-            a slider
-        """
-        slider = self.slider = gui.hSlider(
-            widget, self.master, self.bin_index_attr,
-            label=label, orientation=Qt.Horizontal,
-            minValue=0, maxValue=max(1, len(self.binnings) - 1),
-            createLabel=False, callback=callback)
-        self.bin_width_label = gui.widgetLabel(slider.box)
+        self.bin_width_label = gui.widgetLabel(self.box)
         self.bin_width_label.setFixedWidth(35)
         self.bin_width_label.setAlignment(Qt.AlignRight)
-        slider.valueChanged.connect(self._set_bin_width_slider_label)
-        slider.sliderReleased.connect(on_released)
-        return slider
+
+        self.master.settingsAboutToBePacked.connect(self.pack_settings)
 
     @property
     def bin_index(self) -> int:
         """Index of currently selected entry in binnings; for internal use"""
-        return getattr(self.master, self.bin_index_attr)
+        return self.slider.value()
 
     @bin_index.setter
     def bin_index(self, value: int):
-        setattr(self.master, self.bin_index_attr, value)
+        self.slider.setValue(value)
+
+    def slider_moved(self):
+        self._set_bin_width_slider_label()
+        if self.callback:
+            self.callback()
+
+    def pack_settings(self):
+        if self.binnings:
+            self.master.binner_settings[self.binner_id] = self.bin_index
 
     def recompute_binnings(self, column: np.ndarray, is_time: bool,
                            **binning_args):
@@ -348,12 +344,15 @@ class VariableBinner:
                 :obj:`Orange.preprocess.discretize.decimal_binnings` and
                 :obj:`Orange.preprocess.discretize.time_binnings`.
         """
-        if column is None or not np.any(np.isfinite(column)):
+        inactive = column is None or not np.any(np.isfinite(column))
+        if self.hide_when_inactive:
+            self.box.setVisible(not inactive)
+        else:
+            self.box.setDisabled(inactive)
+        if inactive:
             self.binnings = []
-            self.slider.box.setDisabled(True)
             return
 
-        self.slider.box.setDisabled(False)
         if is_time:
             self.binnings = time_binnings(column, **binning_args)
         else:
@@ -366,6 +365,11 @@ class VariableBinner:
         self.bin_width_label.setFixedWidth(width)
         max_bins = len(self.binnings) - 1
         self.slider.setMaximum(max_bins)
+
+        pending = self.master.binner_settings.get(self.binner_id, None)
+        if pending is not None:
+            self.bin_index = pending
+            del self.master.binner_settings[self.binner_id]
         if self.bin_index > max_bins:
             self.bin_index = max_bins
         self._set_bin_width_slider_label()
@@ -427,7 +431,7 @@ class OWSpiralogram(OWWidget):
 
     _pending_selection: Optional[List[Tuple[int, int]]] = \
         ContextSetting(None, schema_only=True)
-    _pending_bins: Optional[Tuple[int, int]] = ContextSetting(None)
+    binner_settings: Dict[Optional[str], int] = ContextSetting({})
 
     def __init__(self):
         super().__init__()
@@ -457,9 +461,8 @@ class OWSpiralogram(OWWidget):
         gui.comboBox(
             box, self, "x_var", model=self.x_model,
             callback=self._x_var_changed)
-        self.x_binner = VariableBinner(self, "x_bins_index")
-        self.x_binner.create_control(
-            gui.indentedBox(box, 12),
+        self.x_binner = VariableBinner(
+            gui.indentedBox(box, 12), self, binner_id="x", hide_when_inactive=True,
             callback=self._on_x_bins_changed,
             on_released=self._on_x_bin_slider_released)
 
@@ -470,10 +473,9 @@ class OWSpiralogram(OWWidget):
         gui.comboBox(
             box, self, "r_var", model=self.rad_model,
             callback=self._r_var_changed)
-        self.r_binner = VariableBinner(self, "r_bins_index")
         ibox = gui.indentedBox(box, 12)
-        self.r_binner.create_control(
-            ibox,
+        self.r_binner = VariableBinner(
+            ibox, self, binner_id="r", hide_when_inactive=True,
             callback=self._on_r_bins_changed,
             on_released=self._on_r_bin_slider_released)
         gui.checkBox(
@@ -611,23 +613,11 @@ class OWSpiralogram(OWWidget):
 
         self.openContext(data)
         self._rebin()
-        if self._pending_bins:
-            self._resolve_pending_bins()
-
         # Doing this ensures that `redraw` gets proper size hint
         QTimer.singleShot(0, self.reblock)
 
-    def _resolve_pending_bins(self):
-        x, r = self._pending_bins
-        if self.x_binner.binnings:
-            self.x_bins_index = min(x, len(self.x_binner.binnings) - 1)
-        if self.r_binner.binnings:
-            self.r_bins_index = min(r, len(self.r_binner.binnings) - 1)
-        self._pending_bins = None
-
     def pack_settings(self):
         self._pending_selection = list(self.selection) or None
-        self._pending_bins = self.x_bins_index, self.r_bins_index
 
     @property
     def nperiods(self):
