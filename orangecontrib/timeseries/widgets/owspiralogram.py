@@ -82,10 +82,12 @@ class SegmentItem(QGraphicsPathItem):
         path.arcTo(-r1, -r1, 2 * r1, 2 * r1, a11, a10 - a11)
         path.lineTo(x00, -y00)
         super().__init__(path, parent)
+        self.setAcceptHoverEvents(True)
 
         self.x = x
         self.r = r
         self.color = color
+        self.selected = selected
         self.setToolTip(tooltip)
         self.onclick = onclick
 
@@ -154,8 +156,13 @@ class SegmentItem(QGraphicsPathItem):
                    x, r, color, tooltip, selected, onclick, parent=parent)
 
     def set_selected(self, selected: bool):
-        """Change the border pen according to whether the segment is selected"""
-        if selected:
+        """Mark segment as (un)selected"""
+        self.selected = selected
+        self._update_pen()
+
+    def _update_pen(self):
+        """Set the border pen according to whether the segment is selected"""
+        if self.selected:
             self.setPen(QPen(Qt.blue, 3, Qt.DotLine))
         else:
             self.setPen(QPen(self.color.darker(150), 2))
@@ -163,6 +170,15 @@ class SegmentItem(QGraphicsPathItem):
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         if self.onclick:
             self.onclick(self, event)
+
+    def hoverEnterEvent(self, event: QGraphicsSceneHoverEvent):
+        if self.selected:
+            self.setPen(QPen(Qt.blue, 3))
+        else:
+            self.setPen(QPen(self.color.darker(200), 3))
+
+    def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent):
+        self._update_pen()
 
 
 @dataclass
