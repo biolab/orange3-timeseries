@@ -37,7 +37,7 @@ from Orange.widgets.utils.itemmodels import DomainModel, VariableListModel
 
 from orangecontrib.timeseries import Timeseries, time_blocks
 from orangecontrib.timeseries.functions import PeriodOptions, AggOptions
-
+from orangewidget.widget import Msg
 
 Clear = QItemSelectionModel.Clear
 ClearAndSelect = QItemSelectionModel.ClearAndSelect
@@ -121,6 +121,8 @@ class SegmentItem(QGraphicsPathItem):
         Returns:
             segment (SegmentItem)
         """
+        assert x < nperiods
+        assert r < ngroups
 
         # This could be vectorized, computed for all segments at once,
         # but we wouldn't gain much speed and greatle reduce readability
@@ -295,20 +297,30 @@ class VariableBinner:
         self.hide_when_inactive = hide_when_inactive
         self.binner_id = binner_id
 
-        self.box = gui.hBox(widget)
-        gui.widgetLabel(self.box, label)
+        self.box = self.slider = self.bin_width_label = None
+        self.setup_gui(widget, label)
+        assert self.box and self.slider and self.bin_width_label
 
-        self.slider = QSlider(Qt.Horizontal)
         self.slider.sliderMoved.connect(callback)
         self.slider.sliderMoved.connect(self._set_bin_width_slider_label)
         self.slider.sliderReleased.connect(on_released)
-        self.box.layout().addWidget(self.slider)
+        self.master.settingsAboutToBePacked.connect(self.pack_settings)
 
+    def setup_gui(self, widget: QWidget, label: str):
+        """
+        Create slider and label. Override for a different layout
+
+        Args:
+            widget (QWidget): the place where to insert the components
+            label: label to the left of the slider
+        """
+        self.box = gui.hBox(widget)
+        gui.widgetLabel(self.box, label)
+        self.slider = QSlider(Qt.Horizontal)
+        self.box.layout().addWidget(self.slider)
         self.bin_width_label = gui.widgetLabel(self.box)
         self.bin_width_label.setFixedWidth(35)
         self.bin_width_label.setAlignment(Qt.AlignRight)
-
-        self.master.settingsAboutToBePacked.connect(self.pack_settings)
 
     @property
     def bin_index(self) -> int:
@@ -419,6 +431,9 @@ class OWSpiralogram(OWWidget):
     class Outputs:
         statistics = Output("Statistics", Table, default=True)
         selected_data = Output("Selected data", Table)
+
+    class Error(OWWidget.Error):
+        no_useful_vars = Msg("Data has no useful variables")
 
     graph_name = "view"
 
@@ -531,12 +546,6 @@ class OWSpiralogram(OWWidget):
         self.recompute()
 
     def _rebin(self, binner=None, var=None):
-        if binner is None:
-            for binner_, var_ in ((self.x_binner, self.x_var),
-                                  (self.r_binner, self.r_var)):
-                self._rebin(binner_, var_)
-            return
-
         if isinstance(var, Variable) and var.is_continuous:
             column = self.data.get_column_view(var)[0].astype(float)
         else:
@@ -585,9 +594,11 @@ class OWSpiralogram(OWWidget):
     @Inputs.time_series
     def set_data(self, data: Table):
         self.closeContext()
+        self.Error.clear()
 
         self.data = data
         if not data:
+            self.x_model.clear()
             self.var_model.set_domain(None)
             self.rad_model.set_domain(None)
             self.reblock()
@@ -595,22 +606,27 @@ class OWSpiralogram(OWWidget):
 
         self.x_model.clear()
         if isinstance(data, Timeseries):
-            self.x_model[:] = PeriodItems
-        valid_vars = [var
-                      for var in data.domain.attributes if var.is_primitive()]
-        if self.x_model and valid_vars:
-            self.x_model[len(self.x_model):] = [PyListModel.Separator]
-        # Todo: when https://github.com/biolab/orange-widget-base/pull/207
-        # is merged and released, replace the above line with
-        # self.x_model.append(PyListModel.Separator)
-        self.x_model += valid_vars
+            assert data.time_variable
+            self.x_model[:] = PeriodItems + [PyListModel.Separator]
+        self.x_model += \
+            [var for var in data.domain.attributes if var.is_primitive()]
 
-        self.var_model.set_domain(data.domain)
+        if not self.x_model:
+            self.data = None
+            self.Error.no_useful_vars()
+            self.reblock()
+            return
+
+        self.x_var = self.x_model[0]
         self.rad_model.set_domain(data.domain)
+        self.r_var = None
+        self.var_model.set_domain(data.domain)
+
         self.update_agg_combo()
 
         self.openContext(data)
-        self._rebin()
+        self._rebin(self.x_binner, self.x_var)
+        self._rebin(self.r_binner, self.r_var)
         # Doing this ensures that `redraw` gets proper size hint
         QTimer.singleShot(0, self.reblock)
 
@@ -645,11 +661,11 @@ class OWSpiralogram(OWWidget):
 
     def reblock(self, *, nocommit=False):
         """Invalidate, recompute, commit all data, starting from division"""
-        self.computed_data = None
         if self.selection:
             self.selection.clear()
             # If selection is non-empty, there can no longer be
-            # _pending_selection, so we commit None here
+            # _pending_selection, so we commit None here without fearing
+            # committing twice (first None, then something)
             self.commit_selection()
         self.last_selected = None
 
@@ -699,7 +715,7 @@ class OWSpiralogram(OWWidget):
         data = self.data
         if self.is_time_period:
             period_desc = PeriodOptions[self.x_var]
-            attr_name = self._get_unique_name("Period")
+            attr_name = self._get_unique_name(period_desc.attr_name)
             x_attr, periods, x_data, _ = \
                 time_blocks(self.data, period_desc, attr_name, True)
         else:
@@ -711,7 +727,7 @@ class OWSpiralogram(OWWidget):
                 x_data = self.data.get_column_view(x_attr)[0]
             periods = np.arange(len(x_attr.values))
 
-        nperiods = len(periods)
+        nperiods = len(periods)  # property does not work at this point yet
         if self.r_var is None:
             return BlockData(
                 [x_attr],
@@ -757,8 +773,10 @@ class OWSpiralogram(OWWidget):
             else:
                 class_var = ContinuousVariable(name)
             color_data = self.data.get_column_view(self.color_var)[0]
-            values = np.array([agg_desc.block_transform(color_data[indices])
-                              for indices in self.block_data.indices.values()])
+            values = np.array([
+                agg_desc.block_transform(color_data[indices])
+                if indices.size else np.nan
+                for indices in self.block_data.indices.values()])
         else:
             class_var = values = None
 
