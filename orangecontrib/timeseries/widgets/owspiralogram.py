@@ -544,18 +544,16 @@ class OWSpiralogram(OWWidget):
         binner.recompute_binnings(column, column is not None and var.is_time)
 
     def _on_x_bins_changed(self):
-        self.reblock()
+        self.reblock(nocommit=True)
 
     def _on_x_bin_slider_released(self):
-        # TODO commit data from here, not _on_x_bins_changed
-        pass
+        self.commit_statistics()
 
     def _on_r_bins_changed(self):
-        self.reblock()
+        self.reblock(nocommit=True)
 
     def _on_r_bin_slider_released(self):
-        # TODO commit data from here, not _on_r_bins_changed
-        pass
+        self.commit_statistics()
 
     def update_agg_combo(self):
         aggcombo = self.controls.aggregation
@@ -645,7 +643,7 @@ class OWSpiralogram(OWWidget):
     # Recomputation and redrawing flow
     # --------------------------------
 
-    def reblock(self):
+    def reblock(self, *, nocommit=False):
         """Invalidate, recompute, commit all data, starting from division"""
         self.computed_data = None
         if self.selection:
@@ -656,12 +654,13 @@ class OWSpiralogram(OWWidget):
         self.last_selected = None
 
         self.block_data = self.compute_block_data() if self.data else None
-        self.recompute()
+        self.recompute(nocommit=nocommit)
 
-    def recompute(self):
+    def recompute(self, *, nocommit=False):
         """Invalidate, recompute, commit aggregation for given division"""
         self.computed_data = self.compute_data() if self.block_data else None
-        self.commit_statistics()
+        if not nocommit:
+            self.commit_statistics()
         self.redraw()
 
     def redraw(self):
