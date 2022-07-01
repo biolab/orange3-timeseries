@@ -14,6 +14,7 @@ from AnyQt.QtCore import QTimer, Qt, QItemSelectionModel
 from AnyQt.QtGui import QPainterPath, QPen, QColor, QBrush, QPainter, \
     QFontMetrics
 
+from orangewidget.widget import Msg
 from orangewidget.settings import Setting, ContextSetting
 from orangewidget.utils.itemmodels import PyListModel
 from orangewidget.utils.signals import Input, Output
@@ -35,9 +36,9 @@ from Orange.widgets.utils.colorpalettes import DefaultContinuousPalette, \
     ContinuousPalette, BinnedContinuousPalette
 from Orange.widgets.utils.itemmodels import DomainModel, VariableListModel
 
-from orangecontrib.timeseries import Timeseries, time_blocks
-from orangecontrib.timeseries.functions import PeriodOptions, AggOptions
-from orangewidget.widget import Msg
+from orangecontrib.timeseries import Timeseries
+from orangecontrib.timeseries.aggregate import \
+    PeriodOptions, AggOptions, time_blocks
 
 Clear = QItemSelectionModel.Clear
 ClearAndSelect = QItemSelectionModel.ClearAndSelect

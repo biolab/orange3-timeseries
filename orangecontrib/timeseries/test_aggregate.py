@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from orangecontrib.timeseries.functions import moving_sum, \
+from orangecontrib.timeseries.aggregate import moving_sum, \
     windowed_func, moving_count_nonzero, moving_count_defined, _windowed, \
     windowed_span, _windowed_weighted, windowed_linear_MA, \
     windowed_exponential_MA, windowed_cumsum, windowed_cumprod, windowed_mode, \
@@ -170,7 +170,7 @@ class TestMovingTransform(unittest.TestCase):
             _windowed_weighted(a, np.array([1, 0, -2]), 1),
             np.array([3 - 12, -4, -6, 4 - 8, -6, 4 - 16]))
 
-    @patch("orangecontrib.timeseries.functions._windowed_weighted")
+    @patch("orangecontrib.timeseries.aggregate._windowed_weighted")
     def test_windowed_MA(self, ww):
         a = np.array([3, 8, 6, 4, 2, 4, 6, 8])
 

@@ -17,8 +17,8 @@ from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries.functions import PeriodOptions, \
-    AggOptions, time_blocks
+from orangecontrib.timeseries.aggregate import \
+    PeriodOptions, AggOptions, time_blocks
 
 N_NONPERIODIC = \
     next(iter(i for i, p in enumerate(PeriodOptions.values()) if p.periodic))

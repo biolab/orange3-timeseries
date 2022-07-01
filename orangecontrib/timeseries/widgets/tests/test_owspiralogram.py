@@ -1,12 +1,12 @@
 import warnings
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 
 from AnyQt.QtGui import QColor
 from AnyQt.QtCore import Qt
-from PyQt5.QtWidgets import qApp
+from AnyQt.QtWidgets import qApp
 
 from orangewidget.tests.base import GuiTest
 
