@@ -1,63 +1,33 @@
-from typing import List
-
 import numpy as np
 
-from AnyQt.QtCore import QItemSelectionModel, Qt, QTimer, QItemSelection
-from AnyQt.QtWidgets import QListView
-
+from AnyQt.QtCore import Qt
 import pyqtgraph as pg
 
+from orangecontrib.timeseries.widgets.owperiodbase import OWPeriodBase
 from orangewidget.settings import Setting
 from orangewidget.utils.widgetpreview import WidgetPreview
 
-from Orange.data import Table, ContinuousVariable
-from Orange.widgets import widget, gui
+from Orange.widgets import gui
 from Orange.widgets.utils.colorpalettes import DefaultDiscretePalette, Glasbey
-from Orange.widgets.utils.itemmodels import VariableListModel
-from Orange.widgets.widget import Input
 
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
 
 
-class OWCorrelogram(widget.OWWidget):
+class OWCorrelogram(OWPeriodBase):
     # TODO: allow computing cross-correlation of two distinct series
     name = 'Correlogram'
     description = "Visualize variables' auto-correlation."
     icon = 'icons/Correlogram.svg'
     priority = 110
 
-    class Inputs:
-        time_series = Input("Time series", Table)
-
-    # Selected attributes are stored as strings. They are always continuous,
-    # so there's nothing to match, and storing as Variable would require
-    # context handler.
     use_pacf = Setting(False)
     use_confint = Setting(True)
-    selection: List[str] = Setting([], schema_only=True)
 
-    graph_name = 'plot'
-
-    class Error(widget.OWWidget.Error):
-        no_instances = widget.Msg("Data contains just a single instance")
-        no_variables = widget.Msg("Data doesn't contain any numeric variables")
+    yrange = (-1, 1)
 
     def __init__(self):
-        self.data = None
-        self.model = VariableListModel()
-        self._cached = {}
-        self.persistent_selection = self.selection
-
-        listbox = QListView(self)
-        listbox.setModel(self.model)
-        self.controlArea.layout().addWidget(listbox)
-
-        self.selectionModel = listbox.selectionModel()
-        self.selectionModel.selectionChanged.connect(self._selection_changed)
-        listbox.setSelectionModel(self.selectionModel)
-        listbox.setSelectionMode(QListView.ExtendedSelection)
-
+        super().__init__()
         gui.separator(self.controlArea)
         gui.checkBox(self.controlArea, self, 'use_pacf',
                      label='Compute partial auto-correlation',
@@ -66,66 +36,12 @@ class OWCorrelogram(widget.OWWidget):
                      label='Plot 95% significance interval',
                      callback=self.replot)
 
-        self.plot_widget = pg.PlotWidget(background="w")
-        self.plot = self.plot_widget.getPlotItem()
-        self.plot.setYRange(-1, 1)
-        self.plot.buttonsHidden = False
-        self.plot.vb.setMouseEnabled(x=True, y=False)
-        self.mainArea.layout().addWidget(self.plot_widget)
-        self.plot.sigYRangeChanged.connect(self._rescale_y)
-
-    def _rescale_y(self):
-        QTimer.singleShot(1, lambda: self.plot.setYRange(-1, 1))
-
     def acf(self, attr, pacf, confint):
         if attr not in self._cached:
             x = self.data.interp(attr).ravel()
             func = partial_autocorrelation if pacf else autocorrelation
             self._cached[attr] = func(x, alpha=.05 if confint else None)
         return self._cached[attr]
-
-    @Inputs.time_series
-    def set_data(self, data):
-        self.plot.clear()
-        self._cached.clear()
-        self.Error.clear()
-
-        if self.selection:
-            self.persistent_selection = self.selection[:]
-
-        if not data or len(data) < 2:
-            self.Error.no_instances(shown=bool(data))
-            self.data = None
-            self.model.clear()
-            return
-
-        self.data = Timeseries.from_data_table(data)
-        self.model[:] = [
-            var for var in self.data.domain.variables
-            if isinstance(var, ContinuousVariable)
-               and var is not self.data.time_variable]
-        if not self.model:
-            self.Error.no_variables()
-            self.data = None
-            return
-
-        item_selection = QItemSelection()
-        names = [attr.name for attr in self.model]
-        selection = [
-            names.index(name)
-            for name in self.persistent_selection
-            if name in names]
-        for idx in selection or [0]:
-            index = self.model.index(idx)
-            item_selection.select(index, index)
-        self.selectionModel.select(item_selection,
-                                   QItemSelectionModel.ClearAndSelect)
-
-    def _selection_changed(self):
-        self.selection = [
-            self.model.data(index)
-            for index in self.selectionModel.selectedIndexes()]
-        self.replot()
 
     def replot(self):
         self.plot.clear()

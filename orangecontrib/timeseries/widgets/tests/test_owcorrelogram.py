@@ -10,6 +10,8 @@ from orangecontrib.timeseries import Timeseries
 from orangecontrib.timeseries.widgets.owcorrelogram import OWCorrelogram
 
 
+# This also test PeriodBase class
+
 class TestCorrelogramWidget(WidgetTest):
     def setUp(self):
         self.widget: OWCorrelogram = self.create_widget(OWCorrelogram)
