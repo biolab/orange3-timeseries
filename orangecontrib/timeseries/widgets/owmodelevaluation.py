@@ -53,11 +53,11 @@ class OWModelEvaluation(widget.OWWidget):
         box = gui.vBox(self.controlArea, 'Evaluation Parameters')
         gui.spin(box, self, 'n_folds', 1, 100,
                  label='Number of folds:',
-                 callback=self.on_changed)
+                 callback=self.commit.deferred)
         gui.spin(box, self, 'forecast_steps', 1, 100,
                  label='Forecast steps:',
-                 callback=self.on_changed)
-        gui.auto_commit(box, self, 'autocommit', '&Apply')
+                 callback=self.commit.deferred)
+        gui.auto_commit(self.buttonsArea, self, 'autocommit', '&Apply')
         gui.rubber(self.controlArea)
 
         self.model = model = PyTableModel(parent=self)
@@ -72,9 +72,7 @@ class OWModelEvaluation(widget.OWWidget):
 
     @Inputs.time_series
     def set_data(self, data):
-        self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data)
-        self.on_changed()
+        self.data = None if data is None else Timeseries.from_data_table(data)
 
     @Inputs.time_series_model
     def set_model(self, model, id):
@@ -82,11 +80,11 @@ class OWModelEvaluation(widget.OWWidget):
             self._models.pop(id, None)
         else:
             self._models[id] = model.copy()
-        self.on_changed()
 
-    def on_changed(self):
-        self.commit()
+    def handleNewSignals(self):
+        self.commit.now()
 
+    @gui.deferred
     def commit(self):
         self.Error.unexpected_error.clear()
         self.Warning.model_failed.clear()
