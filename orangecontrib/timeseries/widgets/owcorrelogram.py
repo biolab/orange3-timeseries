@@ -8,7 +8,6 @@ from orangewidget.settings import Setting
 from orangewidget.utils.widgetpreview import WidgetPreview
 
 from Orange.widgets import gui
-from Orange.widgets.utils.colorpalettes import DefaultDiscretePalette, Glasbey
 
 from orangecontrib.timeseries import (
     Timeseries, autocorrelation, partial_autocorrelation)
@@ -48,12 +47,9 @@ class OWCorrelogram(OWPeriodBase):
         if not self.selection:
             return
 
-        palette = DefaultDiscretePalette
-        if len(self.selection) > len(palette):
-            palette = Glasbey
-
         self.plot_widget.addItem(pg.InfiniteLine(0, 0, pen=pg.mkPen(0., width=2)))
 
+        palette = self.get_palette()
         for i, attr in enumerate(self.selection):
             color = palette.value_to_qcolor(i)
             x, acf = np.array(self.acf(attr, self.use_pacf, False)).T

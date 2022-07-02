@@ -1,3 +1,4 @@
+from html import escape
 from typing import List
 
 from AnyQt.QtCore import QItemSelectionModel, QTimer, QItemSelection
@@ -11,6 +12,8 @@ from orangewidget.settings import Setting
 from Orange.data import Table, ContinuousVariable
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.widget import OWWidget, Input, Msg
+from Orange.widgets.utils.colorpalettes import DefaultDiscretePalette, Glasbey
+from Orange.widgets.visualize.owdistributions import LegendItem
 
 
 class OWPeriodBase(OWWidget, openclass=True):
@@ -51,6 +54,28 @@ class OWPeriodBase(OWWidget, openclass=True):
         self.plot.vb.setMouseEnabled(x=True, y=False)
         self.mainArea.layout().addWidget(self.plot_widget)
         self.plot.sigYRangeChanged.connect(self._rescale_y)
+
+        self.legend = self._create_legend(((1, 0), (1, 0)))
+
+    def _create_legend(self, anchor):
+        legend = LegendItem()
+        legend.setLabelTextSize("12pt")
+        legend.setParentItem(self.plot.vb)
+        legend.restoreAnchor(anchor)
+        legend.hide()
+        return legend
+
+    def update_legend(self):
+        self.legend.clear()
+        if not self.selection:
+            self.legend.hide()
+            return
+
+        for name, color in zip(self.selection, self.get_palette()):
+            dot = pg.ScatterPlotItem(pen=color, brush=color, size=10, shape="s")
+            self.legend.addItem(dot, escape(name))
+        self.legend.show()
+
 
     def _rescale_y(self):
         QTimer.singleShot(1, lambda: self.plot.setYRange(*self.yrange))
@@ -96,4 +121,10 @@ class OWPeriodBase(OWWidget, openclass=True):
         self.selection = [
             self.model.data(index)
             for index in self.selectionModel.selectedIndexes()]
+        self.update_legend()
         self.replot()
+
+    def get_palette(self):
+        if len(self.selection) > len(DefaultDiscretePalette):
+            return Glasbey
+        return DefaultDiscretePalette

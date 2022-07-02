@@ -1,8 +1,6 @@
 import numpy as np
 import pyqtgraph as pg
 
-from Orange.widgets.utils.colorpalettes import DefaultDiscretePalette, Glasbey
-
 from orangewidget.utils.widgetpreview import WidgetPreview
 
 from orangecontrib.timeseries import \
@@ -43,10 +41,7 @@ class OWPeriodogram(OWPeriodBase):
         if not self.selection:
             return
 
-        palette = DefaultDiscretePalette
-        if len(self.selection) > len(palette):
-            palette = Glasbey
-
+        palette = self.get_palette()
         for i, attr in enumerate(self.selection):
             color = palette.value_to_qcolor(i)
             periods, grams = self.periodogram(attr)
