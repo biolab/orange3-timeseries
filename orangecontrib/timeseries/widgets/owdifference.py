@@ -1,19 +1,25 @@
-from enum import Enum
+from functools import partial
+from typing import List, NamedTuple
 
 import numpy as np
 
 from AnyQt.QtCore import Qt
-from AnyQt.QtWidgets import QListView, QButtonGroup, QRadioButton
+from AnyQt.QtWidgets import QListView
 
 from Orange.data import Table, Domain, ContinuousVariable
+from Orange.data.util import get_unique_names
 from Orange.widgets import widget, gui, settings
-from Orange.widgets.settings import DomainContextHandler, ContextSetting
-from Orange.widgets.utils.itemmodels import VariableListModel, select_rows, \
-    signal_blocking
+from Orange.widgets.utils.itemmodels import VariableListModel, signal_blocking, \
+    select_rows
 from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries.widgets.utils import available_name
+from orangewidget.utils.widgetpreview import WidgetPreview
+
+
+class OpDesc(NamedTuple):
+    name: str
+    prefix: str
 
 
 class OWDifference(widget.OWWidget):
@@ -30,186 +36,152 @@ class OWDifference(widget.OWWidget):
     class Outputs:
         time_series = Output("Time series", Timeseries)
 
-    settingsHandler = DomainContextHandler()
-    selected = ContextSetting([], schema_only=True)
+    Operations = [
+        OpDesc("First order difference", "Δ"),
+        OpDesc("Second order difference", "ΔΔ"),
+        OpDesc("Change quotient", "q"),
+        OpDesc("Percentage change", "%"),
+    ]
 
-    class Operation(str, Enum):
-        DIFF = 'Difference'
-        QUOT = 'Quotient'
-        PERC = 'Percentage change'
+    Diff, Diff2, Quot, Perc = range(4)
 
     want_main_area = False
     resizing_enabled = False
 
-    chosen_operation = settings.Setting(Operation.DIFF)
-    diff_order = settings.Setting(1)
+    operation = settings.Setting(Diff)
     shift_period = settings.Setting(1)
     invert_direction = settings.Setting(False)
+    selection: List[str] = settings.Setting([])
     autocommit = settings.Setting(True)
-
-    UserAdviceMessages = [
-        widget.Message('Series can be differentiated up to the 2nd order. '
-                       'However, if the series is shifted by other than 1 '
-                       'step, a differencing order of 1 is always assumed.',
-                       'diff-shift')
-    ]
 
     def __init__(self):
         self.data = None
+        self.selection = self.persistent_selection = []
 
-        box = gui.vBox(self.controlArea, 'Differencing')
-
-        gui.comboBox(box, self, 'chosen_operation',
-                     orientation=Qt.Horizontal,
-                     items=[el.value for el in self.Operation],
-                     label='Compute:',
-                     callback=self.on_changed,
-                     sendSelectedValue=True)
-
-        self.order_spin = gui.spin(
-            box, self, 'diff_order', 1, 2,
-            label='Differencing order:',
-            callback=self.on_changed,
-            tooltip='The value corresponds to n-th order numerical '
-                    'derivative of the series. \nThe order is fixed to 1 '
-                    'if the shift period is other than 1.')
-        gui.spin(box, self, 'shift_period', 1, 100,
-                 label='Shift:',
-                 callback=self.on_changed,
-                 tooltip='Set this to other than 1 if you don\'t want to '
-                         'compute differences for subsequent values but for '
-                         'values shifted number of spaces apart. \n'
-                         'If this value is different from 1, differencing '
-                         'order is fixed to 1.')
-        gui.checkBox(box, self, 'invert_direction',
-                     label='Invert differencing direction',
-                     callback=self.on_changed,
-                     tooltip='Influences where the series is padded with nan '
-                             'values — at the beginning or at the end.')
         self.view = view = QListView(self,
                                      selectionMode=QListView.ExtendedSelection)
-        self.model = model = VariableListModel(parent=self)
-        view.setModel(model)
-        view.selectionModel().selectionChanged.connect(self.on_changed)
-        box.layout().addWidget(view)
-        gui.auto_commit(box, self, 'autocommit', '&Apply')
+        self.model = VariableListModel(parent=self)
+        view.setModel(self.model)
+        view.selectionModel().selectionChanged.connect(self._selection_changed)
+        self.controlArea.layout().addWidget(view)
+
+        box = gui.vBox(self.controlArea, "Operation")
+        gui.radioButtonsInBox(
+            box, self, 'operation',
+            [op.name for op in self.Operations],
+            callback=self._operation_changed)
+        gui.separator(box)
+
+        sp = gui.spin(
+            box, self, 'shift_period', 1, 100, label='Shift:',
+            controlWidth=60, alignment=Qt.AlignRight,
+            callback=self.commit.deferred,
+            tooltip="Sets the distance between points; 1 for consecutive points"
+        )
+        gui.rubber(sp.box)
+
+        gui.checkBox(
+            box, self, 'invert_direction', 'Invert differencing direction',
+            callback=self.commit.deferred)
+
+        gui.auto_commit(self.buttonsArea, self, 'autocommit', '&Apply')
+
+    def _operation_changed(self):
+        self.controls.shift_period.box.setEnabled(self.operation != self.Diff2)
+        self.commit.deferred()
+
+    def _selection_changed(self):
+        self.selection = [
+            self.model.data(index)
+            for index in self.view.selectionModel().selectedRows()]
+        self.commit.deferred()
 
     @Inputs.time_series
     def set_data(self, data):
-        self.closeContext()
-        self.data = data = None if data is None else \
-                           Timeseries.from_data_table(data)
-        if data is not None:
-            self.model[:] = [var for var in data.domain.variables
-                             if var.is_continuous and var is not
-                             data.time_variable]
-            self.select_default_variable()
-            self.openContext(self.data)
-            self._restore_selection()
-        else:
-            self.reset_model()
-        self.on_changed()
+        if self.selection:
+            self.persistent_selection = self.selection[:]
 
-    def _restore_selection(self):
-        def restore(view, selection):
-            with signal_blocking(view.selectionModel()):
-                # gymnastics for transforming variable names back to indices
-                var_list = [var for var in self.data.domain.variables
-                            if var.is_continuous and var is not
-                            self.data.time_variable]
-                indices = [var_list.index(i) for i in selection]
-                select_rows(view, indices)
-        restore(self.view, self.selected)
+        if not data:
+            self.data = None
+            self.model.clear()
+            self.commit.now()
+            return
 
-    def select_default_variable(self):
-        self.selected = [0]
-        select_rows(self.view, self.selected)
+        self.data = Timeseries.from_data_table(data)
+        self.model[:] = [var for var in data.domain.variables
+                         if var.is_continuous and var is not
+                         self.data.time_variable]
 
-    def reset_model(self):
-        self.model.wrap([])
+        names = [attr.name for attr in self.model]
+        self.selection = [name for name in self.persistent_selection
+                          if name in names]
+        with signal_blocking(self.view.selectionModel()):
+            select_rows(self.view,
+                        [names.index(name) for name in self.selection])
+        self.commit.now()
 
-    def on_changed(self):
-        var_names = [i.row()
-                     for i in self.view.selectionModel().selectedRows()]
-        self.order_spin.setEnabled(
-            self.shift_period == 1
-            and self.chosen_operation == self.Operation.DIFF)
-        self.selected = [self.model[v] for v in var_names]
-        self.commit()
-
+    @gui.deferred
     def commit(self):
         data = self.data
-        if not data or not len(self.selected):
+        if not data:
             self.Outputs.time_series.send(None)
             return
 
-        X = []
+        attrs, columns = self.compute(data, self.selection)
+        domain = data.domain
+        out_domain = Domain(
+            domain.attributes + attrs, domain.class_vars, domain.metas)
+        ts = Timeseries.from_numpy(
+            out_domain,
+            np.column_stack((data.X, columns)), data.Y, data.metas,
+            time_attr=data.time_variable)
+        self.Outputs.time_series.send(ts)
+
+    def compute(self, data, attr_names):
+        columns = []
         attrs = []
-        invert = self.invert_direction
         shift = self.shift_period
-        order = self.diff_order
-        op = self.chosen_operation
+        name_prefix = self.Operations[self.operation].prefix
+        name_postfix = f":{shift}" if shift != 1 else ""
+        op = self.operation
+        get_unique = partial(get_unique_names, data.domain)
 
-        for var in self.selected:
-            col = np.ravel(data[:, var])
-
-            if invert:
+        for name in attr_names:
+            col = data.get_column_view(name)[0]
+            if self.invert_direction:
                 col = col[::-1]
 
-            out = np.empty(len(col))
-            if op == self.Operation.DIFF and shift == 1:
-                out[order:] = np.diff(col, order)
-                out[:order] = np.nan
+            out = np.full(len(col), np.nan)
+            number_of_decimals = data.domain[name].number_of_decimals
+            if op == self.Diff:
+                out[shift:] = col[shift:] - col[:-shift]
+            elif op == self.Diff2:
+                out[2:] = np.diff(col, 2)
             else:
-                if op == self.Operation.DIFF:
-                    out[shift:] = col[shift:] - col[:-shift]
-                else:
-                    out[shift:] = np.divide(col[shift:], col[:-shift])
-                    if op == self.Operation.PERC:
-                        out = (out - 1) * 100
-                out[:shift] = np.nan
-
-            if invert:
+                assert op in (self.Quot, self.Perc)
+                quots = col[:-shift].copy()
+                zeros = quots == 0
+                quots[zeros] = 1
+                out[shift:] = col[shift:] / quots
+                if op == self.Perc:
+                    out = (out - 1) * 100
+                out[shift:][zeros] = np.nan
+                number_of_decimals = 3
+            if self.invert_direction:
                 out = out[::-1]
 
-            X.append(out)
+            columns.append(out)
+            attr = ContinuousVariable(
+                name=get_unique(name_prefix + name + name_postfix),
+                number_of_decimals=number_of_decimals)
+            attrs.append(attr)
 
-            if op == self.Operation.DIFF and shift == 1:
-                details = f'order={order}'
-            else:
-                details = f'shift={shift}'
-
-            template = f'{var} ({op[:4].lower()}; {details})'
-            name = available_name(data.domain, template)
-            attrs.append(ContinuousVariable(name))
-
-        ts = Timeseries.from_numpy(Domain(data.domain.attributes + tuple(attrs),
-                                          data.domain.class_vars,
-                                          data.domain.metas),
-                                   np.column_stack((data.X, np.column_stack(X))),
-                                   data.Y, data.metas)
-        ts.time_variable = data.time_variable
-        self.Outputs.time_series.send(ts)
+        if columns:
+            columns = np.column_stack(columns)
+        else:
+            columns = np.zeros((len(data), 0), dtype=float)
+        return tuple(attrs), columns
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-
-    a = QApplication([])
-    ow = OWDifference()
-
-    data = Timeseries.from_file('airpassengers')
-    # Make Adjusted Close a class variable
-    attrs = [var.name for var in data.domain.attributes]
-    if 'Adj Close' in attrs:
-        attrs.remove('Adj Close')
-        data = Timeseries.from_table(Domain(attrs,
-                                            [data.domain['Adj Close']],
-                                            None,
-                                            source=data.domain),
-                                     data)
-
-    ow.set_data(data)
-
-    ow.show()
-    a.exec()
+    WidgetPreview(OWDifference).run(set_data=Table.from_file('iris'))
