@@ -1,8 +1,9 @@
 import unittest
 
 import numpy as np
+from AnyQt.QtCore import QItemSelectionModel
 
-from Orange.data import Domain, ContinuousVariable
+from Orange.data import Table, Domain, ContinuousVariable
 from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.timeseries import Timeseries
@@ -11,7 +12,7 @@ from orangecontrib.timeseries.widgets.owcorrelogram import OWCorrelogram
 
 class TestCorrelogramWidget(WidgetTest):
     def setUp(self):
-        self.widget = self.create_widget(OWCorrelogram)  # type: OWCorrelogram
+        self.widget: OWCorrelogram = self.create_widget(OWCorrelogram)
 
     def test_nan_timeseries(self):
         """
@@ -32,19 +33,62 @@ class TestCorrelogramWidget(WidgetTest):
         self.send_signal(self.widget.Inputs.time_series, time_series)
 
     def test_no_instances(self):
-        """
-        At least two instances are required.
-        GH-45
-        """
-        def assert_error_shown(data, is_shown):
-            self.send_signal(self.widget.Inputs.time_series, data)
-            self.assertEqual(self.widget.Error.no_instances.is_shown(), is_shown)
-
         ts = Timeseries.from_file("airpassengers")
 
         self.assertFalse(self.widget.Error.no_instances.is_shown())
-        for data, is_shown in ((ts[:1], True), (ts, False), (ts[:0], True), (None, False)):
-            assert_error_shown(data, is_shown)
+
+        self.send_signal(self.widget.Inputs.time_series, ts[:1])
+        self.assertTrue(self.widget.Error.no_instances.is_shown())
+
+        self.send_signal(self.widget.Inputs.time_series, ts)
+        self.assertFalse(self.widget.Error.no_instances.is_shown())
+
+        self.send_signal(self.widget.Inputs.time_series, ts[:1])
+        self.assertTrue(self.widget.Error.no_instances.is_shown())
+
+        self.send_signal(self.widget.Inputs.time_series, None)
+        self.assertFalse(self.widget.Error.no_instances.is_shown())
+
+    def test_no_numeric(self):
+        self.send_signal(self.widget.Inputs.time_series, Table("titanic"))
+        self.assertTrue(self.widget.Error.no_variables.is_shown())
+
+        self.send_signal(self.widget.Inputs.time_series, None)
+        self.assertFalse(self.widget.Error.no_variables.is_shown())
+
+    def test_selection_persistence(self):
+        data = Timeseries.from_numpy(
+            Domain([ContinuousVariable(n) for n in "abcd"]),
+            np.arange(16).reshape(4, 4))
+        self.send_signal(self.widget.Inputs.time_series, data)
+
+        index = self.widget.model.index
+        selmodel = self.widget.selectionModel
+        selmodel.select(index(1), QItemSelectionModel.ClearAndSelect)
+        selmodel.select(index(3), QItemSelectionModel.Select)
+
+        self.assertEqual(self.widget.selection, ["b", "d"])
+
+        self.send_signal(self.widget.Inputs.time_series, None)
+        self.assertEqual(self.widget.selection, [])
+
+        self.send_signal(self.widget.Inputs.time_series, data)
+        self.assertEqual(self.widget.selection, ["b", "d"])
+
+        self.send_signal(self.widget.Inputs.time_series, None)
+        self.assertEqual(self.widget.selection, [])
+
+        self.send_signal(self.widget.Inputs.time_series, data[:, 1:])
+        self.assertEqual(self.widget.selection, ["b", "d"])
+
+        self.send_signal(self.widget.Inputs.time_series, None)
+        self.assertEqual(self.widget.selection, [])
+
+        self.send_signal(self.widget.Inputs.time_series, data)
+        self.assertEqual(self.widget.selection, ["b", "d"])
+
+        self.send_signal(self.widget.Inputs.time_series, data[:, 3:])
+        self.assertEqual(self.widget.selection, ["d"])
 
 
 if __name__ == "__main__":
