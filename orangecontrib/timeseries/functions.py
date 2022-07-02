@@ -164,6 +164,8 @@ def periodogram_nonequispaced(times, x, *, freqs=None,
     else:
         periods = 2 * np.pi / freqs
 
+    if times.base is not None:
+        times = times.copy()  # lombscargle is Pythonized and doesn't like views
     pgram = lombscargle(times, x, freqs)
     # Normalize -- I have no idea what I am doing; took this from
     # https://jakevdp.github.io/blog/2015/06/13/lomb-scargle-in-python/#lomb-scargle-algorithms-in-python
