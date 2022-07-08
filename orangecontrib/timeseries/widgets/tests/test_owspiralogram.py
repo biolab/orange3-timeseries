@@ -203,19 +203,12 @@ class TestOWSpiralogram(WidgetTest):
             out.X,
             [[0, 0, 3],
              [0, 1, 1],
-             [0, 2, 0],
-             [1, 0, 0],
              [1, 1, 1],
-             [1, 2, 0],
              [2, 0, 1],
              [2, 1, 1],
              [2, 2, 1],
-             [3, 0, 0],
              [3, 1, 1],
-             [3, 2, 0],
-             [4, 0, 0],
-             [4, 1, 1],
-             [4, 2, 0]])
+             [4, 1, 1]])
 
     def test_x_r_changes_bins(self):
         widget = self.widget
@@ -531,9 +524,9 @@ class TestOWSpiralogram(WidgetTest):
         self.assertEqual(len(data.domain.attributes), 3)
         self.assertEqual(data.domain.attributes[:2], (a, b))
         self.assertIsInstance(data.domain.attributes[2], ContinuousVariable)
-        np.testing.assert_equal(data.get_column_view(0)[0], columns[0])
-        np.testing.assert_equal(data.get_column_view(1)[0], columns[1])
-        np.testing.assert_equal(data.get_column_view(2)[0], counts)
+        np.testing.assert_equal(data.get_column_view(0)[0], [0, 2])
+        np.testing.assert_equal(data.get_column_view(1)[0], [0, 1])
+        np.testing.assert_equal(data.get_column_view(2)[0], [6, 4])
 
         self.change_color(3)  # c
         widget.aggregation = "Mean value"
@@ -544,12 +537,12 @@ class TestOWSpiralogram(WidgetTest):
         self.assertEqual(data.domain.class_var.name, "c (mean)")
         # clones old variable, but with new name
         self.assertEqual(data.domain.class_var.number_of_decimals, 8)
-        np.testing.assert_equal(data.get_column_view(0)[0], columns[0])
-        np.testing.assert_equal(data.get_column_view(1)[0], columns[1])
-        np.testing.assert_equal(data.get_column_view(2)[0], counts)
+        np.testing.assert_equal(data.get_column_view(0)[0], [0, 2])
+        np.testing.assert_equal(data.get_column_view(1)[0], [0, 1])
+        np.testing.assert_equal(data.get_column_view(2)[0], [6, 4])
         means = np.full(len(data), np.nan)
         means[0] = np.mean(c_column[:6])
-        means[2 * 5 + 1] = np.mean(c_column[6:])
+        means[1] = np.mean(c_column[6:])
         np.testing.assert_equal(data.Y, means)
 
         widget.aggregation = "Variance"
@@ -559,7 +552,7 @@ class TestOWSpiralogram(WidgetTest):
         self.assertEqual(data.domain.class_var.number_of_decimals, 3)
         vars_ = np.full(len(data), np.nan)
         vars_[0] = np.var(c_column[:6])
-        vars_[2 * 5 + 1] = np.var(c_column[6:])
+        vars_[1] = np.var(c_column[6:])
         np.testing.assert_equal(data.Y, vars_)
 
 

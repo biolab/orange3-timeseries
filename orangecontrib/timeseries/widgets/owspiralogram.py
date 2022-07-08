@@ -288,9 +288,10 @@ class VariableBinner:
     to obtain binned data.
     """
     def __init__(self, widget: QWidget, master: OWWidget,
-                 callback: Callable[[OWWidget], None],
-                 on_released: Callable[[OWWidget], None],
+                 callback: Callable[[OWWidget], None] = None,
+                 on_released: Callable[[OWWidget], None] = None,
                  hide_when_inactive: bool = False,
+                 show_width: bool = True,
                  label: str = "Bin width",
                  binner_id: Union[str, int] = None):
         self.master = master
@@ -299,15 +300,19 @@ class VariableBinner:
         self.binner_id = binner_id
 
         self.box = self.slider = self.bin_width_label = None
-        self.setup_gui(widget, label)
-        assert self.box and self.slider and self.bin_width_label
+        self.setup_gui(widget, label, show_width)
+        assert self.box and self.slider \
+               and (self.bin_width_label or not show_width)
 
-        self.slider.sliderMoved.connect(callback)
-        self.slider.sliderMoved.connect(self._set_bin_width_slider_label)
-        self.slider.sliderReleased.connect(on_released)
-        self.master.settingsAboutToBePacked.connect(self.pack_settings)
+        if show_width:
+            self.slider.valueChanged.connect(self._set_bin_width_slider_label)
+        if callback:
+            self.slider.valueChanged.connect(callback)
+        if on_released:
+            self.slider.sliderReleased.connect(on_released)
+        self.master.settingsAboutToBePacked.connect(self._pack_settings)
 
-    def setup_gui(self, widget: QWidget, label: str):
+    def setup_gui(self, widget: QWidget, label: str, show_width: bool):
         """
         Create slider and label. Override for a different layout
 
@@ -319,9 +324,28 @@ class VariableBinner:
         gui.widgetLabel(self.box, label)
         self.slider = QSlider(Qt.Horizontal)
         self.box.layout().addWidget(self.slider)
-        self.bin_width_label = gui.widgetLabel(self.box)
-        self.bin_width_label.setFixedWidth(35)
-        self.bin_width_label.setAlignment(Qt.AlignRight)
+        if show_width:
+            self.bin_width_label = gui.widgetLabel(self.box)
+            self.bin_width_label.setFixedWidth(35)
+            self.bin_width_label.setAlignment(Qt.AlignRight)
+
+    def _pack_settings(self):
+        if self.binnings:
+            self.master.binner_settings[self.binner_id] = self.bin_index
+
+    @staticmethod
+    def _short_text(label):
+        return reduce(
+            lambda s, rep: s.replace(*rep),
+            short_time_units.items(), label)
+
+    def _set_bin_width_slider_label(self):
+        if self.bin_index < len(self.binnings):
+            text = self._short_text(
+                self.binnings[self.bin_index].width_label)
+        else:
+            text = ""
+        self.bin_width_label.setText(text)
 
     @property
     def bin_index(self) -> int:
@@ -331,15 +355,6 @@ class VariableBinner:
     @bin_index.setter
     def bin_index(self, value: int):
         self.slider.setValue(value)
-
-    def slider_moved(self):
-        self._set_bin_width_slider_label()
-        if self.callback:
-            self.callback()
-
-    def pack_settings(self):
-        if self.binnings:
-            self.master.binner_settings[self.binner_id] = self.bin_index
 
     def recompute_binnings(self, column: np.ndarray, is_time: bool,
                            **binning_args):
@@ -357,27 +372,23 @@ class VariableBinner:
                 :obj:`Orange.preprocess.discretize.decimal_binnings` and
                 :obj:`Orange.preprocess.discretize.time_binnings`.
         """
-        inactive = column is None or not np.any(np.isfinite(column))
+        if column is None or not np.any(np.isfinite(column)):
+            self.binnings = []
+        elif is_time:
+            self.binnings = time_binnings(column, **binning_args)
+        else:
+            self.binnings = decimal_binnings(column, **binning_args)
+
+        inactive = len(self.binnings) < 2
         if self.hide_when_inactive:
             self.box.setVisible(not inactive)
         else:
             self.box.setDisabled(inactive)
-        if inactive:
-            self.binnings = []
-            return
 
-        if is_time:
-            self.binnings = time_binnings(column, **binning_args)
-        else:
-            self.binnings = decimal_binnings(column, **binning_args)
-        fm = QFontMetrics(self.master.font())
-        width = max(fm.size(Qt.TextSingleLine,
-                            self._short_text(binning.width_label)
-                            ).width()
-                    for binning in self.binnings)
-        self.bin_width_label.setFixedWidth(width)
-        max_bins = len(self.binnings) - 1
+        max_bins = max(0, len(self.binnings) - 1)
         self.slider.setMaximum(max_bins)
+        if not self.binnings:
+            return
 
         pending = self.master.binner_settings.get(self.binner_id, None)
         if pending is not None:
@@ -385,25 +396,22 @@ class VariableBinner:
             del self.master.binner_settings[self.binner_id]
         if self.bin_index > max_bins:
             self.bin_index = max_bins
-        self._set_bin_width_slider_label()
+
+        if self.bin_width_label:
+            fm = QFontMetrics(self.master.font())
+            width = max(fm.size(Qt.TextSingleLine,
+                                self._short_text(binning.width_label)
+                                ).width()
+                        for binning in self.binnings)
+            self.bin_width_label.setFixedWidth(width)
+            self._set_bin_width_slider_label()
+        # Force splitter to move if the label becomes too wide
+        ls = self.master.left_side
+        QTimer.singleShot(1, lambda: ls.resize(ls.sizeHint()))
 
     def current_binning(self) -> BinDefinition:
         """Return the currently selected binning"""
         return self.binnings[self.bin_index]
-
-    @staticmethod
-    def _short_text(label):
-        return reduce(
-            lambda s, rep: s.replace(*rep),
-            short_time_units.items(), label)
-
-    def _set_bin_width_slider_label(self):
-        if self.bin_index < len(self.binnings):
-            text = self._short_text(
-                self.binnings[self.bin_index].width_label)
-        else:
-            text = ""
-        self.bin_width_label.setText(text)
 
     def binned_var(self, var: ContinuousVariable) -> DiscreteVariable:
         """
@@ -412,10 +420,13 @@ class VariableBinner:
         """
         binning = self.binnings[self.bin_index]
         discretizer = Discretizer(var, list(binning.thresholds[1:-1]))
-        blabels = binning.labels[1:-1]
-        labels = [f"< {blabels[0]}"] + [
-            f"{lab1} - {lab2}" for lab1, lab2 in zip(blabels, blabels[1:])
-        ] + [f"≥ {blabels[-1]}"]
+        if len(binning.labels) < 3:  # it can't be exactly 2; it's 0, 1, or >=3
+            labels = binning.labels
+        else:
+            blabels = binning.labels[1:-1]
+            labels = [f"< {blabels[0]}"] + [
+                f"{lab1} - {lab2}" for lab1, lab2 in zip(blabels, blabels[1:])
+            ] + [f"≥ {blabels[-1]}"]
         return DiscreteVariable(
             name=var.name, values=labels, compute_value=discretizer)
 
@@ -430,8 +441,8 @@ class OWSpiralogram(OWWidget):
         time_series = Input("Time series", Table)
 
     class Outputs:
-        statistics = Output("Statistics", Table, default=True)
-        selected_data = Output("Selected data", Table)
+        selected_data = Output("Selected data", Table, default=True)
+        statistics = Output("Statistics", Table)
 
     class Error(OWWidget.Error):
         no_useful_vars = Msg("Data has no useful variables")
@@ -728,13 +739,12 @@ class OWSpiralogram(OWWidget):
                 x_data = self.data.get_column_view(x_attr)[0]
             periods = np.arange(len(x_attr.values))
 
-        nperiods = len(periods)  # property does not work at this point yet
         if self.r_var is None:
             return BlockData(
                 [x_attr],
                 [periods],
-                {(x, 0): np.flatnonzero(x_data == x)
-                 for x in range(nperiods)})
+                {(period, 0): np.flatnonzero(x_data == x)
+                 for x, period in enumerate(periods)})
 
         if self.r_var.is_continuous:
             r_attr = self.r_binner.binned_var(self.r_var)
@@ -749,7 +759,7 @@ class OWSpiralogram(OWWidget):
             r_attr = r_attr.copy(name=group_name)
 
         ngroups = len(r_attr.values)
-        x_x_mask = ((x, x_data == x) for x in range(nperiods))
+        x_x_mask = ((period, x_data == x) for x, period in enumerate(periods))
         attributes = [x_attr, r_attr]
         columns = [np.repeat(periods, ngroups),
                    np.tile(np.arange(ngroups), len(periods))]
@@ -781,9 +791,11 @@ class OWSpiralogram(OWWidget):
         else:
             class_var = values = None
 
+        columns = np.vstack(self.block_data.columns + [counts]).T
+        nonzeros = counts != 0
         return Table.from_numpy(
             Domain(self.block_data.attributes + [count_var], class_var),
-            np.vstack(self.block_data.columns + [counts]).T, values)
+            columns[nonzeros], None if values is None else values[nonzeros])
 
     # Redraw
     # ------
@@ -792,7 +804,11 @@ class OWSpiralogram(OWWidget):
     def radius(self):
         assert self.legend
         sw2, sh2 = self.view.width() / 2, self.view.height() / 2
-        return min(sw2 - self.legend.boundingRect().width(), sh2) * 0.85
+        lw = self.legend.boundingRect().width()
+        if lw > sw2:
+            # If the legend doesn't fit, ignore it; let the user widen the window
+            return min(sw2, sh2) * 0.85
+        return min(sw2 - lw, sh2) * 0.85
 
     @property
     def _label_font(self):
@@ -853,6 +869,8 @@ class OWSpiralogram(OWWidget):
 
         data = self.computed_data
         x_col = data.X[:, 0].astype(int)
+        if self.x_var in ("Day of year", "Day of month"):
+            x_col -= 1
         x_attr = data.domain[0]
         cvar = data.domain.class_var
         if self.r_var:
@@ -1026,6 +1044,6 @@ class OWSpiralogram(OWWidget):
 
 if __name__ == "__main__":
     WidgetPreview(OWSpiralogram).run(
-        Timeseries.from_file(
-            '/Users/janez/Downloads/slovenia-traffic-accidents-2016-events.tab')
+        Timeseries.from_url("http://datasets.biolab.si/core/"
+                            "slovenia-traffic-accidents-2016-events.tab")
     )
