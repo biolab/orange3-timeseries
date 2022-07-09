@@ -431,6 +431,27 @@ class VariableBinner:
             name=var.name, values=labels, compute_value=discretizer)
 
 
+class SpiralogramContextHandler(DomainContextHandler):
+    def open_context(self, widget, data):
+        if data is None:
+            return
+        domain = data.domain
+        super(DomainContextHandler, self).open_context(
+            widget, domain, *self.encode_domain(domain),
+            isinstance(data, Timeseries))
+
+    def new_context(self, domain, attributes, metas, _):
+        return super().new_context(domain, attributes, metas)
+
+    def filter_value(self, setting, data, domain, attrs, metas, _):
+        return super().filter_value(setting, data, domain, attrs, metas)
+
+    def match(self, context, domain, attrs, metas, is_time):
+        if context.values["x_var"][1] == -2 and not is_time:
+            return self.NO_MATCH
+        return super().match(context, domain, attrs, metas)
+
+
 class OWSpiralogram(OWWidget):
     name = 'Spiralogram'
     description = "Visualize time series' periodicity in a spiral heatmap."
@@ -449,7 +470,7 @@ class OWSpiralogram(OWWidget):
 
     graph_name = "view"
 
-    settingsHandler = DomainContextHandler()
+    settingsHandler = SpiralogramContextHandler()
     x_var: Union[str, Variable] = ContextSetting(PeriodItems[0])
     r_var: Optional[Variable] = ContextSetting(None)
     hide_r_labels: bool = Setting(False)

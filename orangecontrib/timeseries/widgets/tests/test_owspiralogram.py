@@ -555,6 +555,15 @@ class TestOWSpiralogram(WidgetTest):
         vars_[1] = np.var(c_column[6:])
         np.testing.assert_equal(data.Y, vars_)
 
+    def test_context_no_timeseries(self):
+        # Context handler should not match context with time period if data
+        # is not TimeSeries
+        widget = self.widget
+
+        self.send_signal(widget.Inputs.time_series, self.time_data)
+        self.send_signal(widget.Inputs.time_series, self.data)
+        self.assertNotIsInstance(widget.x_var, str)
+
 
 if __name__ == "__main__":
     unittest.main()
