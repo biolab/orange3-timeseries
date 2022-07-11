@@ -21,7 +21,7 @@ from orangewidget.utils.signals import Input, Output
 from orangewidget.utils.widgetpreview import WidgetPreview
 
 from Orange.data import Table, Variable, DiscreteVariable, ContinuousVariable, \
-    Domain
+    Domain, TimeVariable
 from Orange.preprocess import time_binnings, decimal_binnings, short_time_units
 from Orange.preprocess.discretize import Discretizer
 from Orange.data.util import get_unique_names
@@ -422,6 +422,9 @@ class VariableBinner:
         discretizer = Discretizer(var, list(binning.thresholds[1:-1]))
         if len(binning.labels) < 3:  # it can't be exactly 2; it's 0, 1, or >=3
             labels = binning.labels
+        elif isinstance(var, TimeVariable) \
+                and binning.width_label.split()[0] == "1":
+            labels = binning.labels[:-1]
         else:
             blabels = binning.labels[1:-1]
             labels = [f"< {blabels[0]}"] + [
