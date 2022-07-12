@@ -1,12 +1,6 @@
-import dataclasses
-import calendar
 from collections import Counter
-from datetime import date
-from functools import partial
 from itertools import chain
-from typing import Callable, Dict, NamedTuple, Optional, Sequence
 
-from scipy import stats
 import numpy as np
 
 from AnyQt.QtCore import Qt, QSortFilterProxyModel, QRect
@@ -16,106 +10,15 @@ from AnyQt.QtGui import QFont
 
 from orangewidget.utils.widgetpreview import WidgetPreview
 
-from Orange.util import utc_from_timestamp
-from Orange.data import Domain, Table, ContinuousVariable, DiscreteVariable
+from Orange.data import Domain, Table, ContinuousVariable
 import Orange.data.util
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.utils.itemmodels import VariableListModel
 from Orange.widgets.widget import Input, Output
 
 from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries.functions import \
-    truncated_date, \
-    windowed_func, moving_sum, moving_count_nonzero, moving_count_defined, \
-    windowed_linear_MA, windowed_exponential_MA, windowed_mode, \
-    windowed_cumsum, windowed_cumprod, windowed_span, windowed_harmonic_mean
-
-
-@dataclasses.dataclass
-class AggDesc:
-    short_desc: str
-    transform: Callable
-    block_transform: Callable
-    _long_desc: str = ""
-    supports_discrete: bool = False
-    count_aggregate: bool = False
-    cumulative: Optional[Callable] = None
-
-    def __new__(cls, short_desc, *args, **kwargs):
-        self = super().__new__(cls)
-        AggOptions[short_desc] = self
-        return self
-
-    @property
-    def long_desc(self):
-        return self._long_desc or self.short_desc.title()
-
-
-def pmw(*args):
-    return partial(windowed_func, *args)
-
-
-AggOptions: Dict[str, AggDesc] = {}
-AggDesc("mean", pmw(np.nanmean), np.nanmean, "Mean value")
-AggDesc("sum", moving_sum, np.nansum)
-AggDesc('product', pmw(np.nanprod), np.nanprod)
-AggDesc('min', pmw(np.nanmin), np.nanmin, "Minimum")
-AggDesc('max', pmw(np.nanmax), np.nanmax, "Maximum")
-AggDesc('span', windowed_span,
-        lambda x: np.nanmax(x) - np.nanmin(x), "Span")
-AggDesc('median', pmw(np.nanmedian), np.nanmedian)
-AggDesc('mode', windowed_mode,
-        lambda x: float(stats.mode(x, nan_policy='omit').mode),
-        supports_discrete=True)
-AggDesc('std', pmw(np.nanstd), np.nanstd, "Standard deviation")
-AggDesc('var', pmw(np.nanvar), np.nanvar, "Variance")
-AggDesc('lin. MA', windowed_linear_MA, None, "Linear MA")
-AggDesc('exp. MA', windowed_exponential_MA, None, "Exponential MA")
-AggDesc('harmonic', windowed_harmonic_mean, stats.hmean, "Harmonic mean")
-AggDesc('geometric', pmw(stats.gmean), stats.gmean, "Geometric mean")
-AggDesc('non-zero', moving_count_nonzero,
-        lambda x: np.sum((x != 0) & np.isfinite(x)), "Non-zero count",
-        supports_discrete=True, count_aggregate=True)
-AggDesc('defined', moving_count_defined,
-        lambda x: np.sum(np.isfinite(x)), "Defined count",
-        supports_discrete=True, count_aggregate=True)
-AggDesc('cumsum', windowed_cumsum, None, "Cumulative sum",
-        cumulative=np.nancumsum)
-AggDesc('cumprod', windowed_cumprod, None, "Cumulative product",
-        cumulative=np.nancumprod)
-
-
-NoModus = "(none)"
-
-
-class PeriodDesc(NamedTuple):
-    struct_index: int
-    periodic: bool
-    attr_name: str
-    value_as_period: bool = True
-    names: Optional[Sequence[str]] = None
-    names_option: Optional[str] = None
-    value_offset: int = 0
-
-
-PeriodOptions = {
-    "Years": PeriodDesc(0, False, "Time"),
-    "Months": PeriodDesc(1, False, "Time"),
-    "Days": PeriodDesc(2, False, "Time"),
-    "Hours": PeriodDesc(3, False, "Time"),
-    "Minutes": PeriodDesc(4, False, "Time"),
-    "Seconds": PeriodDesc(5, False, "Time"),
-    "Month of year": PeriodDesc(1, True, "Month",
-                                names=calendar.month_name[1:],
-                                names_option="Use month names",
-                                value_offset=-1),
-    "Day of year": PeriodDesc(2, True, "Day", value_as_period=False),
-    "Day of month": PeriodDesc(2, True, "Day"),
-    "Day of week": PeriodDesc(2, True, "Day", value_as_period=False,
-                              names_option="Use day names",
-                              names=calendar.day_name),
-    "Hour of day": PeriodDesc(3, True, "Hour"),
-}
+from orangecontrib.timeseries.aggregate import \
+    PeriodOptions, AggOptions, time_blocks
 
 N_NONPERIODIC = \
     next(iter(i for i, p in enumerate(PeriodOptions.values()) if p.periodic))
@@ -599,32 +502,9 @@ class OWMovingTransform(widget.OWWidget):
 
         attributes = []
         columns = []
-        times = (utc_from_timestamp(x)
-                 for x in data.get_column_view(data.time_variable)[0])
-        if period.periodic:
-            if period.value_as_period:
-                times = [x.timetuple()[period.struct_index] for x in times]
-            elif self.period_width == "Day of week":
-                times = [d.weekday() for d in times]
-            elif self.period_width == "Day of year":
-                times = [d.toordinal() - date(d.year, 1, 1).toordinal() + 1
-                         for d in times]
-            times = np.array(times) + period.value_offset
-            name = next(names)
-            if period.names and self.use_names:
-                attributes.append(DiscreteVariable(name, values=period.names))
-            else:
-                attributes.append(ContinuousVariable(name))
-        else:
-            ind = period.struct_index
-            times = (truncated_date(x, ind) for x in times)
-            times = [calendar.timegm(x.timetuple()) for x in times]
-            attributes.append(data.time_variable.copy(name=next(names)))
-
-        periods, period_indices, counts = \
-            np.unique(times, return_inverse=True, return_counts=True)
-        if self.period_width == "Month of year" and not self.use_names:
-            periods += 1
+        attribute, periods, period_indices, counts = \
+            time_blocks(data, period, next(names), self.use_names)
+        attributes.append(attribute)
         columns.append(periods)
 
         attributes.append(ContinuousVariable(next(names)))

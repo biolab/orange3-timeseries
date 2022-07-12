@@ -3,14 +3,12 @@ import sys
 import numpy as np
 from scipy.stats import gaussian_kde
 
-# from PyQt5.QtCore import *
-# from PyQt5.QtGui import *
-# from PyQt5.QtWidgets import *
 from AnyQt.QtWidgets import QSlider, QStyle, QStylePainter, \
     QStyleOptionSlider
 from AnyQt.QtGui import QPixmap, QPen, QPainter, QTransform, QBrush, QFont, \
     QColor
-from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize, QTimer
+from AnyQt.QtCore import QT_VERSION_STR, Qt, pyqtSignal, QRect, QSize, QTimer, \
+    QLineF
 
 
 def _INVALID(*args):
@@ -420,13 +418,14 @@ class ViolinSlider(RangeSlider):
 
         HEIGHT = self.rect().height() / 2
         OFFSET = HEIGHT * .3
-        pixmap = QPixmap(QSize(len(hist), 2 * (HEIGHT + OFFSET)))  # +1 avoids right/bottom frame border shadow
+        # +1 avoids right/bottom frame border shadow
+        pixmap = QPixmap(QSize(len(hist), int(round(2 * (HEIGHT + OFFSET)))))
         pixmap.fill(Qt.transparent)
         painter = QPainter(pixmap)
         painter.setPen(QPen(Qt.darkGray))
         for x, value in enumerate(hist):
-            painter.drawLine(x, HEIGHT * (1 - value) + OFFSET,
-                             x, HEIGHT * (1 + value) + OFFSET)
+            painter.drawLine(QLineF(x, HEIGHT * (1 - value) + OFFSET,
+                                    x, HEIGHT * (1 + value) + OFFSET))
 
         if self.orientation() != Qt.Horizontal:
             pixmap = pixmap.transformed(QTransform().rotate(-90))

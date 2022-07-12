@@ -3,11 +3,11 @@ from unittest.mock import patch
 
 import numpy as np
 
-from orangecontrib.timeseries.functions import moving_sum, \
+from orangecontrib.timeseries.aggregate import moving_sum, \
     windowed_func, moving_count_nonzero, moving_count_defined, _windowed, \
     windowed_span, _windowed_weighted, windowed_linear_MA, \
     windowed_exponential_MA, windowed_cumsum, windowed_cumprod, windowed_mode, \
-    windowed_harmonic_mean
+    windowed_harmonic_mean, AggOptions
 
 
 class TestMovingTransform(unittest.TestCase):
@@ -170,7 +170,7 @@ class TestMovingTransform(unittest.TestCase):
             _windowed_weighted(a, np.array([1, 0, -2]), 1),
             np.array([3 - 12, -4, -6, 4 - 8, -6, 4 - 16]))
 
-    @patch("orangecontrib.timeseries.functions._windowed_weighted")
+    @patch("orangecontrib.timeseries.aggregate._windowed_weighted")
     def test_windowed_MA(self, ww):
         a = np.array([3, 8, 6, 4, 2, 4, 6, 8])
 
@@ -253,6 +253,56 @@ class TestMovingTransform(unittest.TestCase):
         np.testing.assert_almost_equal(
             windowed_exponential_MA(a, 3, 1),
             [2.4285714, 3.4285714, 4.4285714])
+
+
+class AggFuncsTest(unittest.TestCase):
+    def test_sliding(self):
+        x = np.array([5, 2, 7, 8, 6, 4, 2, 3, np.nan, -1, 0])
+        for agg, exp in (
+                ("mean", [22 / 4, 23 / 4, 25 / 4, 20 / 4, 15 / 4, 9 / 3, 4 / 3, 2 /3]),
+                ("sum", [22, 23, 25, 20, 15, 9, 4, 2]),
+                ("product", [5 * 2 * 7 * 8, 2 * 7 * 8 * 6, 7 * 8 * 6 * 4,
+                             8 * 6 * 4 * 2, 6 * 4 * 2 * 3, 4 * 2 * 3,
+                             2 * 3 * -1, 3 * -1 * 0]),
+                ("min", [2, 2, 4, 2, 2, 2, -1, -1]),
+                ("max", [8, 8, 8, 8, 6, 4, 3, 3]),
+                ("span", [6, 6, 4, 6, 4, 2, 4, 4]),
+                ("median", [6, 6.5, 6.5, 5, 3.5, 3, 2, 0]),
+                ("std", [2.2912878, 2.2776084, 1.4790199, 2.236068 , 1.4790199, 0.8164966, 1.6996732, 1.6996732]),
+                ("var", [5.25, 5.1875, 2.1875, 5, 2.1875, 0.6666667, 2.8888889, 2.8888889]),
+                ("lin. MA", [(4 * 8 + 3 * 7 + 2 * 2 + 1 * 5) / 10,
+                             (4 * 6 + 3 * 8 + 2 * 7 + 1 * 2) / 10,
+                             5.7, 4, 3.2,
+                             (3 * 3 + 2 * 2 + 1 * 4) / 6,
+                             (4 * -1 + 2 * 3 + 1 * 2) / 7,
+                             (3 * -1 + 1 * 3) / 4]),
+                ("exp. MA", [6.4338235, 6.3198529, 5.5110294, 3.8088235, 3.1875, 2.877551, 0.3248731, 0.0264317]),
+                ("harmonic", ([4.1328413, 4.2802548, 5.8434783, 3.84, 3.2, np.nan, np.nan, np.nan])),
+                ("geometric", ([4.8645986, 5.0914598, 6.0548002, 4.4267277, 3.4641016, np.nan, np.nan, np.nan])),
+                ("non-zero", ([4, 4, 4, 4, 4, 3, 3, 2])),
+                ("defined", ([4, 4, 4, 4, 4, 3, 3, 3])),
+                ("cumsum", [22, 28, 32, 34, 37, 37, 36, 36]),
+                ("cumprod", [560, 3360, 13440, 26880, 80640, 80640, -80640, 0]),
+        ):
+            desc = AggOptions[agg]
+            msg = f"in function {agg}"
+            np.testing.assert_almost_equal(desc.transform(x, 4, 1), exp, err_msg=msg)
+            if not agg.endswith(" MA"):
+                np.testing.assert_almost_equal(desc.transform(x, 4, 2), exp[::2], err_msg=msg)
+                np.testing.assert_almost_equal(desc.transform(x, 4, 4), exp[::4], err_msg=msg)
+            if desc.block_transform is not None:
+                for i, exp in zip(range(0, len(x), 4), desc.transform(x, 4, 4)):
+                    np.testing.assert_almost_equal(
+                        desc.block_transform(x[i:i + 4]), exp, err_msg=msg)
+
+        mode = AggOptions["mode"]
+        x = np.array([2, 2, 1, 2, 0, 1, 1, 1, 0, 2, 0, 0])
+        np.testing.assert_equal(mode.transform(x, 4, 1), [2, 2, 1, 1, 1, 1, 1, 0, 0])
+        np.testing.assert_equal(mode.transform(x, 4, 2), [2, 1, 1, 1, 0])
+        np.testing.assert_equal(mode.transform(x, 4, 4), [2, 1, 0])
+        np.testing.assert_equal(mode.block_transform(x[:4]), 2)
+        np.testing.assert_equal(mode.block_transform(x[4:8]), 1)
+        np.testing.assert_equal(mode.block_transform(x[8:12]), 0)
 
 
 if __name__ == "__main__":

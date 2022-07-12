@@ -1,14 +1,13 @@
 import datetime
 from datetime import timedelta, timezone
-from functools import partial
 from numbers import Number
 
 import numpy as np
 from dateutil.tz import tzlocal
-from scipy import stats
 from scipy.signal import argrelextrema
 
 import Orange.data.util
+from orangecontrib.timeseries import Timeseries
 
 
 def _parse_args(args, kwargs, names, *defaults):
@@ -489,108 +488,6 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
             if callback:
                 callback(step / ((len(domain) - 1) ** 2 - len(domain) + 1))
     return res
-
-
-def moving_sum(x, width, shift=1):
-    s = np.nancumsum(x)
-    return np.hstack((s[width - 1:width] - 0,
-                      s[shift + width - 1::shift]
-                      - s[shift - 1:-width:shift]))
-
-
-def moving_count_nonzero(x, width, shift=1):
-    return moving_sum((x != 0) & np.isfinite(x), width, shift)
-
-
-def moving_count_defined(x, width, shift=1):
-    return moving_sum(np.isfinite(x), width, shift)
-
-
-def _windowed(x, width, shift):
-    if width > x.size:
-        return np.empty((0, 1))  # we need a 2d array, but 0 rows
-    return np.lib.stride_tricks.as_strided(
-        x,
-        shape=(1 + (x.size - width) // shift, width),
-        strides=(shift * x.strides[0], x.strides[0])
-    )
-
-
-def windowed_func(func, x, width, shift):
-    return func(_windowed(x, width, shift), axis=1)
-
-
-def windowed_span(x, width, shift):
-    windows = _windowed(x, width, shift)
-    return np.nanmax(windows, axis=1) - np.nanmin(windows, axis=1)
-
-
-def _windowed_weighted(x, weights, shift):
-    xnans = np.isnan(x)
-    if not np.any(xnans):
-        return np.sum(_windowed(x, len(weights), shift) * weights, axis=1)
-
-    # Recompute weights for each line so that the total sum is the same
-    # after skipping the weights that correspond to nan
-    # If the sum of weights is 1, this is just "renormalization"
-    x = x.copy()
-    windows = _windowed(x, len(weights), shift)
-    nans = np.isnan(windows)
-    total_weight = np.sum(weights)
-    weights = np.repeat(weights[None, :], len(windows), axis=0)
-    weights[nans] = 0
-    x[xnans] = 0
-    weightsums = np.sum(weights, axis=1) / total_weight
-    no_data = weightsums == 0
-    weightsums[no_data] = 1
-    res = np.sum(windows * weights, axis=1) / weightsums
-    res[no_data] = np.nan
-    return res
-
-def windowed_linear_MA(x, width, shift):
-    weights = np.arange(1, width + 1, dtype=float)
-    weights /= np.sum(weights)
-    return _windowed_weighted(x, weights, shift)
-
-
-def windowed_exponential_MA(x, width, shift):
-    alpha = 2 / (width + 1.0)
-    weights = alpha * (1 - alpha) ** np.arange(width - 1, -1, -1)
-    weights /= np.sum(weights)
-    return _windowed_weighted(x, weights, shift)
-
-
-def windowed_cumsum(x, width, shift):
-    return np.nancumsum(x)[width - 1::shift]
-
-
-def windowed_cumprod(x, width, shift):
-    return np.nancumprod(x)[width - 1::shift]
-
-
-def windowed_mode(x, width, shift):
-    modes, counts = windowed_func(
-        partial(stats.mode, nan_policy='omit'),
-        x, width, shift)
-    modes = modes[:, 0]
-    if np.ma.isMaskedArray(modes):
-        # If counts == 0, all values were nan
-        modes = modes.data
-        modes[counts[:, 0] == 0] = np.nan
-    return modes
-
-def windowed_harmonic_mean(x, width, shift):
-    windows = _windowed(x, width, shift)
-    try:
-        return stats.hmean(windows, axis=1)
-    except ValueError:
-        r = np.full(len(windows), np.nan)
-        for i, window in enumerate(windows):
-            try:
-                r[i] = stats.hmean(window)
-            except ValueError:
-                pass
-        return r
 
 
 def model_evaluation(data, models, n_folds, forecast_steps, *, callback=None):
