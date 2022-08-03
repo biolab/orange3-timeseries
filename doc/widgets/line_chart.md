@@ -5,23 +5,24 @@ Visualize time series' sequence and progression in the most basic time series vi
 
 **Inputs**
 
-- Time series: Time series as output by [As Timeseries](as_timeseries.md) widget.
-- Forecast: Time series forecast as output by one of the models (like [VAR](var.md) or [ARIMA](arima.md)).
+- Time series: a dataset, often as output by [As Timeseries](as_timeseries.md) widget.
+- Features: list of attributes
+- Forecast: time series forecast as output by one of the models (like [VAR](var.md) or [ARIMA](arima.md)).
 
-You can visualize the time series in this widget.
+You can visualize the time series in this widget. Note that the *line* option will display the data as a connected line. In case of non-existent dates, the widget will show them, then the line will be drawn over to connect the last known value with the next one. In case of missing values, the widget will not draw the line in the given place, making the chart disconnected. To better see the missing values, we recommend using the *column* option.
 
-![](images/line-chart-stamped.png)
+![](images/LineChart.png)
 
-1. Stack a new line chart below the current charts.
-2. Remove the associated stacked chart.
-3. Type of chart to draw. Options are: *line*, *step line*, *column*, *area*, *spline*.
-4. Switch between linear and logarithmic *y* axis.
-5. Select the time series to preview (select multiple series using the *Ctrl* key).
-6. See the selected series in this area.
+1. Add a new line chart below the current charts. The widget can display up to 5 parallel charts.
+2. Set the type of chart. Options are: *line*, *step line*, *column*, *area*. X button removes the associated chart.
+3. Switch between linear and logarithmic *y* axis.
+4. Select the time series to display (select multiple series using the *Ctrl*/*Cmd* key). Filter enables searching for the desired variable from the list by its name.
 
 Example
 -------
 
-Attach the model's forecast to the *Forecast* input signal to preview it. The forecast is drawn with a dotted line and the confidence intervals as an ranged area.
+The example uses [Yahoo Finance](yahoo_finance.md) data for the previous year. We can observe the data in the **Line Chart**.
 
-![](images/line-chart-ex1.png)
+To see the forecast, we have used the [VAR Model](var.md) for training the model. Then, we have attached the model's forecast to the *Forecast* input signal of the Line Chart. The forecast is drawn with a dotted line and the confidence intervals as an ranged area.
+
+![](images/LineChart-Example.png)

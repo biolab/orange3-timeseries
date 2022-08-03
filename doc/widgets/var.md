@@ -30,7 +30,7 @@ Using this widget, you can model the time series using VAR model.
 Example
 -------
 
-![](images/line-chart-ex1.png)
+![](images/LineChart-Example.png)
 
 #### See also
 
