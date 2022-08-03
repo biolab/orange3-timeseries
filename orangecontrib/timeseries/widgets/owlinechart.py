@@ -776,6 +776,7 @@ class OWLineChart(OWWidget):
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         y_true = data.get_column_view(variable)[0].astype(float)
         x_total = data.time_values if is_time_var else np.arange(len(y_true))
+        x_total = x_total.astype(float)
         y_pred, y_pred_low, y_pred_high = None, None, None
 
         x_tail = x_total[-2:].copy()  # remember original x to plot prediction
@@ -784,12 +785,12 @@ class OWLineChart(OWWidget):
         var_pred = variable.name + " (forecast)"
         if forecast and var_pred in forecast.domain:
             var_pred = forecast.domain[var_pred]
-            y_pred = forecast.get_column_view(var_pred)[0]
+            y_pred = forecast.get_column_view(var_pred)[0].astype(float)
 
             var_low, var_high = getattr(var_pred, "ci_attrs", (None, None))
             if var_low in forecast.domain and var_high in forecast.domain:
-                y_pred_low = forecast.get_column_view(var_low)[0]
-                y_pred_high = forecast.get_column_view(var_high)[0]
+                y_pred_low = forecast.get_column_view(var_low)[0].astype(float)
+                y_pred_high = forecast.get_column_view(var_high)[0].astype(float)
 
             x_pred = np.arange(len(y_true) + len(y_pred) - 1)
             if is_time_var:
