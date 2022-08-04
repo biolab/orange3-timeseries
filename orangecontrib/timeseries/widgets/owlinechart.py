@@ -792,7 +792,7 @@ class OWLineChart(OWWidget):
                 y_pred_low = forecast.get_column_view(var_low)[0].astype(float)
                 y_pred_high = forecast.get_column_view(var_high)[0].astype(float)
 
-            x_pred = np.arange(len(y_true) + len(y_pred) - 1)
+            x_pred = np.arange(len(y_pred)) + len(y_true)
             if is_time_var:
                 # extrapolate
                 n_pred = len(forecast)
