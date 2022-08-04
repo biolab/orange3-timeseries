@@ -114,6 +114,8 @@ class OWTableToTimeseries(widget.OWWidget):
             times, sparse = data.get_column_view(self.order)
             if sparse:
                 times = times.data
+            else:
+                times = times.astype(float)
             if np.isnan(times).any():
                 self.Information.nan_times(self.order.name)
 
