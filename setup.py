@@ -44,7 +44,7 @@ if __name__ == '__main__':
         author='Bioinformatics Laboratory, FRI UL',
         author_email='info@biolab.si',
         url='https://github.com/biolab/orange3-timeseries',
-        license='CC-BY-NC-3.0',
+        license='GPL3+',
         keywords=(
             'time series',
             'sequence analysis',
@@ -87,7 +87,7 @@ if __name__ == '__main__':
             'Environment :: X11 Applications :: Qt',
             'Environment :: Plugins',
             'Programming Language :: Python',
-            'License :: Other/Proprietary License',
+            'License :: GPL3+',
             'Operating System :: OS Independent',
             'Topic :: Scientific/Engineering :: Artificial Intelligence',
             'Topic :: Scientific/Engineering :: Visualization',
