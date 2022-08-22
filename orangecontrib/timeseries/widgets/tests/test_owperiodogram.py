@@ -18,6 +18,13 @@ class TestPeriodogramWidget(WidgetTest):
         ts = Timeseries.from_file("airpassengers")
         self.send_signal(self.widget.Inputs.time_series, ts)
 
+        ts = Timeseries.from_url(
+            "http://datasets.biolab.si/core/slovenia-traffic-accidents-2016-events.tab")
+        self.send_signal(self.widget.Inputs.time_series, ts)
+
+        ts = Timeseries.from_file("iris")
+        self.send_signal(self.widget.Inputs.time_series, ts)
+
 
 if __name__ == "__main__":
     unittest.main()
