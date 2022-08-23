@@ -462,13 +462,15 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
     # http://statsmodels.sourceforge.net/devel/vector_ar.html#granger-causality
 
     data = data.interp()
-    domain = [var for var in data.domain.variables if var.is_continuous]
+    domain = [var for var in data.domain.variables
+              if var.is_continuous and var is not data.time_variable]
     res = []
 
     step = 0
+    nsteps = len(domain) * (len(domain) - 1)
     for row_attr in domain:
         for col_attr in domain:
-            if row_attr == col_attr or data.time_variable in (row_attr, col_attr):
+            if row_attr is col_attr:
                 continue
             X = Table.from_table(Domain([], [], [col_attr, row_attr], data.domain), data).metas
             try:
@@ -488,7 +490,7 @@ def granger_causality(data, max_lag=10, alpha=.05, *, callback=None):
 
             step += 1
             if callback:
-                callback(step / ((len(domain) - 1) ** 2 - len(domain) + 1))
+                callback(step / nsteps)
     return res
 
 
