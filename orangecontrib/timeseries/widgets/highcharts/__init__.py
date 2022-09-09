@@ -1,1 +1,0 @@
-from .highcharts import Highchart
