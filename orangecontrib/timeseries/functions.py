@@ -332,16 +332,14 @@ def interpolate_timeseries(data, method='linear', multivariate=False):
                 continue
 
             nonnan = ~isnan
-            f = interp1d(_x[nonnan], col[nonnan], kind=method,
+            xnn, colnn = _x[nonnan], col[nonnan]
+            f = interp1d(xnn, colnn, kind=method,
                          copy=False, assume_sorted=True, bounds_error=False)
+            if method == "interpolate":
+                f.fill_value = "extrapolate"
+            else:
+                f.fill_value = (colnn[np.argmin(xnn)], colnn[np.argmax(xnn)])
             A[isnan, i] = f(_x[isnan])
-
-            # nearest-interpolate any nans at vals start and end
-            # TODO: replace nearest with linear/OLS?
-            valid = (~np.isnan(col)).nonzero()[0]
-            first, last = valid[0], valid[-1]
-            col[:first] = col[first]
-            col[last:] = col[last]
 
     ts = Timeseries.from_numpy(Domain(attrs, cvars, metas), X, Y, M)
     return ts

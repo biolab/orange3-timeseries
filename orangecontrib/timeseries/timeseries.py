@@ -24,13 +24,11 @@ class TimeDelta:
         self.time_values = time_values
         self.backwards_compatible_delta = self._get_backwards_compatible_delta()
 
-        def no_delta():
-            self.deltas = []
-            self.is_equispaced = True
-            self.min = None
-
+        self.is_equispaced = False
+        self.time_interval = None
+        self.deltas = []
+        self.min = None
         if len(time_values) <= 1:
-            no_delta()
             return
 
         deltas = list(np.unique(np.diff(np.sort(self.time_values))))
@@ -38,9 +36,13 @@ class TimeDelta:
         # in case several rows fall on the same datetime, remove the zero
         if deltas and deltas[0] == 0:
             deltas.pop(0)
-        if not deltas:
-            no_delta()
-            return
+            if not deltas:
+                return
+
+        if len(deltas) == 1:
+            self.is_equispaced = True
+            self.time_interval = deltas[0]
+
         # TODO detect multiple days/months/years
         for i, d in enumerate(deltas[:]):
             if d in self._SPAN_MONTH:
@@ -52,7 +54,6 @@ class TimeDelta:
         deltas = list(unique_everseen(deltas))
         self.deltas = deltas
 
-        self.is_equispaced = len(deltas) == 1
         self.min = deltas[0]
 
         # in setting the greatest common divisor...

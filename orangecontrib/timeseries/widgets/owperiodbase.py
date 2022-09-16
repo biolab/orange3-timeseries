@@ -76,6 +76,16 @@ class OWPeriodBase(OWWidget, openclass=True):
             self.legend.addItem(dot, escape(name))
         self.legend.show()
 
+    @staticmethod
+    def time_scale(span):
+        for secs, unit in ((31556952, "years"),  # Gregorian year
+                           # we can't have month - not well defined
+                           (24 * 3600, "days"),
+                           (3600, "hours"),
+                           (60, "minutes")):
+            if span > 10 * secs:
+                return secs, unit
+        return 1, "seconds"
 
     def _rescale_y(self):
         QTimer.singleShot(1, lambda: self.plot.setYRange(*self.yrange))
