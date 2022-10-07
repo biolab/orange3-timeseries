@@ -272,7 +272,7 @@ class LineChartPlotItem(PlotItem):
             x_total[:len(y_true)], y_true, name=name,
             pen=pg.mkPen(color, width=width), **kwargs
         )
-        # item.curve.setSegmentedLineMode("on")
+        item.curve.setSegmentedLineMode("on")
         self.addItem(item)
 
         if y_pred is not None:
@@ -285,7 +285,7 @@ class LineChartPlotItem(PlotItem):
                 x, extend_last_val(y_pred),
                 pen=pg.mkPen(color, width=width, style=Qt.DashLine), **kwargs
             )
-            # pred.curve.setSegmentedLineMode("on")
+            pred.curve.setSegmentedLineMode("on")
             self.addItem(pred)
 
             if y_pred_low is not None and y_pred_high is not None:
@@ -294,14 +294,14 @@ class LineChartPlotItem(PlotItem):
                     pen=pg.mkPen(color, width=width, style=Qt.DotLine),
                     **kwargs
                 )
-                # low.curve.setSegmentedLineMode("on")
+                low.curve.setSegmentedLineMode("on")
                 self.addItem(low)
                 high = pg.PlotDataItem(
                     x, extend_last_val(y_pred_high),
                     pen=pg.mkPen(color, width=width, style=Qt.DotLine),
                     **kwargs
                 )
-                # high.curve.setSegmentedLineMode("on")
+                high.curve.setSegmentedLineMode("on")
                 self.addItem(high)
 
                 ci_color = QColor(color)
@@ -433,16 +433,21 @@ class LineChartPlotItem(PlotItem):
 
         for item in self.items[:]:
             if isinstance(item, DotItem):
-                item.setData([x_pos], [item.source_data[x_pos]])
-                item.show()
+                if x_pos in item.source_data:
+                    item.setData([x_pos], [item.source_data[x_pos]])
+                    item.show()
+                else:
+                    item.hide()
 
     def get_tooltip_html(self, x_pos: int) -> str:
         if not self.__curves_data:
             return ""
 
-        index = list(self.__curves_data[0].x_total).index(x_pos)
         html = ""
         for curve_data in self.__curves_data:
+            if x_pos not in list(curve_data.x_total):
+                continue
+            index = list(curve_data.x_total).index(x_pos)
             y = curve_data.y_total[index]
             y = "?" if np.isnan(y) else y
             html += f'<div>' \
@@ -515,7 +520,7 @@ class LineChartGraph(pg.GraphicsLayoutWidget):
             specs = ax.generateDrawSpecs(painter)
             painter.end()
 
-            if specs is not None:
+            if specs is not None and len(specs[-1]) > 0:
                 width = max([spec[0].width() for spec in specs[-1]]) + 5
                 widths.append(width)
 

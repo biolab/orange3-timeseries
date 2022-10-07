@@ -1,13 +1,17 @@
 import os
 import unittest
+from unittest.mock import patch, Mock
+
+from AnyQt.QtCore import QPointF
+import pyqtgraph as pg
 
 from Orange.widgets.tests.base import WidgetTest
 from Orange.widgets.widget import AttributeList
-from Orange.data import Table
-
+from Orange.data import Table, ContinuousVariable
 
 from orangecontrib.timeseries import Timeseries, ARIMA
-from orangecontrib.timeseries.widgets.owlinechart import OWLineChart
+from orangecontrib.timeseries.widgets.owlinechart import OWLineChart, \
+    LineChartEditor
 
 
 class TestOWLineChart(WidgetTest):
@@ -112,16 +116,23 @@ class TestOWLineChart(WidgetTest):
         self.assertEqual(1, len(self.widget.attrs))
         self.assertEqual(0, len(self.widget.attrs[0]))
 
-    def test_pyqtgraph_setSegmentedLineMode(self):
-        """
-        When this starts to fail, uncomment the lines with
-        setSegmentedLineMode in owlinechart (274, 287, 296 and 303),
-        and remove this test.
-        """
-        import pyqtgraph as pg
+    @patch.object(pg.ViewBox, "mapSceneToView",
+                  Mock(return_value=QPointF(-263298814, 367)))
+    def test_tooltip(self):
+        table = Timeseries.from_file("airpassengers")
+        var = ContinuousVariable("var")
+        new_table = table.add_column(var, table.Y)
+        self.send_signal(self.widget.Inputs.time_series, new_table)
 
-        curve = pg.PlotCurveItem()
-        self.assertFalse(hasattr(curve, "setSegmentedLineMode"))
+        editor: LineChartEditor = self.widget._editors[0]
+        vars_ = [new_table.domain["var"], new_table.domain["Air passengers"]]
+        editor.set_parameters({"vars": vars_})
+        editor.sigEdited.emit(editor)
+
+        model = ARIMA((3, 1, 1)).fit(table)
+        pred = model.predict(20, as_table=True)
+        self.send_signal(self.widget.Inputs.forecast, pred)
+        self.widget._graph._show_tooltips(QPointF())
 
 
 if __name__ == "__main__":
