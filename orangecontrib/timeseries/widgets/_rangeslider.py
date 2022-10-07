@@ -462,9 +462,9 @@ class ViolinSlider(RangeSlider):
             return self.rect()
         if subcontrol == QStyle.SC_SliderHandle:
             if self.orientation() == Qt.Horizontal:
-                return QRect(-self._HANDLE_WIDTH / 2, 0, self._HANDLE_WIDTH, self.rect().height())
+                return QRect(-int(self._HANDLE_WIDTH / 2), 0, self._HANDLE_WIDTH, self.rect().height())
             else:
-                return QRect(0, -self._HANDLE_WIDTH / 2, self.rect().width(), self._HANDLE_WIDTH)
+                return QRect(0, -int(self._HANDLE_WIDTH / 2), self.rect().width(), self._HANDLE_WIDTH)
 
     def paintEvent(self, event):
         painter = QStylePainter(self)

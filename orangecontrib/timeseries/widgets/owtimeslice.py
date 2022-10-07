@@ -158,23 +158,27 @@ class OWTimeSlice(widget.OWWidget):
     custom_step_size = settings.Setting(False)
     step_size = settings.Setting(next(iter(STEP_SIZES)))
     playback_interval = settings.Setting(1)
-    slider_values = settings.Setting((0, .2 * MAX_SLIDER_VALUE))
+    slider_values = settings.Setting((0, int(0.2 * MAX_SLIDER_VALUE)))
 
     icons_font = None
 
     def __init__(self):
         super().__init__()
         self._delta = 0
-        self.play_timer = QTimer(self,
-                                 interval=1000*self.playback_interval,
-                                 timeout=self.play_single_step)
-        slider = self.slider = Slider(Qt.Horizontal, self,
-                                      minimum=0, maximum=self.MAX_SLIDER_VALUE,
-                                      tracking=True,
-                                      playbackInterval=1000*self.playback_interval,
-                                      valuesChanged=self.sliderValuesChanged,
-                                      minimumValue=self.slider_values[0],
-                                      maximumValue=self.slider_values[1])
+        self.play_timer = QTimer(
+            self, interval=1000 * self.playback_interval, timeout=self.play_single_step
+        )
+        slider = self.slider = Slider(
+            Qt.Horizontal,
+            self,
+            minimum=0,
+            maximum=self.MAX_SLIDER_VALUE,
+            tracking=True,
+            playbackInterval=1000 * self.playback_interval,
+            valuesChanged=self.sliderValuesChanged,
+            minimumValue=int(self.slider_values[0]),
+            maximumValue=int(self.slider_values[1]),
+        )
         slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         slider.setShowText(False)
         selectBox = gui.vBox(self.controlArea, 'Select a Time Range')
@@ -573,11 +577,6 @@ class OWTimeSlice(widget.OWWidget):
 
 
 if __name__ == '__main__':
-    from AnyQt.QtWidgets import QApplication
+    from orangewidget.utils.widgetpreview import WidgetPreview
 
-    app = QApplication([])
-    w = OWTimeSlice()
-    data = Table('airpassengers')
-    w.set_data(data)
-    w.show()
-    app.exec()
+    WidgetPreview(OWTimeSlice).run(Table("airpassengers"))
