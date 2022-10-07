@@ -1,4 +1,10 @@
-from Orange.widgets import widget, gui, settings
+from AnyQt.QtCore import Qt
+from AnyQt.QtWidgets import QFormLayout
+
+from orangewidget.utils.widgetpreview import WidgetPreview
+
+from Orange.data import Domain
+from Orange.widgets import gui, settings
 from Orange.widgets.widget import Input
 
 from orangecontrib.timeseries import Timeseries, ARIMA
@@ -16,15 +22,6 @@ class OWARIMAModel(OWBaseModel):
     q = settings.Setting(0)
     use_exog = settings.Setting(False)
 
-    UserAdviceMessages = [
-        widget.Message('ARIMA(0,1,0) equals to a random walk model, which '
-                       'is an AR(1) model with the auto-regression coefficient '
-                       'equal to 1, and the constant term (i.e. the period-to-period '
-                       "change) equal to the series' long-term drift.",
-                       'random-walk',
-                       widget.Message.Warning)
-    ]
-
     class Inputs(OWBaseModel.Inputs):
         exogenous_data = Input("Exogenous data", Timeseries)
 
@@ -38,16 +35,16 @@ class OWARIMAModel(OWBaseModel):
         self.update_model()
 
     def add_main_layout(self):
-        box = gui.vBox(self.controlArea, box='Parameters')
-        gui.spin(box, self, 'p', 0, 100, label='Auto-regression order (p):',
-                 callback=self.apply)
-        gui.spin(box, self, 'd', 0, 2, label='Differencing degree (d):',
-                 callback=self.apply)
-        gui.spin(box, self, 'q', 0, 100, label='Moving average order (q):',
-                 callback=self.apply)
-        gui.checkBox(box, self, 'use_exog',
-                     'Use exogenous (independent) variables (ARMAX)',
-                     callback=self.apply)
+        layout = QFormLayout()
+        self.controlArea.layout().addLayout(layout)
+        kwargs = dict(controlWidth=50, alignment=Qt.AlignRight,
+                      callback=self.apply.deferred)
+        layout.addRow('Auto-regression order (p):',
+                      gui.spin(None, self, 'p', 0, 100, **kwargs))
+        layout.addRow('Differencing degree (d):',
+                      gui.spin(None, self, 'd', 0, 2, **kwargs))
+        layout.addRow('Moving average order (q):',
+                      gui.spin(None, self, 'q', 0, 100, **kwargs))
 
     def forecast(self, model):
         if self.use_exog and self.exog_data is None:
@@ -62,16 +59,7 @@ class OWARIMAModel(OWBaseModel):
 
 
 if __name__ == "__main__":
-    from AnyQt.QtWidgets import QApplication
-    from Orange.data import Domain
-
-    a = QApplication([])
-    ow = OWARIMAModel()
-
     data = Timeseries.from_file('airpassengers')
     domain = Domain(data.domain.attributes[:-1], data.domain.attributes[-1])
     data = Timeseries.from_numpy(domain, data.X[:, :-1], data.X[:, -1])
-    ow.set_data(data)
-
-    ow.show()
-    a.exec()
+    WidgetPreview(OWARIMAModel).run(set_data=data)
