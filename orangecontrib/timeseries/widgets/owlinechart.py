@@ -433,16 +433,21 @@ class LineChartPlotItem(PlotItem):
 
         for item in self.items[:]:
             if isinstance(item, DotItem):
-                item.setData([x_pos], [item.source_data[x_pos]])
-                item.show()
+                if x_pos in item.source_data:
+                    item.setData([x_pos], [item.source_data[x_pos]])
+                    item.show()
+                else:
+                    item.hide()
 
     def get_tooltip_html(self, x_pos: int) -> str:
         if not self.__curves_data:
             return ""
 
-        index = list(self.__curves_data[0].x_total).index(x_pos)
         html = ""
         for curve_data in self.__curves_data:
+            if x_pos not in list(curve_data.x_total):
+                continue
+            index = list(curve_data.x_total).index(x_pos)
             y = curve_data.y_total[index]
             y = "?" if np.isnan(y) else y
             html += f'<div>' \
