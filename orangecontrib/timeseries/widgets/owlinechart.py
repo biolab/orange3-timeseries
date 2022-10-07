@@ -272,7 +272,7 @@ class LineChartPlotItem(PlotItem):
             x_total[:len(y_true)], y_true, name=name,
             pen=pg.mkPen(color, width=width), **kwargs
         )
-        # item.curve.setSegmentedLineMode("on")
+        item.curve.setSegmentedLineMode("on")
         self.addItem(item)
 
         if y_pred is not None:
@@ -285,7 +285,7 @@ class LineChartPlotItem(PlotItem):
                 x, extend_last_val(y_pred),
                 pen=pg.mkPen(color, width=width, style=Qt.DashLine), **kwargs
             )
-            # pred.curve.setSegmentedLineMode("on")
+            pred.curve.setSegmentedLineMode("on")
             self.addItem(pred)
 
             if y_pred_low is not None and y_pred_high is not None:
@@ -294,14 +294,14 @@ class LineChartPlotItem(PlotItem):
                     pen=pg.mkPen(color, width=width, style=Qt.DotLine),
                     **kwargs
                 )
-                # low.curve.setSegmentedLineMode("on")
+                low.curve.setSegmentedLineMode("on")
                 self.addItem(low)
                 high = pg.PlotDataItem(
                     x, extend_last_val(y_pred_high),
                     pen=pg.mkPen(color, width=width, style=Qt.DotLine),
                     **kwargs
                 )
-                # high.curve.setSegmentedLineMode("on")
+                high.curve.setSegmentedLineMode("on")
                 self.addItem(high)
 
                 ci_color = QColor(color)
@@ -520,7 +520,7 @@ class LineChartGraph(pg.GraphicsLayoutWidget):
             specs = ax.generateDrawSpecs(painter)
             painter.end()
 
-            if specs is not None:
+            if specs is not None and len(specs[-1]) > 0:
                 width = max([spec[0].width() for spec in specs[-1]]) + 5
                 widths.append(width)
 

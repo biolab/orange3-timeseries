@@ -134,17 +134,6 @@ class TestOWLineChart(WidgetTest):
         self.send_signal(self.widget.Inputs.forecast, pred)
         self.widget._graph._show_tooltips(QPointF())
 
-    def test_pyqtgraph_setSegmentedLineMode(self):
-        """
-        When this starts to fail, uncomment the lines with
-        setSegmentedLineMode in owlinechart (274, 287, 296 and 303),
-        and remove this test.
-        """
-        import pyqtgraph as pg
-
-        curve = pg.PlotCurveItem()
-        self.assertFalse(hasattr(curve, "setSegmentedLineMode"))
-
 
 if __name__ == "__main__":
     unittest.main()

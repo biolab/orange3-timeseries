@@ -72,7 +72,7 @@ if __name__ == '__main__':
             # required to get current timezone
             # adding it does not hurt, Pandas have it as a dependency
             'python-dateutil',
-            'pyqtgraph>=0.12.2,!=0.12.4'
+            'pyqtgraph>=0.13.1',
         ],
         extras_require={
             'test': ['coverage'],
