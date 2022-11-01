@@ -64,6 +64,7 @@ if __name__ == '__main__':
         install_requires=[
             'Orange3>=3.33.0',
             'statsmodels>=0.13.0',
+            'python-dateutil',
             'pandas',  # statsmodels requires this but doesn't have it in dependencies?
             'pandas_datareader',
             'numpy',

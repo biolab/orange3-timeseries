@@ -1,4 +1,3 @@
-import itertools
 from numbers import Number
 
 from more_itertools import unique_everseen
@@ -8,6 +7,9 @@ from Orange.data import Table, Domain, TimeVariable, ContinuousVariable
 
 import Orange.data
 from os.path import join, dirname
+
+from Orange.data.util import get_unique_names
+
 Orange.data.table.dataset_dirs.insert(0, join(dirname(__file__), 'datasets'))
 
 
@@ -190,9 +192,30 @@ class Timeseries(Table):
         return cls.convert_from_data_table(table)
 
     @classmethod
-    def make_timeseries_from_sequence(cls, table):
-        # timeseries default to sequential ordering
-        return super(Timeseries, cls).from_table(table.domain, table)
+    def make_timeseries_from_sequence(cls, table, delta=None, start=None,
+                                      name="T", have_date=True, have_time=True):
+        from orangecontrib.timeseries import fromtimestamp, timestamp
+
+        domain = table.domain
+        if delta is None:
+            # timeseries default to sequential ordering
+            return super(Timeseries, cls).from_table(domain, table)
+        if start is None:
+            start = fromtimestamp(0)
+        n = len(table)
+        time_col = np.empty((n, 1), dtype=float)
+        for i, _ in enumerate(time_col):
+            time_col[i] = timestamp(start + i * delta)
+        t_attr = TimeVariable(
+            get_unique_names(domain, name),
+            have_date=have_date, have_time=have_time)
+        x = np.hstack((time_col, table.X))
+        ts = super(Timeseries, cls).from_numpy(
+            Domain((t_attr, ) + domain.attributes, domain.class_vars, domain.metas),
+            x, table.Y, table.metas, ids=table.ids
+        )
+        ts.time_variable = t_attr
+        return ts
 
     @classmethod
     def make_timeseries_from_continuous_var(cls, table, attr):
