@@ -1,9 +1,10 @@
+from itertools import chain
 from numbers import Number
 
 from more_itertools import unique_everseen
 import numpy as np
 
-from Orange.data import Table, Domain, TimeVariable, ContinuousVariable
+from Orange.data import Table, Domain, TimeVariable
 
 import Orange.data
 from os.path import join, dirname
@@ -102,44 +103,42 @@ class Timeseries(Table):
         self._interp_multivariate = False
         self.time_delta = None
 
+    def copy(self):
+        other = super().copy()
+        other._interp_method = self._interp_method
+        other._interp_multivariate = self._interp_multivariate
+        other.time_variable = self.time_variable
+        # previous line already sets time_delta, but it could, in principle
+        # be set differently, so let's copy it to be on the safe side
+        other.time_delta = self.time_delta
+        return other
+
+    def __getitem__(self, key):
+        ts = super().__getitem__(key)
+        if isinstance(ts, Timeseries) and ts.time_variable not in ts.domain:
+            ts.time_variable = None
+        return ts
+
     @classmethod
     def from_data_table(cls, table, time_attr=None):
-        if isinstance(table, Timeseries) \
-                and table.time_variable is not None \
-                and table.time_delta is not None:
+        if isinstance(table, Timeseries) and (
+                time_attr is table.time_variable
+                or time_attr is None and table.time_variable is not None):
             return table
-
-        if isinstance(table, Timeseries) \
-                and table.time_variable not in table.domain:
-            table.time_variable = None
 
         if time_attr is not None:
             if time_attr not in table.domain:
                 raise Exception(time_attr.name + ' is not in the domain.')
-
-            if isinstance(time_attr, TimeVariable):
-                ts = super(Timeseries, cls).from_table(table.domain, table)
-                ts.time_variable = time_attr
-                return ts
-            elif isinstance(time_attr, ContinuousVariable):
-                return cls.make_timeseries_from_continuous_var(table, time_attr.name)
-            else:
+            if not time_attr.is_continuous:
                 raise Exception(time_attr.name + ' must be continuous.')
+        else:
+            for time_attr in chain(table.domain.attributes, table.domain.metas):
+                if time_attr.is_time:
+                    break
+            else:
+                return super(Timeseries, cls).from_table(table.domain, table)
 
-        ts = super(Timeseries, cls).from_table(table.domain, table)
-
-        # Is there a time variable we can use?
-        search = ts.domain.attributes + table.domain.metas
-        for var in search:
-            if var.is_time:
-                values = table.get_column(var)
-                nans = np.isnan(values)
-                if nans.any():
-                    ts = ts[~nans]
-                ts.time_variable = var
-            break
-        # Else fallback to default sequential (don't set time_variable)
-        return ts
+        return cls.make_timeseries_from_continuous_var(table, time_attr)
 
     @classmethod
     def convert_from_data_table(cls, table, time_attr=None):
