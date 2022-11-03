@@ -458,7 +458,7 @@ class OWMovingTransform(widget.OWWidget):
                     inapplicable.add(agg.long_desc)
                     continue
                 if column is None:
-                    column = data.get_column_view(attr)[0]
+                    column = data.get_column(attr)
                 agg_column = agg.transform(column, width, width)
                 attributes.append(self._var_for_agg(attr, agg, names))
                 columns.append(agg_column)
@@ -518,7 +518,7 @@ class OWMovingTransform(widget.OWWidget):
                     inapplicable.add(agg.long_desc)
                     continue
                 attributes.append(self._var_for_agg(attr, agg, names))
-                column = data.get_column_view(attr)[0]
+                column = data.get_column(attr)
                 agg_column = np.array([
                     agg.block_transform(column[period_indices == i])
                     for i in range(len(periods))])

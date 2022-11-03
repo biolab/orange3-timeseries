@@ -111,11 +111,7 @@ class OWTableToTimeseries(widget.OWWidget):
         else:
             ts = Timeseries.make_timeseries_from_continuous_var(data, self.order)
             # Warn if instances are omitted because of nans in selected attr
-            times, sparse = data.get_column_view(self.order)
-            if sparse:
-                times = times.data
-            else:
-                times = times.astype(float)
+            times = data.get_column(self.order)
             if np.isnan(times).any():
                 self.Information.nan_times(self.order.name)
 

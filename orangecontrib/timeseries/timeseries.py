@@ -127,20 +127,15 @@ class Timeseries(Table):
         ts = super(Timeseries, cls).from_table(table.domain, table)
 
         # Is there a time variable we can use?
-        search = table.domain.attributes + table.domain.metas
-        try:
-            time_variable = next(var for var in search
-                                 if var.is_time)
-            values = table.get_column_view(time_variable)[0]
-            if np.issubdtype(values.dtype, np.number):
-                # Filter out NaNs
+        search = ts.domain.attributes + table.domain.metas
+        for var in search:
+            if var.is_time:
+                values = table.get_column(var)
                 nans = np.isnan(values)
                 if nans.any():
-                    table = table[~nans]
-            ts.time_variable = time_variable
-        except (StopIteration, AttributeError):
-            pass
-
+                    ts = ts[~nans]
+                ts.time_variable = var
+            break
         # Else fallback to default sequential (don't set time_variable)
         return ts
 
@@ -204,7 +199,7 @@ class Timeseries(Table):
         # Make a sequence attribute from one of the existing attributes,
         # and sort all values according to it
         time_var = table.domain[attr]
-        values = table.get_column_view(time_var)[0].astype(float)
+        values = table.get_column(time_var)
         # Filter out NaNs
         nans = np.isnan(values)
         if nans.all():
@@ -227,7 +222,7 @@ class Timeseries(Table):
         if self.time_variable is None:
             return np.arange(len(self))
         else:
-            return self.get_column_view(self.time_variable)[0]
+            return self.get_column(self.time_variable)
 
     @property
     def time_variable(self):
