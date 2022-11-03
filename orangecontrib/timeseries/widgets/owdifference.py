@@ -147,7 +147,7 @@ class OWDifference(widget.OWWidget):
         get_unique = partial(get_unique_names, data.domain)
 
         for name in attr_names:
-            col = data.get_column_view(name)[0]
+            col = data.get_column(name)
             if self.invert_direction:
                 col = col[::-1]
 

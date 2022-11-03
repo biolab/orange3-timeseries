@@ -226,7 +226,7 @@ def time_blocks(data: Timeseries,
                 attr_name: Sequence[str],
                 use_period_names: bool):
     times = (utc_from_timestamp(x)
-             for x in data.get_column_view(data.time_variable)[0])
+             for x in data.get_column(data.time_variable))
     if period.periodic:
         if period.value_as_period:
             times = [x.timetuple()[period.struct_index] for x in times]

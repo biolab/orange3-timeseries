@@ -265,7 +265,7 @@ class VariableBinner:
     Additional arguments, like callbacks and labels and also be provided.
 
     When the variables to which the binner refers is changed, extract the
-    corresponding column (e.g. with obj:`Table.get_column_view`) and call
+    corresponding column (e.g. with obj:`Table.get_column`) and call
 
     ```
     self.binner.recompute_binnings(column, is_time)
@@ -583,7 +583,7 @@ class OWSpiralogram(OWWidget):
 
     def _rebin(self, binner=None, var=None):
         if isinstance(var, Variable) and var.is_continuous:
-            column = self.data.get_column_view(var)[0].astype(float)
+            column = self.data.get_column(var)
         else:
             column = None
         binner.recompute_binnings(column, column is not None and var.is_time)
@@ -760,7 +760,7 @@ class OWSpiralogram(OWWidget):
                 x_data = x_attr.compute_value(data)
             else:
                 x_attr = self.x_var
-                x_data = self.data.get_column_view(x_attr)[0]
+                x_data = self.data.get_column(x_attr)
             periods = np.arange(len(x_attr.values))
 
         if self.r_var is None:
@@ -775,7 +775,7 @@ class OWSpiralogram(OWWidget):
             r_data = r_attr.compute_value(data)
         else:
             r_attr = self.r_var
-            r_data = data.get_column_view(self.r_var)[0]
+            r_data = data.get_column(self.r_var)
 
         if x_attr.name == r_attr.name:
             period_name, group_name = self.x_r_var_names()
@@ -807,7 +807,7 @@ class OWSpiralogram(OWWidget):
                 class_var = self.color_var.copy(name=name)
             else:
                 class_var = ContinuousVariable(name)
-            color_data = self.data.get_column_view(self.color_var)[0]
+            color_data = self.data.get_column(self.color_var)
             values = np.array([
                 agg_desc.block_transform(color_data[indices])
                 if indices.size else np.nan
