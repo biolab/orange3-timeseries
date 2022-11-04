@@ -179,7 +179,7 @@ class OWTimeSlice(widget.OWWidget):
             minimumValue=int(self.slider_values[0]),
             maximumValue=int(self.slider_values[1]),
         )
-        slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        slider.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
         slider.setShowText(False)
         selectBox = gui.vBox(self.controlArea, 'Select a Time Range')
         selectBox.layout().addWidget(slider)
