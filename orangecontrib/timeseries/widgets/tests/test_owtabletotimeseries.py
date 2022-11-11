@@ -1,12 +1,14 @@
 from itertools import chain
 from datetime import datetime, timezone
+from copy import deepcopy
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import numpy as np
 import scipy.sparse as sp
 
 from AnyQt.QtWidgets import QLineEdit
+from AnyQt.QtGui import QFocusEvent
 
 from Orange.data import \
     Table, Domain, DiscreteVariable, ContinuousVariable, TimeVariable
@@ -14,7 +16,8 @@ from Orange.widgets.tests.base import WidgetTest
 
 from orangecontrib.timeseries.functions import timestamp
 from orangecontrib.timeseries.widgets.owtabletotimeseries import \
-    OWTableToTimeseries
+    OWTableToTimeseries, LineEdit
+from orangewidget.settings import Context
 
 
 class TestAsTimeSeriesWidgetBase(WidgetTest):
@@ -140,11 +143,15 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
         w.implied_sequence = 1
 
         self.send_signal(w.Inputs.data, Table("iris"))
-        with patch.object(w.commit, 'deferred') as commit:
+        with patch.object(w.commit, 'deferred', wraps=w.commit.deferred) \
+                as commit:
             w.var_combo.setCurrentIndex(2)
             w.var_combo.activated.emit(2)
             self.assertEqual(w.implied_sequence, 0)
+            self.assertEqual(w.attribute, w.var_combo[2].name)
             commit.assert_called_once()
+            self.assertIs(self.get_output(w.Outputs.time_series.time_variable),
+                          w.var_combo[2])
 
     def test_attribute_changed(self):
         w = self.widget
@@ -161,7 +168,7 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
         w = self.widget
 
         unit_combo = w.controls.unit
-        step_line = w.controls.steps
+        step_line = w.findChild(LineEdit, "stepline")
         extra_cb = w.controls.include_extra_part
         self.send_signal(w.Inputs.data, Table("iris"))
 
@@ -223,7 +230,7 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
             for edit in chain(w.date_edits, w.time_edits):
                 w.implied_sequence = 0
                 if isinstance(edit, QLineEdit):
-                    edit.editingFinished.emit()
+                    edit.focusInEvent(QFocusEvent(QFocusEvent.FocusIn))
                 else:
                     edit.currentIndexChanged.emit(0)
                 self.assertEqual(w.implied_sequence, 1, str(edit))
@@ -232,6 +239,7 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
 
     def test_time_reading_and_validation(self):
         w = self.widget
+        w.commit.deferred = Mock()
         # Dates before 2020 have invalid date
         # 2020 is correct
         # Dates after 2020 have invalid time
@@ -249,7 +257,7 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
                     edit.setCurrentIndex(val - 1)
 
             w.include_extra_part = True
-            w.read_start_time()
+            w._on_time_changed()
             self.assertEqual(w.start_date, time[:3])
             self.assertEqual(w.start_time, time[3:])
             self.assertIs(w.is_valid_time(), time[0] == 2020)
@@ -258,7 +266,7 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
             w.include_extra_part = False
             w.unit = w.controls.unit.itemText(0)
             # read_start_time still reads all
-            w.read_start_time()
+            w._on_time_changed()
             self.assertEqual(w.start_date, time[:3])
             self.assertEqual(w.start_time, time[3:])
             # Zero start date
@@ -269,13 +277,24 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
             w.include_extra_part = False
             w.unit = w.controls.unit.itemText(5)
             # read_start_time still reads all
-            w.read_start_time()
+            w._on_time_changed()
             self.assertEqual(w.start_date, time[:3])
             self.assertEqual(w.start_time, time[3:])
             # Zero start time
             self.assertEqual(w.get_time(), w.start_date + (0, 0, 0))
             # Dates after 2020 have invalid time
             self.assertIs(w.is_valid_time(), time[0] >= 2020)
+
+    def test_empty_line_edits(self):
+        w = self.widget
+        for edit in chain(w.date_edits, w.time_edits):
+            if isinstance(edit, QLineEdit):
+                edit.setText("")
+            else:
+                edit.setCurrentIndex(0)
+        w._on_time_changed()
+        self.assertEqual(w.start_date, (2000, 1, 1))
+        self.assertEqual(w.start_time, (0, 0, 0))
 
     def test_set_data(self):
         w = self.widget
@@ -507,15 +526,30 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
 
     def test_series_by_sequence_year_out_of_range(self):
         w = self.widget
+        erryear = w.Error.year_out_of_range
         self.send_signal(w.Inputs.data, self.data)
 
         w.unit = "Years"
+
         w.steps = 10000
         w.start_date = (2022, 11, 3)
         w.start_time = (11, 13, 45)
-
         self.assertIsNone(w._series_by_sequence())
-        self.assertTrue(w.Error.year_out_of_range.is_shown())
+        self.assertTrue(erryear.is_shown())
+        erryear.clear()  # cleared by commit
+
+        w.steps = 1
+        self.assertIsNotNone(w._series_by_sequence())
+        self.assertFalse(erryear.is_shown())
+
+        w.start_date = (10101, 1, 31)
+        self.assertIsNone(w._series_by_sequence())
+        self.assertTrue(erryear.is_shown())
+        erryear.clear()  # cleared by commit
+
+        w.start_date = (-10101, 1, 31)
+        self.assertIsNone(w._series_by_sequence())
+        self.assertTrue(erryear.is_shown())
 
     def test_series_by_sequence_time_format(self):
         w = self.widget
@@ -552,6 +586,14 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
                    "make_timeseries_from_sequence", side_effect=ValueError):
             self.assertRaises(ValueError, w._series_by_sequence)
 
+    def test_set_data_attr_from_setting(self):
+        w = self.create_widget(
+            OWTableToTimeseries,
+            stored_settings=dict(implied_sequence=1, attribute="sepal width"))
+        self.send_signal(w.Inputs.data, Table("iris"))
+        self.assertEqual(w.attribute, "sepal width")
+        self.assertEqual(w.var_combo.currentText(), "sepal width")
+
     def test_report(self):
         w = self.widget
         self.send_signal(w.Inputs.data, self.data)
@@ -561,6 +603,49 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
 
         w.implied_sequence = 1
         w.send_report()
+
+    def test_migrate_settings_1_to_2(self):
+        set_orig = {'autocommit': True,
+                    'controlAreaVisible': True,
+                    'radio_sequential': 2,
+                    'savedWidgetGeometry': b'\x01\xd9\xd0\xcb\x00\x03\x00\x00\x00\x00\x02I\x00\x00\x012\x00\x00\x03\x8b\x00\x00\x02\x96\x00\x00\x02I\x00\x00\x01N\x00\x00\x03\x8b\x00\x00\x02\x96\x00\x00\x00\x00\x02\x00\x00\x00\x05\xe8\x00\x00\x02I\x00\x00\x01N\x00\x00\x03\x8b\x00\x00\x02\x96',
+                    'selected_attr': '',
+                    '__version__': 1}
+
+        settings = deepcopy(set_orig)
+        settings['context_settings'] = [
+            Context(
+                attributes={'sepal length': 2, 'sepal width': 2,
+                            'petal length': 2, 'petal width': 2, 'iris': 1},
+                values={'implied_sequence': (0, -2),
+                        'order': ('petal length', 102),
+                        '__version__': 1})]
+        OWTableToTimeseries.migrate_settings(settings, 1)
+        self.assertEqual(settings["implied_sequence"], 0)
+        self.assertEqual(settings["attribute"], "petal length")
+        self.assertFalse("context_settings" in settings)
+
+        settings = deepcopy(set_orig)
+        settings['context_settings'] = [
+            Context(
+                attributes={'sepal length': 2, 'sepal width': 2,
+                            'petal length': 2, 'petal width': 2, 'iris': 1},
+                values={'implied_sequence': (1, -2),
+                        'order': ('petal length', 102),
+                        '__version__': 1})]
+        OWTableToTimeseries.migrate_settings(settings, 1)
+        self.assertEqual(settings["implied_sequence"], 1)
+        self.assertEqual(settings["attribute"], "petal length")
+        self.assertFalse("context_settings" in settings)
+
+        settings = deepcopy(set_orig)
+        settings['context_settings']: []
+        OWTableToTimeseries.migrate_settings(settings, 1)
+        self.assertFalse("context_settings" in settings)
+
+        settings = deepcopy(set_orig)
+        OWTableToTimeseries.migrate_settings(settings, 1)
+        self.assertFalse("context_settings" in settings)
 
 
 if __name__ == "__main__":

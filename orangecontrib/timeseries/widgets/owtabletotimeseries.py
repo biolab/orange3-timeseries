@@ -1,16 +1,16 @@
 import dataclasses
 import string
 from itertools import chain
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 import calendar
 import datetime
 
 from dateutil.relativedelta import relativedelta
 
-from AnyQt.QtCore import Qt
+from AnyQt.QtCore import Qt, QObject
 from AnyQt.QtWidgets import \
     QGridLayout, QStyle, QComboBox, QLabel, QLineEdit, QSizePolicy
-from AnyQt.QtGui import QFontMetrics, QIntValidator
+from AnyQt.QtGui import QFontMetrics, QValidator
 
 from orangewidget.utils.widgetpreview import WidgetPreview
 
@@ -45,11 +45,34 @@ StepOptions["Centuries"] = \
     StepOptionsDef("Centuries", relativedelta(years=100))
 
 
+class IntOrEmptyValidator(QValidator):
+    def validate(self, input, pos):
+        return (
+            self.Acceptable if not input or input.isdigit() else self.Invalid,
+            input, pos)
+
+class LineEdit(QLineEdit):
+    def __init__(self, *args, default, onFinish, onFocus, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setPlaceholderText(default)
+        self._onFocus = onFocus
+        self.setValidator(IntOrEmptyValidator())
+        self.editingFinished.connect(onFinish)
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self._onFocus()
+
+    def text(self):
+        return super().text().strip() or self.placeholderText()
+
+
 class OWTableToTimeseries(widget.OWWidget):
     name = 'Form Timeseries'
     description = 'Reinterpret data table as a time series.'
     icon = 'icons/TableToTimeseries.svg'
     priority = 10
+    keywords = ["as "]
 
     class Inputs:
         data = Input("Data", Table)
@@ -71,7 +94,7 @@ class OWTableToTimeseries(widget.OWWidget):
     steps = Setting(1)
     unit = Setting(next(iter(StepOptions)))
     include_extra_part = Setting(True)
-    start_date = Setting((2022, 11, 1))
+    start_date = Setting((2000, 1, 1))
     start_time = Setting((0, 0, 0))
     attribute = Setting(None)
     autocommit = Setting(True)
@@ -120,16 +143,21 @@ class OWTableToTimeseries(widget.OWWidget):
         layout.addWidget(QLabel("Start: "), row, 0)
         self.datebox = gui.hBox(None)
         y, m, d = self.start_date
-        numargs = dict(alignment=Qt.AlignCenter, maximumWidth=numwidth * 4)
+        numargs = dict(
+            alignment=Qt.AlignCenter, maximumWidth=numwidth * 4,
+            onFinish=self._on_time_changed, onFocus=self._on_implied_focused)
         self.date_edits = (
-            QLineEdit(str(y),
-                      alignment=Qt.AlignRight, maximumWidth=numwidth * 6),
+            LineEdit(
+                str(y), default="2000",
+                onFinish=self._on_time_changed, onFocus=self._on_implied_focused,
+                alignment=Qt.AlignRight, maximumWidth=numwidth * 6),
             combo := QComboBox(),
-            QLineEdit(str(d), **numargs)
+            LineEdit(str(d), default="01", **numargs)
         )
         combo.addItems(calendar.month_name[1:])
-        combo.setCurrentIndex(m)
+        combo.setCurrentIndex(m - 1)
         combo.setMinimumContentsLength(max(map(len, calendar.month_name[1:])))
+        combo.currentIndexChanged.connect(self._on_month_changed)
         for edit in self.date_edits:
             self.datebox.layout().addWidget(edit)
         gui.rubber(self.datebox)
@@ -137,21 +165,13 @@ class OWTableToTimeseries(widget.OWWidget):
 
         self.timebox = gui.hBox(None)
         self.time_edits = tuple(
-            QLineEdit(f"{val:02}", **numargs)
+            LineEdit(f"{val:02}", default="00", **numargs)
             for val in self.start_time)
         for i, edit in enumerate(self.time_edits):
             self.timebox.layout().addWidget(QLabel(["⏱", ":", ":"][i]))
             self.timebox.layout().addWidget(edit)
         gui.rubber(self.timebox)
         layout.addWidget(self.timebox, row + 1, 1, 1, -1)
-
-        validator = QIntValidator()
-        for edit in chain(self.date_edits, self.time_edits):
-            if isinstance(edit, QLineEdit):
-                edit.setValidator(validator)
-                edit.editingFinished.connect(self._on_time_changed)
-            else:
-                edit.currentIndexChanged.connect(self._on_time_changed)
 
         self._update_start_controls()
         self.Error.invalid_time(shown=not self.is_valid_time())
@@ -166,12 +186,12 @@ class OWTableToTimeseries(widget.OWWidget):
     def _add_step_controls(self, layout, row, numwidth):
         layout.addWidget(QLabel("Step: "), row, 0)
         box = gui.hBox(None)
-        le = gui.lineEdit(
-            box, self, "steps",
-            alignment=Qt.AlignRight, maximumWidth=4 * numwidth,
-            valueType=int, validator=QIntValidator(),
+        box.layout().addWidget(
+            LineEdit(
+                str(self.steps), default="1", objectName="stepline",
+                onFinish=self._on_steps_changed, onFocus=self._on_implied_focused,
+                alignment=Qt.AlignRight, maximumWidth=4 * numwidth)
         )
-        le.editingFinished.connect(self._on_time_settings_changed)
         gui.comboBox(
             box, self, "unit", items=list(StepOptions),
             callback=self._on_time_settings_changed, sendSelectedValue=True
@@ -196,6 +216,16 @@ class OWTableToTimeseries(widget.OWWidget):
 
     def _on_attribute_changed(self):
         self.implied_sequence = 0
+        self.attribute = self.var_combo.currentText()
+        self.commit.deferred()
+
+    def _on_implied_focused(self):
+        if self.implied_sequence != 1:
+            self.implied_sequence = 1
+            self.commit.deferred()
+
+    def _on_steps_changed(self):
+        self.steps = int(QObject().sender().text())
         self.commit.deferred()
 
     def _on_time_settings_changed(self):
@@ -203,15 +233,15 @@ class OWTableToTimeseries(widget.OWWidget):
         self._update_start_controls()
         self.commit.deferred()
 
-    def _on_time_changed(self):
+    def _on_month_changed(self):
         self.implied_sequence = 1
-        self.read_start_time()
-        self.commit.deferred()
+        self._on_time_changed()
 
-    def read_start_time(self) -> Optional[Tuple[int, int, int, int, int, int]]:
+    def _on_time_changed(self):
         ye, me, de = self.date_edits
         self.start_date = (int(ye.text()), me.currentIndex() + 1, int(de.text()))
         self.start_time = tuple(int(edit.text()) for edit in self.time_edits)
+        self.commit.deferred()
 
     def get_time(self):
         return (self.start_date if self.use_date else (1970, 1, 1)) \
@@ -247,9 +277,11 @@ class OWTableToTimeseries(widget.OWWidget):
             self.controls.implied_sequence.buttons[0].setDisabled(not model)
             if not model:
                 self.implied_sequence = 1
-            if model and self.attribute not in [var.name
-                                                for var in time_vars + cont_vars]:
-                self.attribute = getattr(data, "time_variable", model[0]).name
+            if model:
+                if self.attribute not in [var.name
+                                          for var in time_vars + cont_vars]:
+                    self.attribute = getattr(data, "time_variable", model[0]).name
+                self.var_combo.setCurrentText(self.attribute)
         self.commit.now()
 
     @gui.deferred
@@ -278,9 +310,10 @@ class OWTableToTimeseries(widget.OWWidget):
             self.Error.invalid_time()
             return None
 
-        start = datetime.datetime(*self.get_time(), 0, datetime.timezone.utc)
-        delta = int(self.steps) * StepOptions[self.unit].delta
         try:
+            start = datetime.datetime(
+                *self.get_time(), 0, datetime.timezone.utc)
+            delta = int(self.steps) * StepOptions[self.unit].delta
             ts = Timeseries.make_timeseries_from_sequence(
                 self.data, delta, start,
                 have_date=self.use_date, have_time=self.use_time)
@@ -306,6 +339,16 @@ class OWTableToTimeseries(widget.OWWidget):
                 ("Start time", start_time),
                 ("Step", f"{self.steps} {self.unit.lower()}")
             ))
+
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        if version < 2:
+            if "context_settings" in settings:
+                if len(settings["context_settings"]) > 0:
+                    values = settings["context_settings"][-1].values
+                    settings["implied_sequence"] = values["implied_sequence"][0]
+                    settings["attribute"] = values["order"][0]
+                del settings["context_settings"]
 
 
 if __name__ == "__main__":
