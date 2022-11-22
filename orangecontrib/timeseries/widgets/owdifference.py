@@ -51,6 +51,7 @@ class OWDifference(widget.OWWidget):
     operation = settings.Setting(Diff)
     shift_period = settings.Setting(1)
     invert_direction = settings.Setting(False)
+    assume_zero_before = settings.Setting(False)
     selection: List[str] = settings.Setting([])
     autocommit = settings.Setting(True)
 
@@ -69,7 +70,7 @@ class OWDifference(widget.OWWidget):
         gui.radioButtonsInBox(
             box, self, 'operation',
             [op.name for op in self.Operations],
-            callback=self._operation_changed)
+            callback=self._operation_or_direction_changed)
         gui.separator(box)
 
         sp = gui.spin(
@@ -82,13 +83,25 @@ class OWDifference(widget.OWWidget):
 
         gui.checkBox(
             box, self, 'invert_direction', 'Invert differencing direction',
+            callback=self._operation_or_direction_changed)
+
+        gui.checkBox(
+            box, self, 'assume_zero_before',
+            'Assume zeros before start', stateWhenDisabled=False,
             callback=self.commit.deferred)
 
+        self._update_gui_state()
         gui.auto_commit(self.buttonsArea, self, 'autocommit', '&Apply')
 
-    def _operation_changed(self):
-        self.controls.shift_period.box.setEnabled(self.operation != self.Diff2)
+    def _operation_or_direction_changed(self):
+        self._update_gui_state()
         self.commit.deferred()
+
+    def _update_gui_state(self):
+        self.controls.shift_period.box.setEnabled(self.operation != self.Diff2)
+        self.controls.assume_zero_before.setEnabled(
+            not self.invert_direction
+            and self.operation in (self.Diff, self.Diff2))
 
     def _selection_changed(self):
         self.selection = [
@@ -155,8 +168,13 @@ class OWDifference(widget.OWWidget):
             number_of_decimals = data.domain[name].number_of_decimals
             if op == self.Diff:
                 out[shift:] = col[shift:] - col[:-shift]
+                if not self.invert_direction and self.assume_zero_before:
+                    out[:shift] = col[:shift]
             elif op == self.Diff2:
                 out[2:] = np.diff(col, 2)
+                if not self.invert_direction and self.assume_zero_before:
+                    out[1] = col[1] - 2 * col[0]
+                    out[0] = col[0]
             else:
                 assert op in (self.Quot, self.Perc)
                 quots = col[:-shift].copy()
