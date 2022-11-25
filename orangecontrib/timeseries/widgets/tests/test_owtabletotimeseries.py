@@ -8,7 +8,8 @@ import numpy as np
 import scipy.sparse as sp
 
 from AnyQt.QtWidgets import QLineEdit
-from AnyQt.QtGui import QFocusEvent
+from AnyQt.QtCore import Qt, QPointF, QPoint
+from AnyQt.QtGui import QMouseEvent
 
 from Orange.data import \
     Table, Domain, DiscreteVariable, ContinuousVariable, TimeVariable
@@ -230,7 +231,10 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
             for edit in chain(w.date_edits, w.time_edits):
                 w.implied_sequence = 0
                 if isinstance(edit, QLineEdit):
-                    edit.focusInEvent(QFocusEvent(QFocusEvent.FocusIn))
+                    edit.mousePressEvent(QMouseEvent(
+                        QMouseEvent.MouseButtonPress,
+                        QPointF(3, 3), edit.mapToGlobal(QPoint(3, 3)),
+                        Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
                 else:
                     edit.currentIndexChanged.emit(0)
                 self.assertEqual(w.implied_sequence, 1, str(edit))

@@ -52,16 +52,16 @@ class IntOrEmptyValidator(QValidator):
             input, pos)
 
 class LineEdit(QLineEdit):
-    def __init__(self, *args, default, onFinish, onFocus, **kwargs):
+    def __init__(self, *args, default, onFinish, onClick, **kwargs):
         super().__init__(*args, **kwargs)
         self.setPlaceholderText(default)
-        self._onFocus = onFocus
+        self._onClick = onClick
         self.setValidator(IntOrEmptyValidator())
         self.editingFinished.connect(onFinish)
 
-    def focusInEvent(self, event):
-        super().focusInEvent(event)
-        self._onFocus()
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self._onClick()
 
     def text(self):
         return super().text().strip() or self.placeholderText()
@@ -145,11 +145,11 @@ class OWTableToTimeseries(widget.OWWidget):
         y, m, d = self.start_date
         numargs = dict(
             alignment=Qt.AlignCenter, maximumWidth=numwidth * 4,
-            onFinish=self._on_time_changed, onFocus=self._on_implied_focused)
+            onFinish=self._on_time_changed, onClick=self._on_implied_clicked)
         self.date_edits = (
             LineEdit(
                 str(y), default="2000",
-                onFinish=self._on_time_changed, onFocus=self._on_implied_focused,
+                onFinish=self._on_time_changed, onClick=self._on_implied_clicked,
                 alignment=Qt.AlignRight, maximumWidth=numwidth * 6),
             combo := QComboBox(),
             LineEdit(str(d), default="01", **numargs)
@@ -189,7 +189,7 @@ class OWTableToTimeseries(widget.OWWidget):
         box.layout().addWidget(
             LineEdit(
                 str(self.steps), default="1", objectName="stepline",
-                onFinish=self._on_steps_changed, onFocus=self._on_implied_focused,
+                onFinish=self._on_steps_changed, onClick=self._on_implied_clicked,
                 alignment=Qt.AlignRight, maximumWidth=4 * numwidth)
         )
         gui.comboBox(
@@ -219,7 +219,7 @@ class OWTableToTimeseries(widget.OWWidget):
         self.attribute = self.var_combo.currentText()
         self.commit.deferred()
 
-    def _on_implied_focused(self):
+    def _on_implied_clicked(self):
         if self.implied_sequence != 1:
             self.implied_sequence = 1
             self.commit.deferred()
