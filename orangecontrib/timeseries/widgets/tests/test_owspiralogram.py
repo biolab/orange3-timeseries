@@ -236,12 +236,12 @@ class TestOWSpiralogram(WidgetTest):
         recompute.assert_called_with(None, False)
         self.change_x(2)  # c, continuous
         np.testing.assert_equal(recompute.call_args[0][0],
-                                self.data.get_column_view(c)[0])
+                                self.data.get_column(c))
         self.assertFalse(recompute.call_args[0][1])
 
         self.change_x(3)  # d, time
         np.testing.assert_equal(recompute.call_args[0][0],
-                                self.data.get_column_view(d)[0])
+                                self.data.get_column(d))
         self.assertTrue(recompute.call_args[0][1])
 
     def test_slider_track_doesnt_commit(self):
@@ -506,7 +506,7 @@ class TestOWSpiralogram(WidgetTest):
         widget = self.widget
         self.send_signal(widget.Inputs.time_series, self.time_data)
         a, b, c, d, *_ = self.data.domain.attributes
-        c_column = self.data.get_column_view(c)[0]
+        c_column = self.data.get_column(c)
         c.number_of_decimals = 8
 
         columns = [np.repeat(np.arange(3), 5), np.array(list(range(5)) * 3)]
@@ -524,9 +524,9 @@ class TestOWSpiralogram(WidgetTest):
         self.assertEqual(len(data.domain.attributes), 3)
         self.assertEqual(data.domain.attributes[:2], (a, b))
         self.assertIsInstance(data.domain.attributes[2], ContinuousVariable)
-        np.testing.assert_equal(data.get_column_view(0)[0], [0, 2])
-        np.testing.assert_equal(data.get_column_view(1)[0], [0, 1])
-        np.testing.assert_equal(data.get_column_view(2)[0], [6, 4])
+        np.testing.assert_equal(data.get_column(0), [0, 2])
+        np.testing.assert_equal(data.get_column(1), [0, 1])
+        np.testing.assert_equal(data.get_column(2), [6, 4])
 
         self.change_color(3)  # c
         widget.aggregation = "Mean value"
@@ -537,9 +537,9 @@ class TestOWSpiralogram(WidgetTest):
         self.assertEqual(data.domain.class_var.name, "c (mean)")
         # clones old variable, but with new name
         self.assertEqual(data.domain.class_var.number_of_decimals, 8)
-        np.testing.assert_equal(data.get_column_view(0)[0], [0, 2])
-        np.testing.assert_equal(data.get_column_view(1)[0], [0, 1])
-        np.testing.assert_equal(data.get_column_view(2)[0], [6, 4])
+        np.testing.assert_equal(data.get_column(0), [0, 2])
+        np.testing.assert_equal(data.get_column(1), [0, 1])
+        np.testing.assert_equal(data.get_column(2), [6, 4])
         means = np.full(len(data), np.nan)
         means[0] = np.mean(c_column[:6])
         means[1] = np.mean(c_column[6:])

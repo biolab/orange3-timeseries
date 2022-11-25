@@ -95,6 +95,8 @@ class OWMovingTransform(widget.OWWidget):
 
     replaces = ["orangecontrib.timeseries.widgets.owaggregate.OWAggregate"]
 
+    mainArea_width_height_ratio = None
+
     class Inputs:
         time_series = Input("Time series", Table)
 
@@ -221,7 +223,8 @@ class OWMovingTransform(widget.OWWidget):
         self.proxy = NumericFilterProxy(self.var_model, self.only_numeric)
         view.setModel(self.proxy)
         view.setSelectionMode(QListView.ExtendedSelection)
-        self.var_view.selectionModel().selectionChanged.connect(self._selection_changed)
+        view.selectionModel().selectionChanged.connect(self._selection_changed)
+        view.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.MinimumExpanding)
         vbox.layout().addWidget(view)
         gui.checkBox(vbox, self, "only_numeric", "Show only numeric variables",
                      callback=self._show_numeric_changed)
@@ -458,7 +461,7 @@ class OWMovingTransform(widget.OWWidget):
                     inapplicable.add(agg.long_desc)
                     continue
                 if column is None:
-                    column = data.get_column_view(attr)[0]
+                    column = data.get_column(attr)
                 agg_column = agg.transform(column, width, width)
                 attributes.append(self._var_for_agg(attr, agg, names))
                 columns.append(agg_column)
@@ -518,7 +521,7 @@ class OWMovingTransform(widget.OWWidget):
                     inapplicable.add(agg.long_desc)
                     continue
                 attributes.append(self._var_for_agg(attr, agg, names))
-                column = data.get_column_view(attr)[0]
+                column = data.get_column(attr)
                 agg_column = np.array([
                     agg.block_transform(column[period_indices == i])
                     for i in range(len(periods))])

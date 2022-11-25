@@ -1,4 +1,4 @@
-from AnyQt.QtWidgets import QListView
+from AnyQt.QtWidgets import QListView, QFormLayout
 from AnyQt.QtCore import Qt
 
 from Orange.data import Table, Domain
@@ -60,24 +60,30 @@ class OWSeasonalAdjustment(widget.OWWidget):
 
     def __init__(self):
         self.data = None
-        box = gui.vBox(self.controlArea, 'Seasonal Adjustment')
-        gui.spin(box, self, 'n_periods', 2, MAX_PERIODS,
-                 label='Season period:',
-                 callback=self.on_changed,
-                 tooltip='The expected length of full cycle. E.g., if you have '
-                         'monthly data and the apparent season repeats every '
-                         'year, you put in 12.')
-        gui.radioButtons(box, self, 'decomposition', self.DECOMPOSITION_MODELS,
-                         label='Decomposition model:',
+        form = QFormLayout()
+        gui.widgetBox(self.controlArea, box=True, orientation=form)
+
+        form.addRow(
+            'Season period:',
+            gui.spin(None, self, 'n_periods', 2, MAX_PERIODS,
+                     callback=self.on_changed,
+                     tooltip='The expected length of full cycle. E.g., if you have '
+                             'monthly data and the apparent season repeats every '
+                             'year, you put in 12.')
+        )
+        form.addRow(
+            'Decomposition model:',
+            gui.comboBox(None, self, 'decomposition',
+                         items=self.DECOMPOSITION_MODELS,
                          orientation=Qt.Horizontal,
-                         callback=self.on_changed)
+                         callback=self.on_changed))
         self.view = view = QListView(self,
                                      selectionMode=QListView.ExtendedSelection)
         self.model = model = VariableListModel(parent=self)
         view.setModel(model)
         view.selectionModel().selectionChanged.connect(self.on_changed)
-        box.layout().addWidget(view)
-        gui.auto_commit(box, self, 'autocommit', '&Apply')
+        self.controlArea.layout().addWidget(view)
+        gui.auto_commit(self.buttonsArea, self, 'autocommit', '&Apply')
 
     @Inputs.time_series
     def set_data(self, data):
