@@ -53,6 +53,7 @@ class TestOWDifference(WidgetTest):
 
         widget.shift_period = 1
         widget.invert_direction = False
+        widget.assume_zero_before = False
         _, columns = widget.compute(self.data, list("abc"))
         np.testing.assert_equal(
             columns, [[np.nan, np.nan, np.nan],
@@ -60,8 +61,27 @@ class TestOWDifference(WidgetTest):
                       [2, np.nan, 2],
                       [4, np.nan, -1]])
 
+        widget.assume_zero_before = True
+        _, columns = widget.compute(self.data, list("abc"))
+        np.testing.assert_equal(
+            columns, [[4, 5, 8],
+                      [-3, -7, -8],
+                      [2, np.nan, 2],
+                      [4, np.nan, -1]])
+
         widget.shift_period = 1
         widget.invert_direction = True
+        widget.assume_zero_before = False
+        _, columns = widget.compute(self.data, list("abc"))
+        np.testing.assert_equal(
+            columns, [[3, 7, 8],
+                      [-2, np.nan, -2],
+                      [-4, np.nan, 1],
+                      [np.nan, np.nan, np.nan]])
+
+        widget.shift_period = 1
+        widget.invert_direction = True
+        widget.assume_zero_before = True  # This must be ignored!
         _, columns = widget.compute(self.data, list("abc"))
         np.testing.assert_equal(
             columns, [[3, 7, 8],
@@ -71,10 +91,21 @@ class TestOWDifference(WidgetTest):
 
         widget.shift_period = 2
         widget.invert_direction = False
+        widget.assume_zero_before = False
         _, columns = widget.compute(self.data, list("abc"))
         np.testing.assert_equal(
             columns, [[np.nan, np.nan, np.nan],
                       [np.nan, np.nan, np.nan],
+                      [-1, np.nan, -6],
+                      [6, np.nan, 1]])
+
+        widget.shift_period = 2
+        widget.invert_direction = False
+        widget.assume_zero_before = True
+        _, columns = widget.compute(self.data, list("abc"))
+        np.testing.assert_equal(
+            columns, [[4, 5, 8],
+                      [1, -2, 0],
                       [-1, np.nan, -6],
                       [6, np.nan, 1]])
 
@@ -87,13 +118,34 @@ class TestOWDifference(WidgetTest):
                       [np.nan, np.nan, np.nan],
                       [np.nan, np.nan, np.nan]])
 
+        widget.shift_period = 2
+        widget.invert_direction = True
+        widget.assume_zero_before = True  # This must be ignored!
+        _, columns = widget.compute(self.data, list("abc"))
+        np.testing.assert_equal(
+            columns, [[1, np.nan, 6],
+                      [-6, np.nan, -1],
+                      [np.nan, np.nan, np.nan],
+                      [np.nan, np.nan, np.nan]])
+
         widget.shift_period = 3
         widget.invert_direction = False
+        widget.assume_zero_before = False
         _, columns = widget.compute(self.data, list("abc"))
         np.testing.assert_equal(
             columns, [[np.nan, np.nan, np.nan],
                       [np.nan, np.nan, np.nan],
                       [np.nan, np.nan, np.nan],
+                      [3, np.nan, -7]])
+
+        widget.shift_period = 3
+        widget.invert_direction = False
+        widget.assume_zero_before = True
+        _, columns = widget.compute(self.data, list("abc"))
+        np.testing.assert_equal(
+            columns, [[4, 5, 8],
+                      [1, -2, 0],
+                      [3, np.nan, 2],
                       [3, np.nan, -7]])
 
         widget.shift_period = 3
@@ -107,12 +159,16 @@ class TestOWDifference(WidgetTest):
 
         for widget.shift_period in (4, 5, 10):
             for widget.invert_direction in (False, True):
-                _, columns = widget.compute(self.data, list("abc"))
-                np.testing.assert_equal(
-                    columns, [[np.nan, np.nan, np.nan],
-                              [np.nan, np.nan, np.nan],
-                              [np.nan, np.nan, np.nan],
-                              [np.nan, np.nan, np.nan]])
+                for widget.assume_zero_before in (False, True):
+                    _, columns = widget.compute(self.data, list("abc"))
+                    if not widget.assume_zero_before or widget.invert_direction:
+                        np.testing.assert_equal(
+                            columns, [[np.nan, np.nan, np.nan],
+                                      [np.nan, np.nan, np.nan],
+                                      [np.nan, np.nan, np.nan],
+                                      [np.nan, np.nan, np.nan]])
+                    else:
+                        np.testing.assert_equal(columns, self.data.X[:, :3])
 
     def test_difference2(self):
         widget = self.widget
@@ -120,6 +176,7 @@ class TestOWDifference(WidgetTest):
 
         widget.shift_period = 1
         widget.invert_direction = False
+        widget.assume_zero_before = False
         _, columns = widget.compute(self.data, list("abc"))
         np.testing.assert_equal(
             columns, [[np.nan, np.nan, np.nan],
@@ -128,7 +185,28 @@ class TestOWDifference(WidgetTest):
                       [2, np.nan, -3]])
 
         widget.shift_period = 1
+        widget.invert_direction = False
+        widget.assume_zero_before = True
+        _, columns = widget.compute(self.data, list("abc"))
+        np.testing.assert_equal(
+            columns, [[4, 5, 8],
+                      [-7, -12, -16],
+                      [5, np.nan, 10],
+                      [2, np.nan, -3]])
+
+        widget.shift_period = 1
         widget.invert_direction = True
+        widget.assume_zero_before = False
+        _, columns = widget.compute(self.data, list("abc"))
+        np.testing.assert_equal(
+            columns, [[5, np.nan, 10],
+                      [2, np.nan, -3],
+                      [np.nan, np.nan, np.nan],
+                      [np.nan, np.nan, np.nan]])
+
+        widget.shift_period = 1
+        widget.invert_direction = True
+        widget.assume_zero_before = True  # This must be ignored!
         _, columns = widget.compute(self.data, list("abc"))
         np.testing.assert_equal(
             columns, [[5, np.nan, 10],
