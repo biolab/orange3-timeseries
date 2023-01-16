@@ -9,7 +9,7 @@ Visualize variables' auto-correlation.
 
 In this widget, you can visualize the autocorrelation coefficients for the selected time series.
 
-![](images/Correlogram.png)
+![](images/correlogram.png)
 
 1. Select the series to calculate autocorrelation for.
 2. Choose to calculate the coefficients using partial autocorrelation function (PACF) instead. Choose to plot the 95% significance interval (dotted horizontal line). Coefficients that are outside of this interval might be significant.
