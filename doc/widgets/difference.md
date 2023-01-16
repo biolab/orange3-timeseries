@@ -11,7 +11,7 @@ Make the time series stationary by replacing it with 1st or 2nd order discrete d
 
 - Time series: differences of input time series.
 
-![](images/Difference.png)
+![](images/difference.png)
 
 1. Select the series to difference.
 2. Order of differencing. Options are first or second order difference, change quotient and percentage change.

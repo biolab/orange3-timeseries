@@ -9,7 +9,7 @@ Visualize time series' cycles, seasonality, periodicity, and most significant pe
 
 In this widget, you can visualize the most significant periods of the time series.
 
-![](images/Periodogram.png)
+![](images/periodogram.png)
 
 1. Select the series to calculate the periodogram for.
 

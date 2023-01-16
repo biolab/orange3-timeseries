@@ -14,7 +14,7 @@ Visualize time series' periodicity in a spiral heatmap.
 
 Spiralogram is intended for visualizing time series and for comparing attribute values by categorical variables. Instances can be selected from the plot and sent downstream.
 
-![](images/Spiralogram.png)
+![](images/spiralogram.png)
 
 1. Units on the circumference. Options are: month of year (12 units), day of year (365 units), day of month (~30 units), day of week (Mon-Sun, 7 units), hour of day (24 units) and all the variables from the data.
 2. Unit of the vertical axis. *Hide inner labels* removes labels on the vertical axis.
