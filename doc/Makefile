@@ -87,9 +87,9 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/Orange3-Associate.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/Orange3-TimeSeries.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/Orange3-Associate.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/Orange3-TimeSeries.qhc"
 
 applehelp:
 	$(SPHINXBUILD) -b applehelp $(ALLSPHINXOPTS) $(BUILDDIR)/applehelp
@@ -104,8 +104,8 @@ devhelp:
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/Orange3-Associate"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/Orange3-Associate"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/Orange3-TimeSeries"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/Orange3-TimeSeries"
 	@echo "# devhelp"
 
 epub:

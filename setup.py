@@ -3,7 +3,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION = '0.5.1'
+VERSION = '0.5.2'
 
 README_FILE = os.path.join(os.path.dirname(__file__), 'README.pypi')
 LONG_DESCRIPTION = open(README_FILE, encoding='utf-8').read()
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         author='Bioinformatics Laboratory, FRI UL',
         author_email='info@biolab.si',
         url='https://github.com/biolab/orange3-timeseries',
-        license='GPL3+',
+        license='GPLv3+',
         keywords=(
             'time series',
             'sequence analysis',
@@ -88,7 +88,7 @@ if __name__ == '__main__':
             'Environment :: X11 Applications :: Qt',
             'Environment :: Plugins',
             'Programming Language :: Python',
-            'License :: GPL3+',
+            'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
             'Operating System :: OS Independent',
             'Topic :: Scientific/Engineering :: Artificial Intelligence',
             'Topic :: Scientific/Engineering :: Visualization',
