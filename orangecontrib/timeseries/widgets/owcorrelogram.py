@@ -36,11 +36,12 @@ class OWCorrelogram(OWPeriodBase):
                      callback=self.replot)
 
     def acf(self, attr, pacf, confint):
-        if attr not in self._cached:
+        key = (attr, pacf, confint)
+        if key not in self._cached:
             x = self.data.interp(attr).ravel()
             func = partial_autocorrelation if pacf else autocorrelation
-            self._cached[attr] = func(x, alpha=.05 if confint else None)
-        return self._cached[attr]
+            self._cached[key] = func(x, alpha=.05 if confint else None)
+        return self._cached[key]
 
     def replot(self):
         self.plot.clear()
