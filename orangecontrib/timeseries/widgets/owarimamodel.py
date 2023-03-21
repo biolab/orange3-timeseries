@@ -20,7 +20,6 @@ class OWARIMAModel(OWBaseModel):
     p = settings.Setting(1)
     d = settings.Setting(0)
     q = settings.Setting(0)
-    use_exog = settings.Setting(False)
 
     class Inputs(OWBaseModel.Inputs):
         exogenous_data = Input("Exogenous data", Timeseries)
@@ -47,15 +46,13 @@ class OWARIMAModel(OWBaseModel):
                       gui.spin(None, self, 'q', 0, 100, **kwargs))
 
     def forecast(self, model):
-        if self.use_exog and self.exog_data is None:
-            return
         return model.predict(self.forecast_steps,
                              exog=self.exog_data,
                              alpha=1 - self.forecast_confint / 100,
                              as_table=True)
 
     def create_learner(self):
-        return ARIMA((self.p, self.d, self.q), self.use_exog)
+        return ARIMA((self.p, self.d, self.q), self.exog_data is not None)
 
 
 if __name__ == "__main__":
