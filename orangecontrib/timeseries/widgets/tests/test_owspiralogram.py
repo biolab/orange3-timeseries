@@ -6,7 +6,7 @@ import numpy as np
 
 from AnyQt.QtGui import QColor
 from AnyQt.QtCore import Qt
-from AnyQt.QtWidgets import qApp
+from AnyQt.QtWidgets import QApplication
 
 from orangewidget.tests.base import GuiTest
 
@@ -159,7 +159,7 @@ class TestOWSpiralogram(WidgetTest):
         a, b, *_ = self.data.domain.attributes
 
         self.send_signal(widget.Inputs.time_series, self.data)
-        qApp.processEvents()  # reblock uses single shot timer
+        QApplication.processEvents()  # reblock uses single shot timer
 
         self.assertIs(widget.x_var, a)
         self.assertIsNone(widget.r_var)
@@ -285,7 +285,7 @@ class TestOWSpiralogram(WidgetTest):
                             for item in widget.x_model))
 
         self.send_signal(widget.Inputs.time_series, self.time_data)
-        qApp.processEvents()  # reblock uses single shot timer
+        QApplication.processEvents()  # reblock uses single shot timer
         self.assertTrue(any(isinstance(item, Variable)
                             for item in widget.x_model))
         self.assertTrue(any(isinstance(item, str)
@@ -293,12 +293,12 @@ class TestOWSpiralogram(WidgetTest):
         self.assertIsNotNone(self.get_output(widget.Outputs.statistics))
 
         self.send_signal(widget.Inputs.time_series, None)
-        qApp.processEvents()  # reblock uses single shot timer
+        QApplication.processEvents()  # reblock uses single shot timer
         self.assertFalse(widget.x_model)
         self.assertIsNone(self.get_output(widget.Outputs.statistics))
 
         self.send_signal(widget.Inputs.time_series, self.data)
-        qApp.processEvents()  # reblock uses single shot timer
+        QApplication.processEvents()  # reblock uses single shot timer
         assert self.get_output(widget.Outputs.statistics)
 
         self.send_signal(widget.Inputs.time_series, self.useless_data)
@@ -403,7 +403,7 @@ class TestOWSpiralogram(WidgetTest):
         widget.commit_selection = commit_selection
         widget._pending_selection = [(1, 0)]
         self.send_signal(widget.Inputs.time_series, self.data)
-        qApp.processEvents()  # reblock uses single shot timer
+        QApplication.processEvents()  # reblock uses single shot timer
         self.assertTrue(comitted)
 
     def test_compute_block_data(self):

@@ -233,7 +233,7 @@ class TestAsTimeSeriesWidget(TestAsTimeSeriesWidgetBase):
                 if isinstance(edit, QLineEdit):
                     edit.mousePressEvent(QMouseEvent(
                         QMouseEvent.MouseButtonPress,
-                        QPointF(3, 3), edit.mapToGlobal(QPoint(3, 3)),
+                        QPointF(3, 3), QPointF(edit.mapToGlobal(QPoint(3, 3))),
                         Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
                 else:
                     edit.currentIndexChanged.emit(0)
