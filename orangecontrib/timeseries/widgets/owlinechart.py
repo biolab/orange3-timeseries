@@ -615,7 +615,7 @@ class OWLineChart(OWWidget):
     plot_type: List[str] = ContextSetting([])
 
     settings_version = 2
-    graph_name = "_graph"
+    graph_name = "_graph"  # QGraphicsView (pg.GraphicsLayoutWidget -> LineChartGraph)
 
     MAX_PLOTS = 5
 

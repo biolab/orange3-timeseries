@@ -471,7 +471,7 @@ class OWSpiralogram(OWWidget):
     class Error(OWWidget.Error):
         no_useful_vars = Msg("Data has no useful variables")
 
-    graph_name = "scene"
+    graph_name = "scene"  # QGraphicsScene
 
     settingsHandler = SpiralogramContextHandler()
     x_var: Union[str, Variable] = ContextSetting(PeriodItems[0])

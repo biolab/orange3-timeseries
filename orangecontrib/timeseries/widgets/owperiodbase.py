@@ -25,7 +25,7 @@ class OWPeriodBase(OWWidget, openclass=True):
     # context handler.
     selection: List[str] = Setting([], schema_only=True)
 
-    graph_name = 'plot'
+    graph_name = 'plot'  # pg.GraphicsItem (pg.PlotItem)
 
     class Error(OWWidget.Error):
         no_instances = Msg("Data contains just a single instance")
