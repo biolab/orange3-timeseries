@@ -3,8 +3,12 @@ import logging
 
 import pandas_datareader.data as web
 
+from pandas_datareader import data as pdr
+
 from Orange.data import Domain
 from orangecontrib.timeseries import Timeseries
+
+import yfinance as yf
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +83,9 @@ def finance_data(symbol,
     if until is None:
         until = date.today()
 
-    f = web.DataReader(symbol, 'yahoo', since, until)
+    yf.pdr_override()
+
+    f = pdr.get_data_yahoo(symbol, since, until)
     data = Timeseries.from_data_table(table_from_frame(f))
 
     # Make Adjusted Close a class variable
