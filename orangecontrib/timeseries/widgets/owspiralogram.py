@@ -893,8 +893,11 @@ class OWSpiralogram(OWWidget):
 
         data = self.computed_data
         x_col = data.X[:, 0].astype(int)
-        if self.x_var in ("Day of year", "Day of month"):
+        if self.x_var in ("Day of year", "Day of month", "Week of year"):
+            lab_off = 1
             x_col -= 1
+        else:
+            lab_off = 0
         x_attr = data.domain[0]
         cvar = data.domain.class_var
         if self.r_var:
@@ -917,7 +920,7 @@ class OWSpiralogram(OWWidget):
                 tooltip = f"{cvar.name} = {cvar.repr_val(value)}<hr/>"
             else:
                 tooltip = ""
-            tooltip += f"{x_attr.name} = {x_attr.repr_val(x)}"
+            tooltip += f"{x_attr.name} = {x_attr.repr_val(x + lab_off)}"
             if r_attr:
                 tooltip += f"<br/>{r_attr.name} = {r_attr.repr_val(r)}"
             tooltip += f"<hr/>{int(count)} instances"

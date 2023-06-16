@@ -337,7 +337,7 @@ class TestOWSpiralogram(WidgetTest):
         self.change_x(0)  # month of year
         self.assertEqual(widget.nperiods, 12)
 
-        self.change_x(3)  # day of week
+        self.change_x(4)  # day of week
         self.assertEqual(widget.nperiods, 7)
 
     def test_is_time_period(self):
@@ -442,7 +442,7 @@ class TestOWSpiralogram(WidgetTest):
              (4, 0): [7, 8],
              (5, 0): [], (6, 0): [], (7, 0): [], (8, 0): [], (9, 0): [9]})
 
-        self.change_x(3)  # day of week
+        self.change_x(4)  # day of week
         self.change_r(0)
         blocks = widget.compute_block_data()
         self.assertEqual(len(blocks.attributes[0].values), 7)
