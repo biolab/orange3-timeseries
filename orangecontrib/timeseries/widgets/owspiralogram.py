@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import reduce
+from html import escape
 from itertools import count
 from math import pi, cos, sin, atan2, degrees
 from typing import Optional, Dict, Tuple, List, Callable, Union
@@ -917,12 +918,12 @@ class OWSpiralogram(OWWidget):
             if not count:
                 continue
             if cvar:
-                tooltip = f"{cvar.name} = {cvar.repr_val(value)}<hr/>"
+                tooltip = f"{cvar.name} = {escape(cvar.repr_val(value))}<hr/>"
             else:
                 tooltip = ""
-            tooltip += f"{x_attr.name} = {x_attr.repr_val(x + lab_off)}"
+            tooltip += f"{x_attr.name} = {escape(x_attr.repr_val(x + lab_off))}"
             if r_attr:
-                tooltip += f"<br/>{r_attr.name} = {r_attr.repr_val(r)}"
+                tooltip += f"<br/>{r_attr.name} = {escape(r_attr.repr_val(r))}"
             tooltip += f"<hr/>{int(count)} instances"
 
             segment = SegmentItem.from_coordinates(
