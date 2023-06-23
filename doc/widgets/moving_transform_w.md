@@ -20,7 +20,7 @@ Compute aggregations over a sliding window, consecutive blocks or time periods o
    - *Consecutive blocks*: aggregates data within consecutive blocks
       - *Block width*: the number of instances in block
       - Data output: *Discard original data* will output only aggregated columns; *Keep first instance*, *Keep middle instance* and *Keep last instance* will take the first, middle or last data instance as the representative for the block.
-   - *Aggregate time periods*: aggregates data based on time periods (years, months, days, hours, minutes, seconds) or in the same month of year (12 instances), day of year (365 or 366 instances), day of month (~31 instances), day of week (7 instances), hour of day (24 instances). This functionality replaces the *Aggregate widget*.
+   - *Aggregate time periods*: aggregates data based on time periods (years, months, days, hours, minutes, seconds) or in the same month of year (12 instances), week of year (52 instances), day of year (365 or 366 instances), day of month (~31 instances), day of week (7 instances), hour of day (24 instances). This functionality replaces the *Aggregate widget*.
 2. If *Apply Automatically* is ticked, changes are communicated automatically. Alternatively, click *Apply*.
 3. Variable selection:
    - Filter provides a shortcut for searching variables by (a part of) the name. Start typing the variable name to select it from the list.

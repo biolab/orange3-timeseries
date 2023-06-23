@@ -16,7 +16,7 @@ Spiralogram is intended for visualizing time series and for comparing attribute 
 
 ![](images/spiralogram.png)
 
-1. Units on the circumference. Options are: month of year (12 units), day of year (365 units), day of month (~30 units), day of week (Mon-Sun, 7 units), hour of day (24 units) and all the variables from the data.
+1. Units on the circumference. Options are: month of year (12 units), week of year (52 units), day of year (365 units), day of month (~30 units), day of week (Mon-Sun, 7 units), hour of day (24 units) and all the variables from the data.
 2. Unit of the vertical axis. *Hide inner labels* removes labels on the vertical axis.
 3. Color of each spiralogram section. Default is *Show instance count*. If an attribute from the data is selected, aggregation methods become available. The options are: mean value, sum, product, minimum, maximum, span, median, mode, standard deviation, variance, harmonic mean, geometric mean, non-zero count, and defined count.
 
