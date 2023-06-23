@@ -211,6 +211,8 @@ PeriodDesc("Month of year", 1, 12, "Month",
            names=calendar.month_name[1:],
            names_option="Use month names",
            value_offset=-1),
+PeriodDesc("Week of year", 2, 53, "Week",
+           value_as_period=False),
 PeriodDesc("Day of year", 2, 366, "Day",
            value_as_period=False),
 PeriodDesc("Day of month", 2, 31, "Day"),
@@ -235,6 +237,8 @@ def time_blocks(data: Timeseries,
         elif period.name == "Day of year":
             times = [d.toordinal() - date(d.year, 1, 1).toordinal() + 1
                      for d in times]
+        elif period.name == "Week of year":
+            times = [d.isocalendar()[1] for d in times]
         times = np.array(times) + period.value_offset
         if period.names and use_period_names:
             attribute = DiscreteVariable(attr_name, values=period.names)
