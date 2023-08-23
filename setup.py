@@ -68,7 +68,7 @@ if __name__ == '__main__':
             'pandas',  # statsmodels requires this but doesn't have it in dependencies?
             'pandas_datareader',
             'numpy',
-            'scipy>=0.17',
+            'scipy>=1.9.2',
             'more-itertools',
             # required to get current timezone
             # adding it does not hurt, Pandas have it as a dependency
