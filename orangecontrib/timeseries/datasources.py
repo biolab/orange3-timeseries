@@ -1,21 +1,14 @@
-from datetime import date
 import logging
-
-import pandas_datareader.data as web
-
-from pandas_datareader import data as pdr
-
-from Orange.data import Domain
-from orangecontrib.timeseries import Timeseries
+from datetime import date
 
 import yfinance as yf
+from Orange.data import Domain
+from Orange.data.pandas_compat import table_from_frame
+from pandas_datareader import data as pdr
+
+from orangecontrib.timeseries import Timeseries
 
 log = logging.getLogger(__name__)
-
-try:
-    from Orange.data.pandas_compat import table_from_frame
-except ImportError:
-    raise RuntimeError("Yahoo Finance requires Orange >= 3.9")
 
 
 def quandl_data(symbol,
@@ -55,11 +48,7 @@ def quandl_data(symbol,
     return ts
 
 
-
-def finance_data(symbol,
-                 since=None,
-                 until=None,
-                 granularity='d'):
+def finance_data(symbol, since=None, until=None):
     """Fetch Yahoo Finance data for stock or index `symbol` within the period
     after `since` and before `until` (both inclusive).
 
@@ -71,8 +60,6 @@ def finance_data(symbol,
         A start date (default: 1900-01-01).
     until: date
         An end date (default: today).
-    granularity: 'd' or 'w' or 'm' or 'v'
-        What data to get: daily, weekly, monthly, or dividends.
 
     Returns
     -------
@@ -91,9 +78,7 @@ def finance_data(symbol,
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
     attrs.remove('Adj Close')
-    data = Timeseries.from_table(Domain(attrs, [data.domain['Adj Close']],
-                                        None, source=data.domain),
-                                 data)
+    data = data.transform(Domain(attrs, [data.domain['Adj Close']], source=data.domain))
 
     data.name = symbol
     data.time_variable = data.domain['Date']

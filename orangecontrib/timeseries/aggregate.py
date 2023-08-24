@@ -93,13 +93,13 @@ def windowed_cumprod(x, width, shift):
 
 def windowed_mode(x, width, shift):
     modes, counts = windowed_func(
-        partial(stats.mode, nan_policy='omit'),
+        # keepdims argument can be removed when we require scipy>=1.11
+        partial(stats.mode, nan_policy='omit', keepdims=False),
         x, width, shift)
-    modes = modes[:, 0]
     if np.ma.isMaskedArray(modes):
         # If counts == 0, all values were nan
         modes = modes.data
-        modes[counts[:, 0] == 0] = np.nan
+        modes[counts == 0] = np.nan
     return modes
 
 
