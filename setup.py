@@ -66,14 +66,14 @@ if __name__ == '__main__':
             'statsmodels>=0.13.0',
             'python-dateutil',
             'pandas',  # statsmodels requires this but doesn't have it in dependencies?
-            'pandas_datareader',
+            'pandas_datareader; sys_platform!="darwin"',
             'numpy',
             'scipy>=1.9.2',
             'more-itertools',
             # required to get current timezone
             # adding it does not hurt, Pandas have it as a dependency
             'python-dateutil',
-            'yfinance',
+            'yfinance; sys_platform!="darwin"',
             'pyqtgraph>=0.13.1',
         ],
         extras_require={
