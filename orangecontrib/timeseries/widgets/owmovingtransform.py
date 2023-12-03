@@ -92,6 +92,7 @@ class OWMovingTransform(widget.OWWidget):
     description = 'Apply rolling window functions to the time series.'
     icon = 'icons/MovingTransform.svg'
     priority = 20
+    keywords = "aggregate"
 
     replaces = ["orangecontrib.timeseries.widgets.owaggregate.OWAggregate"]
 
