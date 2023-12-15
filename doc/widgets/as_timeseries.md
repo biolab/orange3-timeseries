@@ -1,5 +1,5 @@
-As Timeseries
-=============
+Form Timeseries
+===============
 
 Reinterpret a **Table** object as a Timeseries object.
 
