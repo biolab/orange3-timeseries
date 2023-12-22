@@ -8,7 +8,3 @@ build:
 sphinx:
    # Path to the shared conf.py file.
    configuration: doc/conf.py
-
-python:
-   install:
-   - requirements: requirements-readthedocs.txt
