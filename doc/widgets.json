@@ -10,7 +10,7 @@
     "keywords": []
    },
    {
-    "text": "As Timeseries",
+    "text": "Form Timeseries",
     "doc": "widgets/as_timeseries.md",
     "icon": "../orangecontrib/timeseries/widgets/icons/TableToTimeseries.svg",
     "background": "#33aaff",
