@@ -18,6 +18,8 @@ You can visualize the time series in this widget. Note that the *line* option wi
 3. Switch between linear and logarithmic *y* axis.
 4. Select the time series to display (select multiple series using the *Ctrl*/*Cmd* key). Filter enables searching for the desired variable from the list by its name.
 
+Line Chart also provides standard pyqtgraph plot interaction options (documentation available [here](https://pyqtgraph.readthedocs.io/en/latest/user_guide/mouse_interaction.html)).
+
 Example
 -------
 
