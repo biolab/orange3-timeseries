@@ -74,7 +74,7 @@ class OWDifference(widget.OWWidget):
         gui.separator(box)
 
         sp = gui.spin(
-            box, self, 'shift_period', 1, 100, label='Shift:',
+            box, self, 'shift_period', 1, 999, label='Shift:',
             controlWidth=60, alignment=Qt.AlignRight,
             callback=self.commit.deferred,
             tooltip="Sets the distance between points; 1 for consecutive points"
