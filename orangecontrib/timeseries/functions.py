@@ -68,7 +68,7 @@ def _significant_periods(periods, pgram):
     periods = periods[::-1]
     pgram = pgram[::-1]
     # Scale and extract significant
-    pgram = (pgram - pgram.min()) / pgram.ptp()
+    pgram = (pgram - pgram.min()) / np.ptp(pgram)
     significant = argrelextrema(pgram, np.greater, order=5)
     return periods[significant], pgram[significant]
 
