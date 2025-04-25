@@ -48,16 +48,17 @@ class OWDifference(widget.OWWidget):
     want_main_area = False
     resizing_enabled = False
 
+    settings_version = 2
     operation = settings.Setting(Diff)
     shift_period = settings.Setting(1)
     invert_direction = settings.Setting(False)
     assume_zero_before = settings.Setting(False)
-    selection: List[str] = settings.Setting([])
+    pending_selection: List[str] = settings.Setting([])
     autocommit = settings.Setting(True)
 
     def __init__(self):
         self.data = None
-        self.selection = self.persistent_selection = []
+        self.selection = []
 
         self.view = view = QListView(self,
                                      selectionMode=QListView.ExtendedSelection)
@@ -104,31 +105,30 @@ class OWDifference(widget.OWWidget):
             and self.operation in (self.Diff, self.Diff2))
 
     def _selection_changed(self):
-        self.selection = [
+        self.pending_selection = self.selection = [
             self.model.data(index)
             for index in self.view.selectionModel().selectedRows()]
         self.commit.deferred()
 
     @Inputs.time_series
     def set_data(self, data):
-        if self.selection:
-            self.persistent_selection = self.selection[:]
-
         if not data:
             self.data = None
-            self.model.clear()
+            with signal_blocking(self.view.selectionModel()):
+                self.model.clear()
+            self.selection = []
             self.commit.now()
             return
 
         self.data = Timeseries.from_data_table(data)
-        self.model[:] = [var for var in data.domain.variables
-                         if var.is_continuous and var is not
-                         self.data.time_variable]
-
-        names = [attr.name for attr in self.model]
-        self.selection = [name for name in self.persistent_selection
-                          if name in names]
         with signal_blocking(self.view.selectionModel()):
+            self.model[:] = [var for var in data.domain.variables
+                             if var.is_continuous and var is not
+                             self.data.time_variable]
+
+            names = [attr.name for attr in self.model]
+            self.pending_selection = self.selection = [
+                name for name in self.pending_selection if name in names]
             select_rows(self.view,
                         [names.index(name) for name in self.selection])
         self.commit.now()
@@ -200,6 +200,11 @@ class OWDifference(widget.OWWidget):
             columns = np.zeros((len(data), 0), dtype=float)
         return tuple(attrs), columns
 
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        if version < 2:
+            settings["pending_selection"] = settings.pop("selection", [])
+        return super().migrate_settings(settings, version)
 
 if __name__ == "__main__":
     WidgetPreview(OWDifference).run(set_data=Table.from_file('iris'))

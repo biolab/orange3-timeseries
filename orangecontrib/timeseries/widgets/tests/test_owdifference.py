@@ -47,6 +47,25 @@ class TestOWDifference(WidgetTest):
         self.send_signal(self.widget.Inputs.time_series, self.data[:, 2:])
         self.assertEqual(widget.selection, ["c"])
 
+    def test_selection_from_saved_workflow(self):
+        settings = {
+            'autocommit': True, 'controlAreaVisible': True,
+            'invert_direction': False, 'operation': 0, 'shift_period': 1,
+            'pending_selection': ['b', 'c'],
+            '__version__': 2}
+        widget = self.create_widget(OWDifference, stored_settings=settings)
+        self.send_signal(widget.Inputs.time_series, self.data)
+        self.assertEqual(widget.selection, ["b", "c"])
+
+    def test_migration_to_2(self):
+        settings = {
+            'autocommit': True, 'controlAreaVisible': True,
+            'invert_direction': False, 'operation': 0, 'shift_period': 1,
+            'selection': ['b', 'c']}
+        widget = self.create_widget(OWDifference, stored_settings=settings)
+        self.send_signal(widget.Inputs.time_series, self.data)
+        self.assertEqual(widget.selection, ["b", "c"])
+
     def test_difference(self):
         widget = self.widget
         widget.operation = widget.Diff
@@ -362,7 +381,7 @@ class TestOWDifference(WidgetTest):
             return np.arange(add, add + r * c, dtype=float).reshape(r, c)
 
         widget = self.widget
-        widget.selection = list("abc")
+        widget.pending_selection = list("abc")
         widget.shift_period = 1
         widget.operation = 2
 
