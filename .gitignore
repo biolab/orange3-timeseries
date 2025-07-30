@@ -1,7 +1,7 @@
 # Build files
 build
 dist
-Orange3_Timeseries.egg-info
+orange3_timeseries_patch.egg-info
 doc/build
 *.so
 *.pyd

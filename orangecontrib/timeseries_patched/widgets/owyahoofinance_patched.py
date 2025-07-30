@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, date
+import yfinance as yf
 
 from AnyQt.QtCore import QDate
 from AnyQt.QtWidgets import QDateEdit, QComboBox, QFormLayout
@@ -7,13 +8,48 @@ from orangewidget.utils.widgetpreview import WidgetPreview
 
 from Orange.widgets import widget, gui, settings
 from Orange.widgets.widget import Output
+from Orange.data import Domain
+from Orange.data.pandas_compat import table_from_frame
 
 from orangecontrib.timeseries import Timeseries
-from orangecontrib.timeseries.datasources import finance_data
 
+def finance_data(symbol, since=None, until=None):
+    """Fetch Yahoo Finance data for stock or index `symbol` within the period
+    after `since` and before `until` (both inclusive).
 
-class OWYahooFinance(widget.OWWidget):
-    name = 'Yahoo Finance'
+    Parameters
+    ----------
+    symbol: str
+        A stock or index symbol, as supported by Yahoo Finance.
+    since: date
+        A start date (default: 1900-01-01).
+    until: date
+        An end date (default: today).
+
+    Returns
+    -------
+    data : Timeseries
+    """
+    if since is None:
+        since = date(1900, 1, 1)
+    if until is None:
+        until = date.today()
+
+    dat = yf.Ticker(symbol)
+    f = dat.history(start=since, end=until)
+    data = Timeseries.from_data_table(table_from_frame(f))
+
+    # Make Adjusted Close a class variable
+    attrs = [var.name for var in data.domain.attributes]
+    attrs.remove('Close')
+    data = data.transform(Domain(attrs, [data.domain['Close']], source=data.domain))
+
+    data.name = symbol
+    data.time_variable = data.domain['Date']
+    return data
+
+class OWYahooFinancePatched(widget.OWWidget):
+    name = 'Yahoo Finance (Patched)'
     description = "Generate time series from Yahoo Finance stock market data."
     icon = 'icons/YahooFinance.svg'
     priority = 9
@@ -96,9 +132,10 @@ class OWYahooFinance(widget.OWWidget):
                 self.Outputs.time_series.send(data)
             except Exception as e:
                 self.Error.download_error()
+                print(e)
             finally:
                 self.button.setDisabled(False)
 
 
 if __name__ == "__main__":
-    WidgetPreview(OWYahooFinance).run()
+    WidgetPreview(OWYahooFinancePatched).run()

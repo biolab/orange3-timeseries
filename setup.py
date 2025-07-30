@@ -3,7 +3,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION = '0.6.3'
+VERSION = '0.0.1'
 
 README_FILE = os.path.join(os.path.dirname(__file__), 'README.pypi')
 LONG_DESCRIPTION = open(README_FILE, encoding='utf-8').read()
@@ -11,7 +11,7 @@ LONG_DESCRIPTION = open(README_FILE, encoding='utf-8').read()
 
 ENTRY_POINTS = {
     'orange3.addon': (
-        'timeseries = orangecontrib.timeseries',
+        'timeseries = orangecontrib.timeseries_patched',
     ),
     # Entry point used to specify packages containing tutorials accessible
     # from welcome screen. Tutorials are saved Orange Workflows (.ows files).
@@ -24,64 +24,44 @@ ENTRY_POINTS = {
         # Syntax: category name = path.to.package.containing.widgets
         # Widget category specification can be seen in
         #    orangecontrib/datafusion/widgets/__init__.py
-        'Time Series = orangecontrib.timeseries.widgets',
+        'Time Series = orangecontrib.timeseries_patched.widgets',
     ),
 
     # Widget help
     "orange.canvas.help": (
-        'html-index = orangecontrib.timeseries.widgets:WIDGET_HELP_PATH',
+        'html-index = orangecontrib.timeseries_patched.widgets:WIDGET_HELP_PATH',
     )
 }
 
 
 if __name__ == '__main__':
     setup(
-        name="Orange3-Timeseries",
+        name="orange3-timeseries-patch",
         description="Orange3 add-on for exploring time series and sequential data.",
         long_description=LONG_DESCRIPTION,
         long_description_content_type='text/markdown',
         version=VERSION,
-        author='Bioinformatics Laboratory, FRI UL',
-        author_email='info@biolab.si',
-        url='https://github.com/biolab/orange3-timeseries',
+        author='Chris Lee',
+        author_email='github@chrislee.dhs.org',
+        url='https://github.com/chrislee35/orange3-timeseries',
         license='GPLv3+',
         keywords=(
-            'time series',
-            'sequence analysis',
-            'orange3 add-on',
-            'ARIMA',
-            'VAR model',
-            'forecast'
+            'orange3 add-on'
         ),
         packages=find_packages(),
         package_data={
-            "orangecontrib.timeseries.widgets": ["icons/*"],
-            "orangecontrib.timeseries.widgets.tests": ["datasets/*"],
-
-            "orangecontrib.timeseries": ["datasets/*.tab",
-                                         "datasets/*.csv"],
+            "orangecontrib.timeseries_patched.widgets": ["icons/*"],
         },
         install_requires=[
             'Orange3>=3.33.0',
-            'statsmodels>=0.13.0',
-            'python-dateutil',
-            'pandas',  # statsmodels requires this but doesn't have it in dependencies?
-            'pandas_datareader',
-            'numpy',
-            'scipy>=1.9.2',
-            'more-itertools',
-            # required to get current timezone
-            # adding it does not hurt, Pandas have it as a dependency
-            'python-dateutil',
-            'yfinance',
-            'pyqtgraph>=0.13.1',
+            'Orange3-Timeseries>=0.6.3',
+            'yfinance'
         ],
         extras_require={
             'test': ['coverage'],
             'doc': ['sphinx', 'recommonmark', 'sphinx_rtd_theme'],
         },
         entry_points=ENTRY_POINTS,
-        test_suite='orangecontrib.timeseries.tests.suite',
         namespace_packages=['orangecontrib'],
         zip_safe=False,
         classifiers=[

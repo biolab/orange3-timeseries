@@ -1,10 +1,10 @@
-recursive-include orangecontrib/timeseries *.py *.pyx *.c *.cpp
-recursive-include orangecontrib/timeseries/datasets *.tab *.csv
+recursive-include orangecontrib/timeseries_patched *.py *.pyx *.c *.cpp
+recursive-include orangecontrib/timeseries_patched/datasets *.tab *.csv
 
-recursive-include orangecontrib/timeseries/widgets *.png *.svg
-recursive-include orangecontrib/timeseries/widgets/icons/ *.ttf
-recursive-include orangecontrib/timeseries/widgets *.html *.css LICENSE
-recursive-include orangecontrib/timeseries/widgets/tests/datasets *.csv
+recursive-include orangecontrib/timeseries_patched/widgets *.png *.svg
+recursive-include orangecontrib/timeseries_patched/widgets/icons/ *.ttf
+recursive-include orangecontrib/timeseries_patched/widgets *.html *.css LICENSE
+recursive-include orangecontrib/timeseries_patched/widgets/tests/datasets *.csv
 
 
 recursive-include doc Makefile *.py *.rst *.svg *.png *.json *.md *.txt

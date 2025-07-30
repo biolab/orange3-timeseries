@@ -5,7 +5,7 @@ ICON = "icons/LineChart.svg"
 
 # Background color for category background in menu
 # and widget icon background in workflow.
-BACKGROUND = "#33aaff"
+BACKGROUND = "#44eeff"
 
 # Location of widget help files.
 WIDGET_HELP_PATH = (
@@ -19,5 +19,5 @@ WIDGET_HELP_PATH = (
     # Url should point to a page with a section Widgets. This section should
     # includes links to documentation pages of each widget. Matching is
     # performed by comparing link caption to widget name.
-    ("http://orange3-timeseries.readthedocs.io/en/latest/", ""),
+    ("http://orange3-timeseries-patched.readthedocs.io/en/latest/", ""),
 )
