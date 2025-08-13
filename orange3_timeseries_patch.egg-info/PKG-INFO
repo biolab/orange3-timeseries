@@ -1,0 +1,51 @@
+Metadata-Version: 2.4
+Name: orange3-timeseries-patch
+Version: 0.0.1
+Summary: Orange3 add-on for exploring time series and sequential data.
+Home-page: https://github.com/chrislee35/orange3-timeseries
+Author: Chris Lee
+Author-email: github@chrislee.dhs.org
+License: GPLv3+
+Keywords: orange3 add-on
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: X11 Applications :: Qt
+Classifier: Environment :: Plugins
+Classifier: Programming Language :: Python
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Scientific/Engineering :: Visualization
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Intended Audience :: Education
+Classifier: Intended Audience :: Science/Research
+Classifier: Intended Audience :: Developers
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: Orange3>=3.33.0
+Requires-Dist: Orange3-Timeseries>=0.6.3
+Requires-Dist: yfinance
+Provides-Extra: test
+Requires-Dist: coverage; extra == "test"
+Provides-Extra: doc
+Requires-Dist: sphinx; extra == "doc"
+Requires-Dist: recommonmark; extra == "doc"
+Requires-Dist: sphinx_rtd_theme; extra == "doc"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: summary
+
+Orange3-Timeseries-Patched
+==========================
+This is a patch of biolab's Orange3-Timeseries.  The Yahoo Finance widget was throwing errors because yfinance's API changed.
+
+* [Merge Request #294](https://github.com/biolab/orange3-timeseries/pull/294)
+* [Issue #291](https://github.com/biolab/orange3-timeseries/issues/291)

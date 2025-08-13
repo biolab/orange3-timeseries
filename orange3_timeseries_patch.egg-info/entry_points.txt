@@ -1,0 +1,8 @@
+[orange.canvas.help]
+html-index = orangecontrib.timeseries_patched.widgets:WIDGET_HELP_PATH
+
+[orange.widgets]
+Time Series = orangecontrib.timeseries_patched.widgets
+
+[orange3.addon]
+timeseries = orangecontrib.timeseries_patched

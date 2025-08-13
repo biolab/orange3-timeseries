@@ -1,0 +1,11 @@
+Orange3>=3.33.0
+Orange3-Timeseries>=0.6.3
+yfinance
+
+[doc]
+sphinx
+recommonmark
+sphinx_rtd_theme
+
+[test]
+coverage
