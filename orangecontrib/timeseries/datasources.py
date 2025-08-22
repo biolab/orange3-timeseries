@@ -70,15 +70,14 @@ def finance_data(symbol, since=None, until=None):
     if until is None:
         until = date.today()
 
-    yf.pdr_override()
-
-    f = pdr.get_data_yahoo(symbol, since, until)
+    dat = yf.Ticker(symbol)
+    f = dat.history(start=since, end=until)
     data = Timeseries.from_data_table(table_from_frame(f))
 
     # Make Adjusted Close a class variable
     attrs = [var.name for var in data.domain.attributes]
-    attrs.remove('Adj Close')
-    data = data.transform(Domain(attrs, [data.domain['Adj Close']], source=data.domain))
+    attrs.remove('Close')
+    data = data.transform(Domain(attrs, [data.domain['Close']], source=data.domain))
 
     data.name = symbol
     data.time_variable = data.domain['Date']
